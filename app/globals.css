@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #080b0f;
+  --surface: #0d1117;
+  --card: #111820;
+  --border: #1e2a38;
+  --accent: #00d4ff;
+  --green: #00e676;
+  --amber: #ffab00;
+  --red: #ff3d00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--bg);
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* HUD grid overlay effect */
+.hud-grid {
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Glow effects */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
+}
+.glow-green {
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.4), 0 0 40px rgba(0, 230, 118, 0.15);
+}
+.glow-red {
+  box-shadow: 0 0 20px rgba(255, 61, 0, 0.4), 0 0 40px rgba(255, 61, 0, 0.15);
+}
+.glow-amber {
+  box-shadow: 0 0 20px rgba(255, 171, 0, 0.4);
+}
+
+/* Text glow */
+.text-glow-accent {
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+}
+.text-glow-green {
+  text-shadow: 0 0 15px rgba(0, 230, 118, 0.8);
+}
+
+/* Module transition */
+.module-enter {
+  animation: moduleEnter 0.4s ease-out;
+}
+
+@keyframes moduleEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scan line effect */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.05) 2px,
+    rgba(0, 0, 0, 0.05) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Number display */
+.number-display {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* Reaction module */
+.reaction-zone {
+  transition: background-color 0.05s ease;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-cockpit-accent text-cockpit-bg font-semibold px-8 py-3 rounded-sm
+    hover:bg-opacity-90 transition-all duration-150 tracking-widest uppercase text-sm
+    border border-cockpit-accent;
+}
+
+.btn-ghost {
+  @apply border border-cockpit-border text-cockpit-dim px-6 py-2 rounded-sm
+    hover:border-cockpit-accent hover:text-cockpit-accent transition-all duration-150
+    tracking-widest uppercase text-sm;
+}
+
+/* Crosshair cursor for multitask */
+.cursor-crosshair-custom {
+  cursor: crosshair;
+}
+
+input[type="text"], input[type="number"] {
+  @apply bg-cockpit-card border border-cockpit-border text-cockpit-text
+    font-mono rounded-sm px-4 py-3 focus:outline-none focus:border-cockpit-accent
+    transition-colors duration-150;
+}
+
+/* Progress bar animation */
+.progress-bar-fill {
+  transition: width 0.1s linear;
+}
+
+/* Mobile tap target minimum */
+.btn-primary, .btn-ghost {
+  min-height: 44px;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Better touch action for interactive elements */
+button, a {
+  touch-action: manipulation;
+}
+
+/* Allow text selection in inputs */
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Mobile viewport improvements */
+@media (max-width: 640px) {
+  .btn-primary {
+    @apply px-6 py-3.5;
+  }
+  .btn-ghost {
+    @apply px-4 py-3;
+  }
+}
