@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getRankingColor } from "@/lib/scoring";
+import { track } from "@/lib/analytics";
 import type { AuthUser, ChallengeResult } from "@/types";
 
 // ── Comparison card ────────────────────────────────────────────────────────────
@@ -103,10 +104,12 @@ function ShareButtons({
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${challengeUrl}`)}`;
 
   const nativeShare = () => {
+    track.resultShared("native", testName, score);
     navigator.share({ title: "SuperBrain Challenge", text: shareText, url: challengeUrl }).catch(() => {});
   };
 
   const copyLink = () => {
+    track.resultShared("copy", testName, score);
     navigator.clipboard.writeText(challengeUrl).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -119,6 +122,7 @@ function ShareButtons({
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => track.resultShared("whatsapp", testName, score)}
         className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-sm font-semibold text-sm transition-all duration-150"
         style={{ background: "#25D366", color: "#fff" }}
       >
@@ -224,7 +228,21 @@ export default function ChallengeShare({
 
   // ── Save error ─────────────────────────────────────────────
   if (saveErr) {
-    return <p className="text-cockpit-red text-xs leading-relaxed">{saveErr}</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff3d00" strokeWidth="2" className="shrink-0 mt-0.5">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p className="text-cockpit-red text-xs leading-relaxed">
+            Could not save your result. Check your connection and try again.
+          </p>
+        </div>
+        <Link href="/tests" className="text-cockpit-muted text-xs hover:text-cockpit-accent transition-colors">
+          ← Back to tests
+        </Link>
+      </div>
+    );
   }
 
   // ── Saved — show challenge block ───────────────────────────

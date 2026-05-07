@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="border-t border-cockpit-border mt-auto">
@@ -19,20 +21,10 @@ export default function Footer() {
 
           {/* Links */}
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-cockpit-muted">
-            {[
-              { label: "Privacy Policy",  href: "#" },
-              { label: "Terms of Use",    href: "#" },
-              { label: "Contact",         href: "mailto:hello@superbrain.app" },
-              { label: "Disclaimer",      href: "#" },
-            ].map((l) => (
-              <a
-                key={l.label}
-                href={l.href}
-                className="hover:text-cockpit-dim transition-colors"
-              >
-                {l.label}
-              </a>
-            ))}
+            <Link href="/privacy"    className="hover:text-cockpit-dim transition-colors">Privacy Policy</Link>
+            <Link href="/terms"      className="hover:text-cockpit-dim transition-colors">Terms of Use</Link>
+            <Link href="/contact"    className="hover:text-cockpit-dim transition-colors">Contact</Link>
+            <Link href="/disclaimer" className="hover:text-cockpit-dim transition-colors">Disclaimer</Link>
           </div>
         </div>
 

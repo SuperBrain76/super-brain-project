@@ -6,6 +6,7 @@ import Link from "next/link";
 import { loadChallengeResult, storeChallengeId } from "@/lib/challenge";
 import { getRankingColor } from "@/lib/scoring";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
 import type { ChallengeResult } from "@/types";
 
 // Map test names to their start route
@@ -28,11 +29,16 @@ export default function ChallengePage() {
 
   useEffect(() => {
     if (!shareId) return;
-    loadChallengeResult(shareId).then((r) => { setResult(r); setLoading(false); });
+    loadChallengeResult(shareId).then((r) => {
+      setResult(r);
+      setLoading(false);
+      if (r) track.challengeOpened(r.testName);
+    });
   }, [shareId]);
 
   const acceptChallenge = () => {
     if (!result) return;
+    track.challengeAccepted(result.testName);
     storeChallengeId(shareId);
     router.push(testHref(result.testName));
   };

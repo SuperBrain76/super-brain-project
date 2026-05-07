@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
+import { track } from "@/lib/analytics";
 
 type Mode = "signin" | "signup";
 
@@ -50,6 +51,7 @@ function LoginForm() {
       });
       setBusy(false);
       if (err) { setError(err.message); return; }
+      track.signupCompleted();
       setSuccess("Check your email and click the confirmation link to activate your account.");
       return;
     }
@@ -65,6 +67,7 @@ function LoginForm() {
     setError("");
     setSuccess("");
     setDisplayName("");
+    if (next === "signup") track.signupStarted();
   };
 
   return (

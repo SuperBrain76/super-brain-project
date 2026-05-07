@@ -8,7 +8,9 @@ import { getRankingColor } from "@/lib/scoring";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserRank } from "@/lib/leaderboard";
 import { consumeChallengeId, loadChallengeResult } from "@/lib/challenge";
+import { track } from "@/lib/analytics";
 import ChallengeShare from "@/components/ChallengeShare";
+import FeedbackModal from "@/components/FeedbackModal";
 import type { TestResult, ChallengeResult } from "@/types";
 
 interface Props {
@@ -25,8 +27,11 @@ export default function ResultSummary({ result, onRetake }: Props) {
   const [rank,       setRank]       = useState<number | null>(null);
   const [challenger, setChallenger] = useState<ChallengeResult | null>(null);
 
+  const [showFeedback, setShowFeedback] = useState(false);
+
   const hasSaved          = useRef(false);
   const challengeShareId  = useRef<string | null>(null);
+  const completedTracked  = useRef(false);
 
   // Consume challenge context once on mount (before any renders read it)
   useEffect(() => {
@@ -34,6 +39,17 @@ export default function ResultSummary({ result, onRetake }: Props) {
     if (challengeShareId.current) {
       loadChallengeResult(challengeShareId.current).then(setChallenger);
     }
+
+    // Track test_completed once per mount
+    if (!completedTracked.current) {
+      completedTracked.current = true;
+      track.testCompleted(result.testName, result.score);
+    }
+
+    // Show feedback modal after a short delay
+    const timer = setTimeout(() => setShowFeedback(true), 3000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-save once auth state is known
@@ -57,6 +73,16 @@ export default function ResultSummary({ result, onRetake }: Props) {
   const topPct = 100 - result.percentileEstimate;
 
   return (
+    <>
+    {showFeedback && (
+      <FeedbackModal
+        testName={result.testName}
+        score={result.score}
+        resultTitle={result.resultTitle}
+        userId={user?.id ?? null}
+        onClose={() => setShowFeedback(false)}
+      />
+    )}
     <div className="w-full max-w-lg mx-auto flex flex-col gap-5 module-enter">
 
       {/* ── Identity card ──────────────────────────────────────── */}
@@ -130,7 +156,7 @@ export default function ResultSummary({ result, onRetake }: Props) {
       <div className="flex gap-3">
         {onRetake && (
           <button
-            onClick={onRetake}
+            onClick={() => { track.retryClicked(result.testName); onRetake(); }}
             className="flex-1 btn-ghost flex items-center justify-center gap-2"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -145,5 +171,6 @@ export default function ResultSummary({ result, onRetake }: Props) {
         </Link>
       </div>
     </div>
+    </>
   );
 }

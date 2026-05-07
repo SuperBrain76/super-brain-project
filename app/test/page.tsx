@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ModuleId, ModuleResult } from "@/types";
 import { buildSession } from "@/lib/scoring";
 import { saveSession } from "@/lib/storage";
+import { track } from "@/lib/analytics";
 import ProgressBar from "@/components/ProgressBar";
 import ModuleInstructions from "@/components/ModuleInstructions";
 import ReactionSpeed from "@/components/modules/ReactionSpeed";
@@ -113,7 +114,8 @@ export default function TestPage() {
   const [phase, setPhase] = useState<Phase>("instructions");
   const [results, setResults] = useState<ModuleResult[]>([]);
   const [transitioning, setTransitioning] = useState(false);
-  const startedAt = useRef(Date.now());
+  const startedAt        = useRef(Date.now());
+  const testStartedFired = useRef(false);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
@@ -130,6 +132,7 @@ export default function TestPage() {
       if (moduleIndex + 1 >= MODULE_CONFIGS.length) {
         const session = buildSession(newResults, startedAt.current);
         saveSession(session);
+        track.testCompleted("Fighter Pilot Cognitive Test", session.totalScore);
         setTimeout(() => router.push("/results"), 1500);
         return;
       }
@@ -210,7 +213,13 @@ export default function TestPage() {
               description={cfg.description}
               instructions={cfg.instructions}
               warning={cfg.warning}
-              onBegin={() => setPhase("active")}
+              onBegin={() => {
+                if (!testStartedFired.current) {
+                  testStartedFired.current = true;
+                  track.testStarted("Fighter Pilot Cognitive Test");
+                }
+                setPhase("active");
+              }}
             />
           ) : (
             <div className="module-enter">{renderActiveModule()}</div>

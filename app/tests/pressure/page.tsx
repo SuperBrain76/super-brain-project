@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PressureDecision from "@/components/tests/PressureDecision";
 import ResultSummary from "@/components/ResultSummary";
+import { track } from "@/lib/analytics";
 import type { TestResult } from "@/types";
 
 export default function PressureTestPage() {
   const [result, setResult] = useState<TestResult | null>(null);
   const [key, setKey] = useState(0);
+  const tracked = useRef(false);
+
+  useEffect(() => {
+    if (tracked.current) return;
+    tracked.current = true;
+    track.testStarted("Pressure Decision Test");
+  }, []);
 
   if (result) {
     return (

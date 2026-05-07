@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MemoryFocus from "@/components/tests/MemoryFocus";
 import ResultSummary from "@/components/ResultSummary";
+import { track } from "@/lib/analytics";
 import type { TestResult } from "@/types";
 
 export default function MemoryTestPage() {
   const [result, setResult] = useState<TestResult | null>(null);
   const [key, setKey] = useState(0);
+  const tracked = useRef(false);
+
+  useEffect(() => {
+    if (tracked.current) return;
+    tracked.current = true;
+    track.testStarted("Memory & Focus Test");
+  }, []);
 
   if (result) {
     return (

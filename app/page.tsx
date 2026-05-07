@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HomepageAnalytics from "@/components/HomepageAnalytics";
 
 const TESTS = [
   {
@@ -38,6 +39,7 @@ const TESTS = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen">
+      <HomepageAnalytics />
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden hud-grid">

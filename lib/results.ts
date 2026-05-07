@@ -43,7 +43,7 @@ export async function saveResult(
     share_id:     shareId,
   });
 
-  if (error) return { shareId: null, error: error.message };
+  if (error) return { shareId: null, error: "Could not save your result — please try again." };
   return { shareId, error: null };
 }
 

@@ -11,6 +11,8 @@ import { consumeChallengeId, loadChallengeResult } from "@/lib/challenge";
 import { scoreToPercentile, getResultTitle, getResultDescription } from "@/lib/percentile";
 import ResultCard from "@/components/ResultCard";
 import ChallengeShare from "@/components/ChallengeShare";
+import FeedbackModal from "@/components/FeedbackModal";
+import { track } from "@/lib/analytics";
 import type { TestSession, TestResult, ChallengeResult } from "@/types";
 
 export default function ResultsPage() {
@@ -24,6 +26,8 @@ export default function ResultsPage() {
   const [rank,       setRank]       = useState<number | null>(null);
   const [challenger, setChallenger] = useState<ChallengeResult | null>(null);
 
+  const [showFeedback, setShowFeedback] = useState(false);
+
   const hasSaved         = useRef(false);
   const challengeShareId = useRef<string | null>(null);
 
@@ -35,6 +39,8 @@ export default function ResultsPage() {
     if (challengeShareId.current) {
       loadChallengeResult(challengeShareId.current).then(setChallenger);
     }
+    const timer = setTimeout(() => setShowFeedback(true), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   const testResult = useMemo<TestResult | null>(() => session
@@ -121,11 +127,25 @@ export default function ResultsPage() {
           <Link href="/tests" className="flex-1 btn-ghost text-center flex items-center justify-center">
             All Tests
           </Link>
-          <Link href="/test" className="flex-1 btn-ghost text-center flex items-center justify-center">
+          <Link
+            href="/test"
+            onClick={() => track.retryClicked(testResult.testName)}
+            className="flex-1 btn-ghost text-center flex items-center justify-center"
+          >
             Retake
           </Link>
         </div>
       </div>
+
+      {showFeedback && (
+        <FeedbackModal
+          testName={testResult.testName}
+          score={testResult.score}
+          resultTitle={testResult.resultTitle}
+          userId={user?.id ?? null}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
     </div>
   );
 }

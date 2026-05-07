@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StandaloneReaction from "@/components/tests/StandaloneReaction";
 import ResultSummary from "@/components/ResultSummary";
+import { track } from "@/lib/analytics";
 import type { TestResult } from "@/types";
 
 export default function ReactionTestPage() {
   const [result, setResult] = useState<TestResult | null>(null);
   const [key, setKey] = useState(0);
+  const tracked = useRef(false);
+
+  useEffect(() => {
+    if (tracked.current) return;
+    tracked.current = true;
+    track.testStarted("Reaction Speed Test");
+  }, []);
 
   if (result) {
     return (
