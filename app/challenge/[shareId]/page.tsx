@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { loadSharedResult } from "@/lib/results";
+import Link from "next/link";
+import { loadChallengeResult, storeChallengeId } from "@/lib/challenge";
 import { getRankingColor } from "@/lib/scoring";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { storeChallengeId } from "@/lib/challenge";
-import type { SavedResult } from "@/types";
+import type { ChallengeResult } from "@/types";
 
 // Map test names to their start route
 function testHref(testName: string): string {
@@ -19,66 +18,77 @@ function testHref(testName: string): string {
   return "/tests";
 }
 
-export default function SharePage() {
+export default function ChallengePage() {
   const params  = useParams();
   const router  = useRouter();
   const shareId = typeof params.shareId === "string" ? params.shareId : "";
-  const [result, setResult]   = useState<SavedResult | null>(null);
+
+  const [result,  setResult]  = useState<ChallengeResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied]   = useState(false);
 
   useEffect(() => {
     if (!shareId) return;
-    loadSharedResult(shareId).then((r) => { setResult(r); setLoading(false); });
+    loadChallengeResult(shareId).then((r) => { setResult(r); setLoading(false); });
   }, [shareId]);
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const acceptChallenge = () => {
+    if (!result) return;
+    storeChallengeId(shareId);
+    router.push(testHref(result.testName));
   };
 
+  // ── Loading ─────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen hud-grid flex items-center justify-center">
-        <p className="text-cockpit-dim text-sm animate-pulse">Loading result…</p>
+        <p className="text-cockpit-dim text-sm animate-pulse">Loading challenge…</p>
       </div>
     );
   }
 
+  // ── Supabase not configured ─────────────────────────────────
   if (!isSupabaseConfigured) {
     return (
       <div className="min-h-screen hud-grid flex flex-col items-center justify-center gap-6 px-6 text-center">
-        <p className="text-cockpit-dim">Share links require Supabase. Add your environment variables to enable this feature.</p>
+        <p className="text-cockpit-dim">Challenge links require Supabase. Add your environment variables to enable this feature.</p>
         <Link href="/tests"><button className="btn-primary">Take a Test</button></Link>
       </div>
     );
   }
 
+  // ── Not found ───────────────────────────────────────────────
   if (!result) {
     return (
       <div className="min-h-screen hud-grid flex flex-col items-center justify-center gap-6 px-6 text-center">
-        <p className="text-cockpit-dim text-lg">Result not found.</p>
+        <p className="text-cockpit-dim text-lg">Challenge not found.</p>
         <p className="text-cockpit-muted text-sm">This link may have expired or the result was deleted.</p>
         <Link href="/tests"><button className="btn-primary">Take a Test</button></Link>
       </div>
     );
   }
 
-  const color   = getRankingColor(result.score);
-  const topPct  = 100 - result.percentile;
-  const href    = testHref(result.testName);
-
-  const acceptChallenge = () => {
-    if (result.shareId) storeChallengeId(result.shareId);
-    router.push(href);
-  };
+  const color  = getRankingColor(result.score);
+  const topPct = 100 - result.percentile;
+  const href   = testHref(result.testName);
 
   return (
     <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-16">
       <div className="w-full max-w-sm module-enter flex flex-col gap-5">
 
-        {/* ── Identity card ──────────────────────────────────── */}
+        {/* ── Challenge header ─────────────────────────────── */}
+        <div className="text-center">
+          <p className="text-cockpit-muted text-xs tracking-widest uppercase mb-2 font-mono">
+            You've been challenged
+          </p>
+          <h1 className="text-2xl font-extrabold text-white leading-tight">
+            {result.displayName} is challenging you
+          </h1>
+          <p className="text-cockpit-dim text-sm mt-1">
+            Can you beat their score?
+          </p>
+        </div>
+
+        {/* ── Challenger result card ────────────────────────── */}
         <div
           className="relative bg-cockpit-card border rounded-sm overflow-hidden"
           style={{ borderColor: `${color}50` }}
@@ -110,7 +120,7 @@ export default function SharePage() {
               </span>
             </div>
 
-            <div className="flex items-end justify-center gap-2 mb-2">
+            <div className="flex items-end justify-center gap-2">
               <span
                 className="text-7xl font-extrabold number-display tabular-nums"
                 style={{ color, textShadow: `0 0 30px ${color}50` }}
@@ -119,37 +129,39 @@ export default function SharePage() {
               </span>
               <span className="text-cockpit-muted text-xl font-bold mb-2">/100</span>
             </div>
+
+            {result.country && (
+              <p className="text-cockpit-muted text-xs mt-3">{result.country}</p>
+            )}
           </div>
 
           <div className="border-t border-cockpit-border px-5 py-3 text-center">
             <p className="text-cockpit-muted text-xs font-mono">
-              {new Date(result.createdAt).toLocaleDateString("en-US", {
+              Score set {new Date(result.createdAt).toLocaleDateString("en-US", {
                 month: "short", day: "numeric", year: "numeric",
               })}
             </p>
           </div>
         </div>
 
-        {/* ── Challenge CTA ──────────────────────────────────── */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 text-center">
-          <p className="text-white font-bold text-lg mb-1">Can you beat this?</p>
-          <p className="text-cockpit-dim text-sm mb-4">Take the same test and see where you rank.</p>
-          <button onClick={acceptChallenge} className="btn-primary w-full flex items-center justify-center gap-2 py-3">
-            Beat This Score →
+        {/* ── Accept challenge CTA ──────────────────────────── */}
+        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 flex flex-col gap-3 text-center">
+          <p className="text-white font-bold text-lg leading-tight">
+            Think you can beat {result.score}/100?
+          </p>
+          <p className="text-cockpit-dim text-sm">
+            Your result will be compared to {result.displayName}&apos;s score after you finish.
+          </p>
+          <button
+            onClick={acceptChallenge}
+            className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-base font-bold"
+          >
+            Accept Challenge →
           </button>
+          <Link href={href} className="text-cockpit-muted text-xs hover:text-cockpit-dim transition-colors">
+            Take test without challenge tracking
+          </Link>
         </div>
-
-        {/* ── Copy link ──────────────────────────────────────── */}
-        <button
-          onClick={copyLink}
-          className="btn-ghost w-full flex items-center justify-center gap-2"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="9" y="9" width="13" height="13" rx="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          {copied ? "Copied!" : "Copy Share Link"}
-        </button>
 
         <p className="text-center text-cockpit-muted text-xs">
           Powered by <Link href="/" className="text-cockpit-accent hover:underline">SuperBrain</Link>

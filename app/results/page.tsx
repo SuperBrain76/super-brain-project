@@ -1,36 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { TestSession } from "@/types";
+import { useAuth } from "@/components/AuthProvider";
 import { loadSession } from "@/lib/storage";
-import { getRankingColor } from "@/lib/scoring";
 import { saveResult } from "@/lib/results";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { getUserRank } from "@/lib/leaderboard";
+import { consumeChallengeId, loadChallengeResult } from "@/lib/challenge";
 import { scoreToPercentile, getResultTitle, getResultDescription } from "@/lib/percentile";
-import { useAuth } from "@/components/AuthProvider";
 import ResultCard from "@/components/ResultCard";
+import ChallengeShare from "@/components/ChallengeShare";
+import type { TestSession, TestResult, ChallengeResult } from "@/types";
 
 export default function ResultsPage() {
-  const { user } = useAuth();
-  const [session, setSession]     = useState<TestSession | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
-  const [shareId, setShareId]     = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [copied, setCopied]       = useState(false);
+  const { user, loading } = useAuth();
 
+  const [session,    setSession]    = useState<TestSession | null>(null);
+  const [pageLoad,   setPageLoad]   = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [shareId,    setShareId]    = useState<string | null>(null);
+  const [saveErr,    setSaveErr]    = useState<string | null>(null);
+  const [rank,       setRank]       = useState<number | null>(null);
+  const [challenger, setChallenger] = useState<ChallengeResult | null>(null);
+
+  const hasSaved         = useRef(false);
+  const challengeShareId = useRef<string | null>(null);
+
+  // Load session from storage and consume any pending challenge context
   useEffect(() => {
     setSession(loadSession());
-    setLoading(false);
+    setPageLoad(false);
+    challengeShareId.current = consumeChallengeId();
+    if (challengeShareId.current) {
+      loadChallengeResult(challengeShareId.current).then(setChallenger);
+    }
   }, []);
 
-  const handleSave = async () => {
-    if (!user || !session) return;
-    setSaving(true); setSaveError(null);
-
-    const { shareId: sid, error } = await saveResult(
-      {
+  const testResult = useMemo<TestResult | null>(() => session
+    ? {
         testId:             "fighter-pilot",
         testName:           "Fighter Pilot Cognitive Test",
         score:              session.totalScore,
@@ -39,32 +47,34 @@ export default function ResultsPage() {
         resultDescription:  getResultDescription("fighter-pilot", session.totalScore),
         rawMetrics:         { modules: session.modules.length },
         createdAt:          new Date(session.completedAt).toISOString(),
-      },
-      user.id,
-    );
+      }
+    : null, [session]);
 
-    setSaving(false);
-    if (error) { setSaveError(error); return; }
-    setShareId(sid);
-  };
+  // Auto-save once auth state and result are both ready
+  useEffect(() => {
+    if (loading || !testResult || !user) return;
+    if (!isSupabaseConfigured)  return;
+    if (hasSaved.current)       return;
+    hasSaved.current = true;
 
-  const shareUrl = shareId ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${shareId}` : null;
-  const copyLink = () => {
-    if (!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+    setSaving(true);
+    saveResult(testResult, user.id).then(({ shareId: sid, error }) => {
+      setSaving(false);
+      if (error) { setSaveErr(error); return; }
+      setShareId(sid);
+      if (sid) getUserRank(testResult.testName, testResult.score).then(setRank);
+    });
+  }, [user, loading, testResult]);
 
-  if (loading) {
+  if (pageLoad) {
     return (
       <div className="min-h-screen hud-grid flex items-center justify-center">
-        <div className="text-cockpit-dim text-sm animate-pulse">Loading results…</div>
+        <p className="text-cockpit-dim text-sm animate-pulse">Loading results…</p>
       </div>
     );
   }
 
-  if (!session) {
+  if (!session || !testResult) {
     return (
       <div className="min-h-screen hud-grid flex flex-col items-center justify-center gap-6">
         <p className="text-cockpit-dim text-lg">No completed assessment found.</p>
@@ -73,56 +83,41 @@ export default function ResultsPage() {
     );
   }
 
-  const rankColor = getRankingColor(session.totalScore);
-
   return (
     <div className="min-h-screen hud-grid">
-      <div className="max-w-3xl mx-auto px-6 py-12">
+      <div className="max-w-3xl mx-auto px-5 py-12">
+
         <div className="mb-8 text-center">
-          <p className="text-cockpit-dim text-xs tracking-widest uppercase mb-2">Assessment Complete</p>
+          <p className="text-cockpit-muted text-xs tracking-widest uppercase mb-2 font-mono">Assessment Complete</p>
           <h1 className="text-3xl font-bold text-white">Your Results</h1>
         </div>
 
         <ResultCard session={session} />
 
-        {/* ── Save / Share ─────────────────────────────────────────────────── */}
-        <div className="mt-8 bg-cockpit-card border border-cockpit-border rounded-sm p-6">
-          <p className="text-cockpit-dim text-xs tracking-widest uppercase mb-4">Save & Share</p>
-          {shareId ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-cockpit-green text-sm font-semibold flex items-center gap-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                Saved to your profile!
-              </p>
-              <div className="flex items-center gap-2">
-                <input readOnly value={shareUrl ?? ""} className="flex-1 text-xs font-mono" />
-                <button onClick={copyLink} className="shrink-0 btn-ghost text-xs px-3 py-2">
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-            </div>
-          ) : user ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-cockpit-dim text-sm">Save to your profile and generate a shareable link.</p>
-              {saveError && <p className="text-cockpit-red text-xs">{saveError}</p>}
-              <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
-                {saving ? "Saving…" : "Save & Get Share Link"}
-              </button>
-            </div>
-          ) : isSupabaseConfigured ? (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <p className="text-cockpit-dim text-sm flex-1">Create a free account to save this result permanently.</p>
-              <Link href="/login"><button className="btn-primary shrink-0">Create Account</button></Link>
-            </div>
-          ) : (
-            <p className="text-cockpit-muted text-xs">
-              Connect Supabase to enable cloud save & sharing. See README for setup instructions.
-            </p>
-          )}
+        {/* ── Challenge / save block ──────────────────────────── */}
+        <div
+          className="mt-6 bg-cockpit-card border rounded-sm p-6"
+          style={{ borderColor: shareId ? "#00e67630" : "#1e2a38" }}
+        >
+          <p className="text-cockpit-muted text-xs tracking-widest uppercase mb-4 font-mono">
+            Save &amp; Challenge
+          </p>
+          <ChallengeShare
+            testName={testResult.testName}
+            score={testResult.score}
+            resultTitle={testResult.resultTitle}
+            shareId={shareId}
+            saving={saving}
+            saveErr={saveErr}
+            user={user}
+            authLoading={loading}
+            challenger={challenger}
+            rank={rank}
+          />
         </div>
 
         {/* Nav */}
-        <div className="mt-6 flex gap-3">
+        <div className="mt-4 flex gap-3">
           <Link href="/tests" className="flex-1 btn-ghost text-center flex items-center justify-center">
             All Tests
           </Link>

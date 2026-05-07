@@ -43,34 +43,30 @@ export default function Nav() {
           ))}
         </nav>
 
-        {/* Auth controls */}
+        {/* Auth controls — always rendered, swapped once auth resolves */}
         <div className="flex items-center gap-2">
-          {!loading && (
+          {user ? (
             <>
-              {user ? (
-                <>
-                  <Link
-                    href="/profile"
-                    className="text-cockpit-dim hover:text-cockpit-text text-sm px-3 py-2 transition-colors"
-                  >
-                    My Results
-                  </Link>
-                  <button
-                    onClick={signOut}
-                    className="text-cockpit-muted hover:text-cockpit-red text-sm px-3 py-2 transition-colors"
-                  >
-                    Sign out
-                  </button>
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  className="text-sm border border-cockpit-border px-4 py-1.5 rounded-sm text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors"
-                >
-                  Login
-                </Link>
-              )}
+              <Link
+                href="/profile"
+                className="text-cockpit-dim hover:text-cockpit-text text-sm px-3 py-2 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <button
+                onClick={signOut}
+                className="text-cockpit-muted hover:text-cockpit-red text-sm px-3 py-2 transition-colors"
+              >
+                Sign out
+              </button>
             </>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm border border-cockpit-border px-4 py-1.5 rounded-sm text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors"
+            >
+              {loading ? "…" : "Login"}
+            </Link>
           )}
         </div>
       </div>

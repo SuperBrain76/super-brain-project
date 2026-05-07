@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextValue>({
 
 function toAuthUser(u: User | null | undefined): AuthUser | null {
   if (!u) return null;
-  return { id: u.id, email: u.email ?? null };
+  return { id: u.id, email: u.email ?? null, createdAt: u.created_at ?? null };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

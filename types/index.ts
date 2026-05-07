@@ -59,14 +59,38 @@ export interface TestResult {
   createdAt: string;       // ISO timestamp
 }
 
-export interface SavedResult extends TestResult {
-  id: string;              // UUID from Supabase
+export interface SavedResult {
+  id: string;           // UUID from Supabase
   userId: string;
-  shareId: string;
+  testName: string;
+  score: number;
+  percentile: number;
+  resultTitle: string;
+  shareId: string | null;
+  createdAt: string;
+}
+
+export interface ChallengeResult extends SavedResult {
+  displayName: string;
+  country: string | null;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export interface AuthUser {
   id: string;
   email: string | null;
+  createdAt: string | null;
+}
+
+// ── User profile (user_profiles table) ───────────────────────────────────────
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  country: string | null;
+  birthYear: number | null;
+  gender: string | null;       // 'male' | 'female' | 'non_binary' | 'prefer_not_to_say'
+  industry: string | null;
+  profileComplete: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
