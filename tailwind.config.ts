@@ -19,9 +19,9 @@ const config: Config = {
           green: "#00e676",
           amber: "#ffab00",
           red: "#ff3d00",
-          muted: "#4a5568",
+          muted: "#64748b",
           text: "#e2e8f0",
-          dim: "#718096",
+          dim: "#94a3b8",
         },
       },
       fontFamily: {

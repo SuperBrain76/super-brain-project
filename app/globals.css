@@ -17,9 +17,15 @@
   box-sizing: border-box;
 }
 
+:root {
+  --text-body:    #cbd5e1;   /* slate-300 — comfortable reading contrast */
+  --text-dim:     #94a3b8;   /* slate-400 — secondary / labels */
+  --text-muted:   #64748b;   /* slate-500 — timestamps / decorative */
+}
+
 html, body {
   background-color: var(--bg);
-  color: #e2e8f0;
+  color: var(--text-body);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -129,11 +135,37 @@ html, body {
   cursor: crosshair;
 }
 
-input[type="text"], input[type="number"] {
+input[type="text"], input[type="number"], input[type="email"] {
   @apply bg-cockpit-card border border-cockpit-border text-cockpit-text
-    font-mono rounded-sm px-4 py-3 focus:outline-none focus:border-cockpit-accent
+    rounded-sm px-4 py-3 focus:outline-none focus:border-cockpit-accent
     transition-colors duration-150;
 }
+
+/* Select — chosen value uses full body contrast; placeholder option stays dim */
+select {
+  color: var(--text-body);
+}
+select option {
+  background-color: #111820;
+  color: var(--text-body);
+}
+select option[value=""] {
+  color: var(--text-dim);
+}
+select:invalid,
+select[data-placeholder="true"] {
+  color: var(--text-dim);
+}
+
+/* Textarea */
+textarea {
+  @apply bg-cockpit-card border border-cockpit-border text-cockpit-text
+    rounded-sm px-4 py-3 focus:outline-none focus:border-cockpit-accent
+    transition-colors duration-150;
+}
+
+/* Utility for prose body text */
+.text-body { color: var(--text-body); }
 
 /* Progress bar animation */
 .progress-bar-fill {

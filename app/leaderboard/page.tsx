@@ -6,6 +6,7 @@ import { getLeaderboard, getLeaderboardStats, type LeaderboardEntry, type Leader
 import { getRankingColor } from "@/lib/scoring";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
+import { nameToFlag } from "@/lib/countries";
 
 const TESTS = [
   { label: "Reaction",      name: "Reaction Speed Test",          href: "/tests/reaction" },
@@ -13,14 +14,6 @@ const TESTS = [
   { label: "Memory",        name: "Memory & Focus Test",          href: "/tests/memory" },
   { label: "Fighter Pilot", name: "Fighter Pilot Cognitive Test", href: "/test" },
 ] as const;
-
-/** Convert ISO 3166-1 alpha-2 country code → emoji flag (works everywhere). */
-function countryFlag(code: string | null): string {
-  if (!code || code.length !== 2) return "";
-  return Array.from(code.toUpperCase())
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-}
 
 function RankBadge({ rank }: { rank: number }) {
   const styles: Record<number, { bg: string; color: string; border: string }> = {
@@ -178,7 +171,7 @@ export default function LeaderboardPage() {
               <option value="">All countries</option>
               {countries.map((c) => (
                 <option key={c} value={c}>
-                  {countryFlag(c)} {c}
+                  {nameToFlag(c)} {c}
                 </option>
               ))}
             </select>
@@ -253,7 +246,7 @@ export default function LeaderboardPage() {
               entries.map((entry) => {
                 const color  = getRankingColor(entry.score);
                 const topPct = 100 - entry.percentile;
-                const flag   = countryFlag(entry.country);
+                const flag   = nameToFlag(entry.country);
                 return (
                   <div
                     key={`${entry.displayName}-${entry.rank}`}

@@ -14,17 +14,20 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
 
-  const [mode, setMode]             = useState<Mode>("signin");
-  const [email, setEmail]           = useState("");
-  const [password, setPassword]     = useState("");
+  const [mode, setMode]               = useState<Mode>("signin");
+  const [email, setEmail]             = useState("");
+  const [password, setPassword]       = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [error, setError]           = useState(
+  const [error, setError]             = useState(
     searchParams.get("error") === "confirmation_failed"
-      ? "Confirmation link expired. Please sign in or try again."
+      ? "Confirmation link expired. Please sign in or request a new link."
       : "",
   );
-  const [success, setSuccess] = useState("");
-  const [busy, setBusy]       = useState(false);
+  const [success,         setSuccess]         = useState("");
+  const [awaitingVerify,  setAwaitingVerify]  = useState(false);
+  const [resendBusy,      setResendBusy]      = useState(false);
+  const [resendDone,      setResendDone]      = useState(false);
+  const [busy,            setBusy]            = useState(false);
 
   useEffect(() => {
     if (!loading && user) router.replace("/profile");
@@ -44,7 +47,6 @@ function LoginForm() {
         email,
         password,
         options: {
-          // display_name is picked up by the DB trigger (handle_new_user)
           data: { display_name: name },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
@@ -52,7 +54,7 @@ function LoginForm() {
       setBusy(false);
       if (err) { setError(err.message); return; }
       track.signupCompleted();
-      setSuccess("Check your email and click the confirmation link to activate your account.");
+      setAwaitingVerify(true);
       return;
     }
 
@@ -62,13 +64,82 @@ function LoginForm() {
     router.push("/profile");
   };
 
+  const resendVerification = async () => {
+    if (!email || resendBusy) return;
+    setResendBusy(true);
+    await supabase.auth.resend({ type: "signup", email });
+    setResendBusy(false);
+    setResendDone(true);
+  };
+
   const switchMode = (next: Mode) => {
     setMode(next);
     setError("");
     setSuccess("");
     setDisplayName("");
+    setAwaitingVerify(false);
+    setResendDone(false);
     if (next === "signup") track.signupStarted();
   };
+
+  // ── "Check your email" screen ────────────────────────────
+  if (awaitingVerify) {
+    return (
+      <div className="min-h-screen hud-grid flex items-center justify-center px-5 py-16">
+        <div className="w-full max-w-sm text-center flex flex-col items-center gap-6">
+          <div className="w-16 h-16 rounded-full bg-cockpit-accent bg-opacity-10 border border-cockpit-accent border-opacity-30 flex items-center justify-center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="1.5">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-white mb-2">Verify your email</h2>
+            <p className="text-cockpit-dim text-sm leading-relaxed">
+              We&apos;ve sent a confirmation link to{" "}
+              <span className="text-cockpit-text font-mono">{email}</span>.
+              Click it to activate your account.
+            </p>
+          </div>
+
+          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 w-full text-left space-y-2">
+            <p className="text-cockpit-dim text-xs">
+              <span className="text-cockpit-accent">1.</span> Open the email from SuperBrain
+            </p>
+            <p className="text-cockpit-dim text-xs">
+              <span className="text-cockpit-accent">2.</span> Click &ldquo;Confirm your email&rdquo;
+            </p>
+            <p className="text-cockpit-dim text-xs">
+              <span className="text-cockpit-accent">3.</span> You&apos;ll be signed in automatically
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center gap-2">
+            {resendDone ? (
+              <p className="text-cockpit-green text-sm">
+                ✓ New link sent — check your inbox
+              </p>
+            ) : (
+              <button
+                onClick={resendVerification}
+                disabled={resendBusy}
+                className="text-cockpit-accent text-sm hover:underline"
+              >
+                {resendBusy ? "Sending…" : "Resend verification email"}
+              </button>
+            )}
+            <button
+              onClick={() => { setAwaitingVerify(false); setMode("signin"); }}
+              className="text-cockpit-muted text-xs hover:text-cockpit-dim transition-colors"
+            >
+              Already verified? Sign in →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen hud-grid flex items-center justify-center px-5 py-16">
@@ -115,7 +186,7 @@ function LoginForm() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full"
+                  className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
                   placeholder="How you'll appear on the leaderboard"
                   maxLength={32}
                   autoComplete="nickname"
@@ -131,21 +202,31 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full"
+                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
                 placeholder="you@example.com"
                 autoComplete="email"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-cockpit-dim text-xs tracking-widest uppercase">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="text-cockpit-dim text-xs tracking-widest uppercase">Password</label>
+                {mode === "signin" && (
+                  <Link
+                    href="/forgot-password"
+                    className="text-cockpit-muted text-xs hover:text-cockpit-accent transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full"
+                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
                 placeholder="••••••••"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
               />

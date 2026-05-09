@@ -11,7 +11,7 @@ function makeShareId(): string {
 function rowToSavedResult(row: Record<string, unknown>): SavedResult {
   return {
     id:          row.id as string,
-    userId:      row.user_id as string,
+    userId:      (row.user_id as string) ?? "",
     testName:    row.test_name as string,
     score:       row.score as number,
     percentile:  row.percentile as number,
@@ -47,27 +47,46 @@ export async function saveResult(
   return { shareId, error: null };
 }
 
-export async function loadMyResults(): Promise<SavedResult[]> {
+/**
+ * Load the current user's own results.
+ * userId is passed explicitly for defense-in-depth (in addition to RLS).
+ */
+export async function loadMyResults(userId: string): Promise<SavedResult[]> {
   if (!isSupabaseConfigured) return [];
 
   const { data, error } = await supabase
     .from("test_results")
     .select(RESULT_COLUMNS)
+    .eq("user_id", userId)          // explicit filter — defense-in-depth
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
   return (data as Record<string, unknown>[]).map(rowToSavedResult);
 }
 
+/**
+ * Load a publicly shared result by share_id.
+ * Uses the SECURITY DEFINER RPC (get_challenge_result) so it does NOT
+ * require a permissive RLS policy on test_results.
+ */
 export async function loadSharedResult(shareId: string): Promise<SavedResult | null> {
   if (!isSupabaseConfigured) return null;
 
-  const { data, error } = await supabase
-    .from("test_results")
-    .select(RESULT_COLUMNS)
-    .eq("share_id", shareId)
-    .single();
+  const { data, error } = await supabase.rpc("get_challenge_result", {
+    p_share_id: shareId,
+  });
 
-  if (error || !data) return null;
-  return rowToSavedResult(data as Record<string, unknown>);
+  if (error || !data || !Array.isArray(data) || data.length === 0) return null;
+
+  const row = data[0] as Record<string, unknown>;
+  return {
+    id:          row.id as string,
+    userId:      "",           // not exposed via RPC by design
+    testName:    row.test_name as string,
+    score:       row.score as number,
+    percentile:  row.percentile as number,
+    resultTitle: row.result_title as string,
+    shareId:     row.share_id as string,
+    createdAt:   row.created_at as string,
+  };
 }

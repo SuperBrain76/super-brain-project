@@ -44,7 +44,7 @@ export default function Nav() {
         </nav>
 
         {/* Auth controls — always rendered, swapped once auth resolves */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {user ? (
             <>
               <Link
@@ -52,6 +52,13 @@ export default function Nav() {
                 className="text-cockpit-dim hover:text-cockpit-text text-sm px-3 py-2 transition-colors"
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/settings/profile"
+                className="text-cockpit-muted hover:text-cockpit-dim text-sm px-3 py-2 transition-colors"
+                title="Profile settings"
+              >
+                Settings
               </Link>
               <button
                 onClick={signOut}

@@ -4,21 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { loadMyProfile, saveProfile } from "@/lib/profile";
+import { COUNTRIES as COUNTRY_LIST } from "@/lib/countries";
 
-// ── Static option lists ───────────────────────────────────────
+// ── Derived option lists ──────────────────────────────────────
 
-const COUNTRIES = [
-  "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Canada", "Chile",
-  "China", "Colombia", "Czech Republic", "Denmark", "Egypt", "Finland", "France",
-  "Germany", "Greece", "Hungary", "India", "Indonesia", "Ireland", "Israel",
-  "Italy", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nigeria",
-  "Norway", "Pakistan", "Philippines", "Poland", "Portugal", "Romania", "Russia",
-  "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden",
-  "Switzerland", "Thailand", "Turkey", "Ukraine", "United Arab Emirates",
-  "United Kingdom", "United States", "Vietnam", "Other",
-];
+const COUNTRIES = COUNTRY_LIST.map((c) => c.name);
 
-const BIRTH_YEARS = Array.from({ length: 2009 - 1939 }, (_, i) => 2009 - i); // 2009 → 1940
+const CURRENT_YEAR    = new Date().getFullYear();
+const MAX_BIRTH_YEAR  = CURRENT_YEAR - 8;
+const BIRTH_YEARS = Array.from(
+  { length: MAX_BIRTH_YEAR - 1930 + 1 },
+  (_, i) => MAX_BIRTH_YEAR - i,
+);
 
 const GENDERS = [
   { value: "male",             label: "Male" },
@@ -39,7 +36,7 @@ const INDUSTRIES = [
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-cockpit-dim text-xs tracking-widest uppercase">{label}</label>
+      <label className="text-cockpit-dim text-xs tracking-widest uppercase font-mono">{label}</label>
       {children}
       {hint && <p className="text-cockpit-muted text-xs">{hint}</p>}
     </div>
@@ -125,7 +122,7 @@ export default function ProfileCompletePage() {
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="w-full bg-cockpit-card border border-cockpit-border text-cockpit-dim rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+              className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
             >
               <option value="">— Select country —</option>
               {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -137,7 +134,7 @@ export default function ProfileCompletePage() {
             <select
               value={birthYear}
               onChange={(e) => setBirthYear(e.target.value)}
-              className="w-full bg-cockpit-card border border-cockpit-border text-cockpit-dim rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+              className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
             >
               <option value="">— Select year —</option>
               {BIRTH_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -169,7 +166,7 @@ export default function ProfileCompletePage() {
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="w-full bg-cockpit-card border border-cockpit-border text-cockpit-dim rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+              className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
             >
               <option value="">— Select industry —</option>
               {INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}

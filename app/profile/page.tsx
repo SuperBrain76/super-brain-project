@@ -36,7 +36,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([loadMyProfile(), loadMyResults()]).then(([p, r]) => {
+    Promise.all([loadMyProfile(), loadMyResults(user.id)]).then(([p, r]) => {
       setProfile(p);
       setResults(r);
       setFetching(false);
@@ -87,8 +87,8 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Link
-              href="/profile/complete"
-              className="text-cockpit-muted text-xs hover:text-cockpit-dim transition-colors"
+              href="/settings/profile"
+              className="btn-ghost text-sm"
             >
               Edit profile
             </Link>

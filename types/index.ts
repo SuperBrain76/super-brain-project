@@ -90,6 +90,7 @@ export interface UserProfile {
   birthYear: number | null;
   gender: string | null;       // 'male' | 'female' | 'non_binary' | 'prefer_not_to_say'
   industry: string | null;
+  avatarColor: string;         // hex colour for avatar circle, defaults to #00d4ff
   profileComplete: boolean;
   createdAt: string;
   updatedAt: string;

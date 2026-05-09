@@ -9,6 +9,7 @@ function rowToProfile(row: Record<string, unknown>): UserProfile {
     birthYear:       (row.birth_year as number | null) ?? null,
     gender:          (row.gender as string | null) ?? null,
     industry:        (row.industry as string | null) ?? null,
+    avatarColor:     (row.avatar_color as string | null) ?? "#00d4ff",
     profileComplete: (row.profile_complete as boolean) ?? false,
     createdAt:       row.created_at as string,
     updatedAt:       row.updated_at as string,
@@ -33,6 +34,7 @@ export interface ProfileUpdate {
   birthYear?: number | null;
   gender?: string | null;
   industry?: string | null;
+  avatarColor?: string;
   profileComplete?: boolean;
 }
 
@@ -48,6 +50,7 @@ export async function saveProfile(
   if (fields.birthYear       !== undefined) payload.birth_year       = fields.birthYear;
   if (fields.gender          !== undefined) payload.gender           = fields.gender;
   if (fields.industry        !== undefined) payload.industry         = fields.industry;
+  if (fields.avatarColor     !== undefined) payload.avatar_color     = fields.avatarColor;
   if (fields.profileComplete !== undefined) payload.profile_complete = fields.profileComplete;
 
   const { error } = await supabase
