@@ -9,6 +9,9 @@ import { track } from "@/lib/analytics";
 import { nameToFlag } from "@/lib/countries";
 
 const TESTS = [
+  { label: "Tap Speed",     name: "Tap Speed Test",               href: "/tests/tap-speed" },
+  { label: "Verbal Memory", name: "Verbal Memory Test",           href: "/tests/verbal-memory" },
+  { label: "Stroop",        name: "Stroop Test",                  href: "/tests/stroop" },
   { label: "Reaction",      name: "Reaction Speed Test",          href: "/tests/reaction" },
   { label: "Pressure",      name: "Pressure Decision Test",       href: "/tests/pressure" },
   { label: "Memory",        name: "Memory & Focus Test",          href: "/tests/memory" },
@@ -119,12 +122,12 @@ export default function LeaderboardPage() {
         </div>
 
         {/* ── Test filter tabs ───────────────────────────────── */}
-        <div className="flex gap-1 mb-4 p-1 bg-cockpit-surface border border-cockpit-border rounded-sm">
+        <div className="flex gap-1 mb-4 p-1 bg-cockpit-surface border border-cockpit-border rounded-sm overflow-x-auto scrollbar-none">
           {TESTS.map((t, i) => (
             <button
               key={t.name}
               onClick={() => { setTestIdx(i); setCountry(""); }}
-              className={`flex-1 px-2 py-2 rounded-sm text-xs font-semibold tracking-wide transition-all duration-150 ${
+              className={`shrink-0 px-3 py-2 rounded-sm text-xs font-semibold tracking-wide transition-all duration-150 ${
                 i === testIdx
                   ? "bg-cockpit-card text-white border border-cockpit-border"
                   : "text-cockpit-muted hover:text-cockpit-dim"
