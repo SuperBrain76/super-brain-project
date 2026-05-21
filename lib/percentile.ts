@@ -48,6 +48,27 @@ const TITLE_MAP: Record<string, [string, string, string, string, string]> = {
     "Neural Archive",
     "Eidetic",
   ],
+  "tap-speed": [
+    "Slow Tapper",
+    "Average Speed",
+    "Fast Fingers",
+    "Speed Demon",
+    "Tap God",
+  ],
+  "verbal-memory": [
+    "Forgetful",
+    "Human Average",
+    "Sharp Memory",
+    "Steel Trap",
+    "Eidetic Recall",
+  ],
+  stroop: [
+    "Easily Confused",
+    "Slow Processor",
+    "Interference Fighter",
+    "Stroop Master",
+    "Neuro Elite",
+  ],
 };
 
 function getTier(score: number): 0 | 1 | 2 | 3 | 4 {

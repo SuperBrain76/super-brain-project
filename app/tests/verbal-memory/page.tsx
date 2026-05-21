@@ -1,21 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import StandaloneReaction from "@/components/tests/StandaloneReaction";
+import VerbalMemory from "@/components/tests/VerbalMemory";
 import ResultSummary from "@/components/ResultSummary";
-import DesktopRecommended from "@/components/DesktopRecommended";
 import { track } from "@/lib/analytics";
 import type { TestResult } from "@/types";
 
-export default function ReactionTestPage() {
+export default function VerbalMemoryPage() {
   const [result, setResult] = useState<TestResult | null>(null);
-  const [key, setKey] = useState(0);
+  const [key,    setKey]    = useState(0);
   const tracked = useRef(false);
 
   useEffect(() => {
     if (tracked.current) return;
     tracked.current = true;
-    track.testStarted("Reaction Speed Test");
+    track.testStarted("Verbal Memory Test");
   }, []);
 
   if (result) {
@@ -31,8 +30,7 @@ export default function ReactionTestPage() {
 
   return (
     <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-6 py-16">
-      <DesktopRecommended />
-      <StandaloneReaction key={key} onComplete={setResult} />
+      <VerbalMemory key={key} onComplete={setResult} />
     </div>
   );
 }

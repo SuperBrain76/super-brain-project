@@ -7,6 +7,7 @@ import { buildSession } from "@/lib/scoring";
 import { saveSession } from "@/lib/storage";
 import { track } from "@/lib/analytics";
 import ProgressBar from "@/components/ProgressBar";
+import DesktopRecommended from "@/components/DesktopRecommended";
 import ModuleInstructions from "@/components/ModuleInstructions";
 import ReactionSpeed from "@/components/modules/ReactionSpeed";
 import VisualMemory from "@/components/modules/VisualMemory";
@@ -175,6 +176,7 @@ export default function TestPage() {
 
       <main className="flex-1 flex items-start justify-center px-8 py-12">
         <div className="w-full max-w-3xl">
+          {moduleIndex === 0 && phase === "instructions" && <DesktopRecommended />}
           {transitioning ? (
             <div className="flex flex-col items-center justify-center gap-6 py-24 module-enter">
               {moduleIndex + 1 >= MODULE_CONFIGS.length ? (

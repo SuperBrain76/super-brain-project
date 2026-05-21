@@ -1,5 +1,32 @@
 import TestCard from "@/components/TestCard";
 
+const MOBILE_TESTS = [
+  {
+    testId: "tap-speed",
+    title: "Tap Speed Test",
+    description: "10 seconds. Tap as fast as humanly possible. No tricks, no setup — just pure speed. Designed for thumbs.",
+    duration: "~30 sec",
+    difficulty: "Easy" as const,
+    href: "/tests/tap-speed",
+  },
+  {
+    testId: "verbal-memory",
+    title: "Verbal Memory Test",
+    description: "Study 16 words, then identify them in a mixed list. Seen or new? Simple concept — brutal in practice.",
+    duration: "~90 sec",
+    difficulty: "Medium" as const,
+    href: "/tests/verbal-memory",
+  },
+  {
+    testId: "stroop",
+    title: "Stroop Test",
+    description: "The word says RED but it's printed in green. Tap the ink colour — not the word. Your brain will sabotage you.",
+    duration: "~45 sec",
+    difficulty: "Hard" as const,
+    href: "/tests/stroop",
+  },
+];
+
 const ALL_TESTS = [
   {
     testId: "reaction",
@@ -50,11 +77,30 @@ export default function TestsPage() {
           </p>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
-          {ALL_TESTS.map((t) => (
-            <TestCard key={t.testId} {...t} />
-          ))}
+        {/* Mobile-first quick tests */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-cockpit-muted text-xs tracking-widest uppercase font-mono">📱 Mobile-friendly</span>
+            <div className="flex-1 h-px bg-cockpit-border" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {MOBILE_TESTS.map((t) => (
+              <TestCard key={t.testId} {...t} />
+            ))}
+          </div>
+        </div>
+
+        {/* Classic tests */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-cockpit-muted text-xs tracking-widest uppercase font-mono">All tests</span>
+            <div className="flex-1 h-px bg-cockpit-border" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {ALL_TESTS.map((t) => (
+              <TestCard key={t.testId} {...t} />
+            ))}
+          </div>
         </div>
 
         {/* Info strip */}
