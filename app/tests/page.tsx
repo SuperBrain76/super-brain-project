@@ -27,6 +27,18 @@ const MOBILE_TESTS = [
   },
 ];
 
+const PROFILE_TESTS = [
+  {
+    testId: "career-profile",
+    title: "Career Cognitive Profile",
+    description: "20 questions. Maps your cognitive fingerprint across 7 dimensions — identifies your dominant archetype, strongest career paths, leadership mode, and ideal work environments.",
+    duration: "~8 min",
+    difficulty: "Medium" as const,
+    href: "/tests/career-profile",
+    featured: true,
+  },
+];
+
 const ALL_TESTS = [
   {
     testId: "reaction",
@@ -75,6 +87,19 @@ export default function TestsPage() {
           <p className="text-cockpit-dim text-base max-w-md leading-relaxed">
             No login required. Pick a test, start immediately, get your score.
           </p>
+        </div>
+
+        {/* Career & cognitive profile */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-cockpit-muted text-xs tracking-widest uppercase font-mono">Cognitive Profile</span>
+            <div className="flex-1 h-px bg-cockpit-border" />
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {PROFILE_TESTS.map((t) => (
+              <TestCard key={t.testId} {...t} />
+            ))}
+          </div>
         </div>
 
         {/* Mobile-first quick tests */}

@@ -46,7 +46,7 @@ export type ReactionTrial = {
 };
 
 // ── Platform-wide unified result ─────────────────────────────────────────────
-export type TestId = 'fighter-pilot' | 'reaction' | 'pressure' | 'memory' | 'tap-speed' | 'verbal-memory' | 'stroop';
+export type TestId = 'fighter-pilot' | 'reaction' | 'pressure' | 'memory' | 'tap-speed' | 'verbal-memory' | 'stroop' | 'career-profile';
 
 export interface TestResult {
   testId: TestId;
