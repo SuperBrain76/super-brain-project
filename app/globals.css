@@ -177,6 +177,10 @@ textarea {
   min-height: 44px;
 }
 
+/* Scrollbar hide utility */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
+
 /* Remove tap highlight on mobile */
 * {
   -webkit-tap-highlight-color: transparent;
@@ -192,6 +196,23 @@ input, textarea {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Focus test — target drift animations */
+@keyframes drift-ne { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% + 90px), calc(-50% - 65px)); } }
+@keyframes drift-e  { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% + 110px), -50%); } }
+@keyframes drift-se { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% + 90px), calc(-50% + 65px)); } }
+@keyframes drift-s  { from { transform: translate(-50%,-50%); } to { transform: translate(-50%, calc(-50% + 90px)); } }
+@keyframes drift-sw { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% - 90px), calc(-50% + 65px)); } }
+@keyframes drift-w  { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% - 110px), -50%); } }
+@keyframes drift-nw { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% - 90px), calc(-50% - 65px)); } }
+@keyframes drift-n  { from { transform: translate(-50%,-50%); } to { transform: translate(-50%, calc(-50% - 90px)); } }
+
+/* Focus test — pulse ring */
+@keyframes focus-pulse { 0%,100% { transform: scale(0.75); opacity: 0.35; } 50% { transform: scale(1.25); opacity: 1; } }
+
+/* Focus test — screen shake */
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+.shake { animation: shake 0.35s ease-in-out; }
 
 /* Mobile viewport improvements */
 @media (max-width: 640px) {

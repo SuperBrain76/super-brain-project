@@ -27,6 +27,18 @@ const MOBILE_TESTS = [
   },
 ];
 
+const FOCUS_TESTS = [
+  {
+    testId:      "focus",
+    title:       "Focus & Attention Test",
+    description: "5 escalating phases. Target tracking, signal filtering, interruption recovery, dual-task processing, and priority management under pressure. Gets harder every round.",
+    duration:    "~5 min",
+    difficulty:  "Hard" as const,
+    href:        "/tests/focus",
+    featured:    true,
+  },
+];
+
 const PROFILE_TESTS = [
   {
     testId: "career-profile",
@@ -87,6 +99,19 @@ export default function TestsPage() {
           <p className="text-cockpit-dim text-base max-w-md leading-relaxed">
             No login required. Pick a test, start immediately, get your score.
           </p>
+        </div>
+
+        {/* Focus & attention */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-cockpit-muted text-xs tracking-widest uppercase font-mono">Focus</span>
+            <div className="flex-1 h-px bg-cockpit-border" />
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {FOCUS_TESTS.map((t) => (
+              <TestCard key={t.testId} {...t} />
+            ))}
+          </div>
         </div>
 
         {/* Career & cognitive profile */}

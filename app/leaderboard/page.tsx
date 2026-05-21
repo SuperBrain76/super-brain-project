@@ -9,6 +9,7 @@ import { track } from "@/lib/analytics";
 import { nameToFlag } from "@/lib/countries";
 
 const TESTS = [
+  { label: "Focus",         name: "Focus & Attention Test",       href: "/tests/focus" },
   { label: "Tap Speed",     name: "Tap Speed Test",               href: "/tests/tap-speed" },
   { label: "Verbal Memory", name: "Verbal Memory Test",           href: "/tests/verbal-memory" },
   { label: "Stroop",        name: "Stroop Test",                  href: "/tests/stroop" },
