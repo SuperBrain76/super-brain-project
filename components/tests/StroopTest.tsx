@@ -35,7 +35,7 @@ const PAIRS: { word: ColorId; ink: ColorId }[] = [
 ];
 
 const TOTAL_TRIALS = 20;
-const TIME_LIMIT_MS = 3500; // ms per trial before auto-miss
+const TIME_LIMIT_MS = 1750; // ms per trial before auto-miss (~35s total)
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -80,17 +80,18 @@ export default function StroopTest({ onComplete }: Props) {
   const nextTrial = useCallback((nextIdx: number, allTrials: typeof trials, score: number) => {
     setFeedback(null);
     if (nextIdx >= TOTAL_TRIALS) {
+      const pctScore = Math.round((score / TOTAL_TRIALS) * 100);
       onComplete({
         testId: "stroop",
         testName: "Stroop Test",
-        score,
-        percentileEstimate: scoreToPercentile(score),
-        resultTitle: getResultTitle("stroop", score),
-        resultDescription: getResultDescription("stroop", score),
+        score: pctScore,
+        percentileEstimate: scoreToPercentile(pctScore),
+        resultTitle: getResultTitle("stroop", pctScore),
+        resultDescription: getResultDescription("stroop", pctScore),
         rawMetrics: {
           correct: score,
           total: TOTAL_TRIALS,
-          accuracy: `${score}%`,
+          accuracy: `${pctScore}%`,
         },
         createdAt: new Date().toISOString(),
       });
@@ -179,7 +180,7 @@ export default function StroopTest({ onComplete }: Props) {
         </div>
 
         <div className="text-cockpit-muted text-xs space-y-1">
-          <p>📱 {TOTAL_TRIALS} trials · ~45 seconds</p>
+          <p>📱 {TOTAL_TRIALS} trials · ~35 seconds</p>
           <p>⌨️ Keyboard: 1=Red · 2=Blue · 3=Green · 4=Yellow</p>
         </div>
 
