@@ -18,8 +18,8 @@ const COLORS = [
 
 type ColorId = (typeof COLORS)[number]["id"];
 
-// Prebuilt incongruent pairs: word ≠ ink
-const PAIRS: { word: ColorId; ink: ColorId }[] = [
+// Incongruent pairs: word ≠ ink (harder — brain fights itself)
+const INCONGRUENT: { word: ColorId; ink: ColorId }[] = [
   { word: "RED",    ink: "BLUE"   },
   { word: "RED",    ink: "GREEN"  },
   { word: "RED",    ink: "YELLOW" },
@@ -34,8 +34,16 @@ const PAIRS: { word: ColorId; ink: ColorId }[] = [
   { word: "YELLOW", ink: "GREEN"  },
 ];
 
-const TOTAL_TRIALS = 20;
-const TIME_LIMIT_MS = 1750; // ms per trial before auto-miss (~35s total)
+// Congruent pairs: word === ink — creates false confidence, traps fast responders
+const CONGRUENT: { word: ColorId; ink: ColorId }[] = [
+  { word: "RED",    ink: "RED"    },
+  { word: "BLUE",   ink: "BLUE"   },
+  { word: "GREEN",  ink: "GREEN"  },
+  { word: "YELLOW", ink: "YELLOW" },
+];
+
+const TOTAL_TRIALS = 24;
+const TIME_LIMIT_MS = 1200; // 1.2s per trial (~29s total) — fast enough to cause errors
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -47,11 +55,10 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildTrials(): { word: ColorId; ink: ColorId }[] {
-  const result: { word: ColorId; ink: ColorId }[] = [];
-  while (result.length < TOTAL_TRIALS) {
-    result.push(...shuffle(PAIRS));
-  }
-  return result.slice(0, TOTAL_TRIALS);
+  // 18 incongruent + 6 congruent, shuffled together — congruent trials are traps
+  const inc = shuffle(INCONGRUENT).slice(0, 18);
+  const con = shuffle(CONGRUENT.concat(CONGRUENT)).slice(0, 6); // repeat pool for variety
+  return shuffle([...inc, ...con]);
 }
 
 type Feedback = "correct" | "wrong" | "timeout" | null;
@@ -180,7 +187,7 @@ export default function StroopTest({ onComplete }: Props) {
         </div>
 
         <div className="text-cockpit-muted text-xs space-y-1">
-          <p>📱 {TOTAL_TRIALS} trials · ~35 seconds</p>
+          <p>📱 {TOTAL_TRIALS} trials · ~30 seconds · mix of congruent &amp; incongruent</p>
           <p>⌨️ Keyboard: 1=Red · 2=Blue · 3=Green · 4=Yellow</p>
         </div>
 

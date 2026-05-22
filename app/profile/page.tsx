@@ -55,21 +55,33 @@ export default function DashboardPage() {
   const memberSince  = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : null;
-  const bestScore  = results.length > 0 ? Math.max(...results.map((r) => r.score)) : null;
-  const avgScore   = results.length > 0
-    ? Math.round(results.reduce((s, r) => s + r.score, 0) / results.length)
+
+  // Best per test — deduplicates repeated attempts, keeps highest score
+  const bestByTest = results.reduce((acc, r) => {
+    const existing = acc.get(r.testName);
+    if (!existing || r.score > existing.score) acc.set(r.testName, r);
+    return acc;
+  }, new Map<string, SavedResult>());
+  const displayResults = [...bestByTest.values()].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  const attemptsFor = (name: string) => results.filter((r) => r.testName === name).length;
+
+  const bestScore = displayResults.length > 0 ? Math.max(...displayResults.map((r) => r.score)) : null;
+  const avgScore  = displayResults.length > 0
+    ? Math.round(displayResults.reduce((s, r) => s + r.score, 0) / displayResults.length)
     : null;
 
   return (
     <div className="min-h-screen hud-grid">
-      <div className="max-w-3xl mx-auto px-5 py-14">
+      <div className="max-w-2xl mx-auto px-5 py-8">
 
         {/* ── Header ─────────────────────────────────────────── */}
-        <div className="flex items-start justify-between mb-8 gap-4">
+        <div className="flex items-start justify-between mb-5 gap-4">
           <div>
             <p className="text-cockpit-muted text-xs tracking-widest uppercase mb-1 font-mono">Dashboard</p>
-            <h1 className="text-2xl font-bold text-white">{displayName}</h1>
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <h1 className="text-xl font-bold text-white">{displayName}</h1>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-cockpit-muted text-xs">{user.email}</span>
               {profile?.country && (
                 <>
@@ -86,33 +98,28 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Link
-              href="/settings/profile"
-              className="btn-ghost text-sm"
-            >
-              Edit profile
-            </Link>
+            <Link href="/settings/profile" className="btn-ghost text-sm">Edit profile</Link>
             <button onClick={signOut} className="btn-ghost text-sm">Sign out</button>
           </div>
         </div>
 
         {/* ── Stats ──────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3 mb-10">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Tests taken", value: fetching ? "—" : results.length || "—" },
-            { label: "Best score",  value: fetching ? "—" : bestScore ?? "—" },
-            { label: "Avg score",   value: fetching ? "—" : avgScore  ?? "—" },
+            { label: "Tests",      value: fetching ? "—" : bestByTest.size || "—" },
+            { label: "Best score", value: fetching ? "—" : bestScore ?? "—" },
+            { label: "Avg score",  value: fetching ? "—" : avgScore  ?? "—" },
           ].map((s) => (
-            <div key={s.label} className="bg-cockpit-card border border-cockpit-border rounded-sm p-4 text-center">
+            <div key={s.label} className="bg-cockpit-card border border-cockpit-border rounded-sm p-3 text-center">
               <div className="text-2xl font-bold number-display text-cockpit-accent">{s.value}</div>
-              <div className="text-cockpit-muted text-xs tracking-widest uppercase mt-1">{s.label}</div>
+              <div className="text-cockpit-muted text-xs tracking-widest uppercase mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* ── Past Results ───────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-white">Past Results</h2>
+        {/* ── Best Results ───────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-white">Best Results</h2>
           <Link href="/tests" className="text-cockpit-accent text-sm hover:opacity-80 transition-opacity">
             Take a test →
           </Link>
@@ -121,10 +128,10 @@ export default function DashboardPage() {
         <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
           {fetching && Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)}
 
-          {!fetching && results.length === 0 && (
-            <div className="py-14 px-6 text-center">
+          {!fetching && displayResults.length === 0 && (
+            <div className="py-10 px-6 text-center">
               <p className="text-cockpit-dim mb-1">No results yet.</p>
-              <p className="text-cockpit-muted text-xs mb-6">
+              <p className="text-cockpit-muted text-xs mb-5">
                 Complete a test while signed in — your score saves automatically.
               </p>
               <Link href="/tests">
@@ -133,14 +140,15 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {!fetching && results.map((r) => {
-            const color = getRankingColor(r.score);
-            const date  = new Date(r.createdAt).toLocaleDateString("en-US", {
+          {!fetching && displayResults.map((r) => {
+            const color    = getRankingColor(r.score);
+            const date     = new Date(r.createdAt).toLocaleDateString("en-US", {
               month: "short", day: "numeric", year: "numeric",
             });
+            const attempts = attemptsFor(r.testName);
 
             const inner = (
-              <div className="relative flex items-center gap-4 px-5 py-4 border-b border-cockpit-border last:border-0 transition-colors hover:bg-cockpit-surface group">
+              <div className="relative flex items-center gap-4 px-5 py-3.5 border-b border-cockpit-border last:border-0 transition-colors hover:bg-cockpit-surface group">
                 <div className="absolute left-0 top-0 bottom-0 w-0.5" style={{ background: color, opacity: 0.5 }} />
                 <div className="flex-1 min-w-0 pl-2">
                   <p className="text-white font-medium text-sm truncate leading-snug">{r.testName}</p>
@@ -148,6 +156,12 @@ export default function DashboardPage() {
                     <span className="text-cockpit-muted text-xs">{date}</span>
                     <span className="text-cockpit-border text-xs">·</span>
                     <span className="text-xs font-semibold" style={{ color }}>{r.resultTitle}</span>
+                    {attempts > 1 && (
+                      <>
+                        <span className="text-cockpit-border text-xs">·</span>
+                        <span className="text-cockpit-muted text-xs">{attempts} attempts</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="text-2xl font-extrabold number-display shrink-0 tabular-nums" style={{ color }}>

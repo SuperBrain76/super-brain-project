@@ -11,8 +11,9 @@ interface Props {
 const DURATION = 10; // seconds
 
 function scoreTaps(taps: number): number {
-  // 80 taps ≈ 100 pts; scales linearly
-  return Math.min(100, Math.round((taps / 80) * 100));
+  // Curve: 50 taps = 40pts, 100 = 71pts, 130 = 93pts, 150 = 100pts
+  // Avg mobile user ≈ 7-9/s (70-90 taps); elite ≈ 14-15/s (140-150 taps)
+  return Math.min(100, Math.round(Math.pow(taps / 150, 0.7) * 100));
 }
 
 export default function TapSpeed({ onComplete }: Props) {
@@ -97,7 +98,7 @@ export default function TapSpeed({ onComplete }: Props) {
         <p className="text-cockpit-dim leading-relaxed">
           Tap the zone as fast as you can for{" "}
           <span className="text-white font-semibold">10 seconds</span>.
-          Use one finger, two fingers — anything goes.
+          Elite speed is 14+ taps/sec — most people hit 7-9.
         </p>
         <div className="flex flex-col items-center gap-2 text-cockpit-muted text-sm">
           <p>📱 Designed for mobile — works great on touch</p>

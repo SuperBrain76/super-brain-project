@@ -26,36 +26,43 @@ export default function Nav() {
           </span>
         </Link>
 
-        {/* Centre links */}
-        <nav className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`px-4 py-2 rounded-sm text-sm tracking-wide transition-colors ${
-                pathname.startsWith(l.href)
-                  ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                  : "text-cockpit-dim hover:text-cockpit-text"
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
+        {/* Centre links — Tests always visible, Leaderboard md+ only */}
+        <nav className="flex items-center gap-1">
+          <Link
+            href="/tests"
+            className={`px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
+              pathname.startsWith("/tests")
+                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
+                : "text-cockpit-dim hover:text-cockpit-text"
+            }`}
+          >
+            Tests
+          </Link>
+          <Link
+            href="/leaderboard"
+            className={`hidden md:block px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
+              pathname.startsWith("/leaderboard")
+                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
+                : "text-cockpit-dim hover:text-cockpit-text"
+            }`}
+          >
+            Leaderboard
+          </Link>
         </nav>
 
-        {/* Auth controls — always rendered, swapped once auth resolves */}
+        {/* Auth controls */}
         <div className="flex items-center gap-1">
           {user ? (
             <>
               <Link
                 href="/profile"
-                className="text-cockpit-dim hover:text-cockpit-text text-sm px-3 py-2 transition-colors"
+                className="hidden md:block text-cockpit-dim hover:text-cockpit-text text-sm px-3 py-2 transition-colors"
               >
                 Dashboard
               </Link>
               <Link
                 href="/settings/profile"
-                className="text-cockpit-muted hover:text-cockpit-dim text-sm px-3 py-2 transition-colors"
+                className="hidden md:block text-cockpit-muted hover:text-cockpit-dim text-sm px-3 py-2 transition-colors"
                 title="Profile settings"
               >
                 Settings
