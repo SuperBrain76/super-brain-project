@@ -19,7 +19,7 @@ export default function StroopPage() {
 
   if (result) {
     return (
-      <div className="min-h-screen hud-grid py-4 px-5">
+      <div className="flex-1 hud-grid py-4 px-5 overflow-y-auto">
         <ResultSummary
           result={result}
           onRetake={() => { setResult(null); setKey((k) => k + 1); }}
@@ -29,7 +29,7 @@ export default function StroopPage() {
   }
 
   return (
-    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-4">
+    <div className="flex-1 flex flex-col items-center justify-center px-5 py-3">
       <StroopTest key={key} onComplete={setResult} />
     </div>
   );

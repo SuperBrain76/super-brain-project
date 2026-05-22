@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import Nav  from "@/components/Nav";
-import Footer from "@/components/Footer";
+import ConditionalFooter from "@/components/ConditionalFooter";
 import PostHogProvider from "@/components/PostHogProvider";
 
 const BASE_URL = "https://superbrain.social";
@@ -55,12 +55,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="bg-cockpit-bg min-h-screen antialiased flex flex-col">
+      <body className="bg-cockpit-bg min-h-dvh antialiased flex flex-col">
         <PostHogProvider>
           <AuthProvider>
             <Nav />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            <main className="flex-1 flex flex-col">{children}</main>
+            <ConditionalFooter />
           </AuthProvider>
         </PostHogProvider>
       </body>
