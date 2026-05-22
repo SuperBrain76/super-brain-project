@@ -31,7 +31,7 @@ interface Props {
 
 type Phase = "intro" | "phase-intro" | "playing" | "transition" | "done";
 
-const PHASE_DURATIONS = [45, 45, 60, 60, 90]; // seconds
+const PHASE_DURATIONS = [45, 45, 45, 60, 45]; // seconds
 const PHASE_DESCRIPTIONS = [
   "Tap green targets. Avoid red decoys. They move — stay sharp.",
   "A stream of shapes flashes. Tap only when you see ◆. False taps cost points.",
