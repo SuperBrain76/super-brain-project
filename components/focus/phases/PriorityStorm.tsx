@@ -198,9 +198,13 @@ export default function PriorityStorm({ soundEnabled, onComplete }: Props) {
   const secsLeft    = Math.ceil(timeLeft / 1000);
   const streakColor = streak >= 8 ? "#ff6d00" : streak >= 4 ? "#ffab00" : "#64748b";
 
-  const sortedTasks = tasks
-    .slice()
-    .sort((a, b) => PRIORITY_META[b.priority].points - PRIORITY_META[a.priority].points);
+  // Tasks shown in spawn order — no sorting, no colour coding.
+  // Players must READ the label to find highest priority, not just tap the top card.
+  const BADGE_COLOR: Record<Priority, string> = {
+    CRITICAL: "#e2e8f0",
+    HIGH:     "#94a3b8",
+    LOW:      "#475569",
+  };
 
   return (
     <div className={`flex flex-col gap-3 w-full h-full select-none ${shake ? "shake" : ""}`}>
@@ -223,36 +227,36 @@ export default function PriorityStorm({ soundEnabled, onComplete }: Props) {
       </div>
 
       <p className="text-cockpit-muted text-[10px] uppercase tracking-widest font-mono text-center">
-        Complete highest priority first
+        Find and complete highest priority first
       </p>
 
       <div className="flex-1 flex flex-col gap-2 overflow-y-auto" style={{ minHeight: 200 }}>
-        {sortedTasks.map((task) => {
-          const meta    = PRIORITY_META[task.priority];
+        {tasks.map((task) => {
           const elapsed = Date.now() - task.spawnedAt;
           const pct     = Math.max(0, 1 - elapsed / task.timeoutMs);
           const sLeft   = Math.max(0, Math.ceil((task.timeoutMs - elapsed) / 1000));
           const urgent  = pct < 0.25;
+          const badgeColor = BADGE_COLOR[task.priority];
           return (
             <button
               key={task.id}
               onClick={() => handleComplete(task)}
               className="w-full flex items-center gap-4 px-4 py-3 rounded-sm border text-left transition-all duration-100 active:scale-[0.97] focus:outline-none"
               style={{
-                borderColor: `${meta.color}${urgent ? "90" : "45"}`,
-                background:  `${meta.color}${urgent ? "14" : "08"}`,
+                borderColor: urgent ? "#475569" : "#1e2a38",
+                background:  urgent ? "#1e2a3820" : "#0d111708",
               }}
             >
               <span className="text-[9px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded-sm border shrink-0"
-                style={{ color: meta.color, borderColor: `${meta.color}40`, background: `${meta.color}15` }}>
+                style={{ color: badgeColor, borderColor: "#1e2a38", background: "#0d1117" }}>
                 {task.priority}
               </span>
               <span className="flex-1 text-sm font-medium text-white truncate">{task.label}</span>
               <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-xs font-mono number-display" style={{ color: meta.color }}>{sLeft}s</span>
+                <span className="text-xs font-mono number-display text-cockpit-muted">{sLeft}s</span>
                 <div className="w-12 h-0.5 bg-cockpit-border rounded-full overflow-hidden">
-                  <div className="h-full rounded-full"
-                    style={{ width: `${pct * 100}%`, background: meta.color, transition: "width 0.1s linear" }} />
+                  <div className="h-full rounded-full bg-cockpit-accent"
+                    style={{ width: `${pct * 100}%`, transition: "width 0.1s linear" }} />
                 </div>
               </div>
             </button>

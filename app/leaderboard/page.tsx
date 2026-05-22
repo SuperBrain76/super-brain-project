@@ -113,7 +113,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen hud-grid">
-      <div className="max-w-3xl mx-auto px-5 py-14">
+      <div className="max-w-3xl mx-auto px-5 py-6">
 
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="mb-8">
@@ -234,7 +234,7 @@ export default function LeaderboardPage() {
 
             {/* Empty */}
             {!fetching && entries.length === 0 && (
-              <div className="py-14 text-center">
+              <div className="py-6 text-center">
                 <p className="text-cockpit-dim mb-1">No entries yet.</p>
                 <p className="text-cockpit-muted text-xs mb-6">
                   Be first — take the test and save your result.

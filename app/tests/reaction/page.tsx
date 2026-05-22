@@ -20,7 +20,7 @@ export default function ReactionTestPage() {
 
   if (result) {
     return (
-      <div className="min-h-screen hud-grid py-16 px-6">
+      <div className="min-h-screen hud-grid py-4 px-5">
         <ResultSummary
           result={result}
           onRetake={() => { setResult(null); setKey((k) => k + 1); }}
@@ -30,7 +30,7 @@ export default function ReactionTestPage() {
   }
 
   return (
-    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-6 py-16">
+    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-4">
       <DesktopRecommended />
       <StandaloneReaction key={key} onComplete={setResult} />
     </div>

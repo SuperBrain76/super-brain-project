@@ -15,7 +15,7 @@ export default function FocusTestPage() {
 
   if (output) {
     return (
-      <div className="min-h-screen hud-grid py-14 px-5">
+      <div className="min-h-screen hud-grid py-4 px-5">
         <FocusResults
           testResult={output.testResult}
           phaseResults={output.phaseResults}
@@ -27,7 +27,7 @@ export default function FocusTestPage() {
   }
 
   return (
-    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-14">
+    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-4">
       <FocusTest key={key} onComplete={setOutput} />
     </div>
   );

@@ -90,7 +90,7 @@ const ALL_TESTS = [
 export default function TestsPage() {
   return (
     <div className="min-h-screen hud-grid">
-      <div className="max-w-4xl mx-auto px-5 py-14">
+      <div className="max-w-4xl mx-auto px-5 py-6">
 
         {/* Header */}
         <div className="mb-10">

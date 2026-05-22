@@ -75,7 +75,7 @@ export default function SharePage() {
   };
 
   return (
-    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-16">
+    <div className="min-h-screen hud-grid flex flex-col items-center justify-center px-5 py-4">
       <div className="w-full max-w-sm module-enter flex flex-col gap-5">
 
         {/* ── Identity card ──────────────────────────────────── */}
