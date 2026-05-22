@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" ry="12" fill="#0d1117"/>
+  <!-- subtle grid dot -->
+  <circle cx="32" cy="32" r="24.32" fill="none" stroke="#00d4ff" stroke-width="0.72" opacity="0.12"/>
+  <!-- left lobe -->
+  <circle cx="24.96" cy="32" r="14.08" fill="none" stroke="#00d4ff" stroke-width="2.88" opacity="0.9"/>
+  <!-- right lobe -->
+  <circle cx="39.04" cy="32" r="14.08" fill="none" stroke="#00d4ff" stroke-width="2.88" opacity="0.9"/>
+  <!-- centre connector dot -->
+  <circle cx="32" cy="32" r="2.592" fill="#00d4ff"/>
+  <!-- top node -->
+  <circle cx="32" cy="20.4544" r="1.584" fill="#00d4ff" opacity="0.8"/>
+  <!-- bottom node -->
+  <circle cx="32" cy="43.5456" r="1.584" fill="#00d4ff" opacity="0.8"/>
+</svg>

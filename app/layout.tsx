@@ -13,6 +13,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title:        TITLE,
   description:  DESC,
+  manifest:     "/manifest.json",
+  appleWebApp: {
+    capable:          true,
+    statusBarStyle:   "black-translucent",
+    title:            "SuperBrain",
+  },
   openGraph: {
     type:        "website",
     siteName:    "SuperBrain",
@@ -25,12 +31,23 @@ export const metadata: Metadata = {
     title:       TITLE,
     description: DESC,
   },
+  icons: {
+    icon:  [
+      { url: "/favicon.svg",        type: "image/svg+xml" },
+      { url: "/icons/favicon-32.png", sizes: "32x32",  type: "image/png" },
+      { url: "/icons/favicon-16.png", sizes: "16x16",  type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
       <head>
+        <meta name="theme-color" content="#0d1117" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
