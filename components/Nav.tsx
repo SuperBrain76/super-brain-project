@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
-const NAV_LINKS = [
-  { href: "/tests",       label: "Tests" },
-  { href: "/leaderboard", label: "Leaderboard" },
-];
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "";
 
 export default function Nav() {
   const { user, loading, signOut } = useAuth();
-  const pathname = usePathname();
+  const pathname  = usePathname();
+  const isAdmin   = !!user && user.email === ADMIN_EMAIL;
 
   return (
     <header className="sticky top-0 z-50 border-b border-cockpit-border bg-cockpit-bg bg-opacity-95 backdrop-blur-sm">
@@ -67,6 +65,18 @@ export default function Nav() {
               >
                 Settings
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`hidden md:block text-xs px-2.5 py-1.5 rounded-sm border transition-colors ${
+                    pathname.startsWith("/admin")
+                      ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
+                      : "text-amber-500/70 border-amber-500/20 hover:border-amber-500/50 hover:text-amber-400"
+                  }`}
+                >
+                  Admin
+                </Link>
+              )}
               <button
                 onClick={signOut}
                 className="text-cockpit-muted hover:text-cockpit-red text-sm px-3 py-2 transition-colors"
