@@ -55,9 +55,11 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildTrials(): { word: ColorId; ink: ColorId }[] {
-  // 18 incongruent + 6 congruent, shuffled together — congruent trials are traps
-  const inc = shuffle(INCONGRUENT).slice(0, 18);
-  const con = shuffle(CONGRUENT.concat(CONGRUENT)).slice(0, 6); // repeat pool for variety
+  // 18 incongruent + 6 congruent = 24 total
+  // INCONGRUENT only has 12 pairs, so double the pool before slicing to 18
+  const incPool = [...INCONGRUENT, ...INCONGRUENT];
+  const inc = shuffle(incPool).slice(0, 18);
+  const con = shuffle([...CONGRUENT, ...CONGRUENT]).slice(0, 6);
   return shuffle([...inc, ...con]);
 }
 
