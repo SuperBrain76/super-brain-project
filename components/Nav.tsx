@@ -37,6 +37,16 @@ export default function Nav() {
             Tests
           </Link>
           <Link
+            href="/battle"
+            className={`px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
+              pathname.startsWith("/battle")
+                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
+                : "text-cockpit-dim hover:text-cockpit-text"
+            }`}
+          >
+            Battle
+          </Link>
+          <Link
             href="/leaderboard"
             className={`hidden md:block px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
               pathname.startsWith("/leaderboard")
