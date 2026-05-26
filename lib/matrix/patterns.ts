@@ -10,6 +10,21 @@ const SHAPES:  ShapeType[] = ["circle", "square", "triangle", "diamond", "cross"
 const FILLS:   FillType[]  = ["solid", "half", "outline"];
 const SIZES:   SizeType[]  = ["sm", "md", "lg"];
 
+/**
+ * Shapes where rotation is CLEARLY VISIBLE at small sizes.
+ * Circle (∞-fold), Square (4-fold at 90°), Hexagon (6-fold at 60°), Diamond (4-fold at 90°)
+ * are EXCLUDED because their rotation distractors look identical.
+ * Arrow (1-fold), Triangle (3-fold at 120°), Pentagon (5-fold at 72°) have clearly
+ * visible orientation differences at the 45° / 90° steps we use.
+ */
+const DIRECTIONAL_SHAPES: ShapeType[] = ["arrow", "triangle", "pentagon"];
+
+/**
+ * Shapes that are clearly visually distinct from each other at small sizes.
+ * Excludes pentagon/hexagon which look similar to each other at 80–96 px cells.
+ */
+const DISTINCT_SHAPES: ShapeType[] = ["circle", "square", "triangle", "diamond", "cross", "arrow"];
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function mkSpec(type: ShapeType, fill: FillType = "solid", size: SizeType = "md", rotation = 0): ShapeSpec {
@@ -158,7 +173,9 @@ function genFillCycle(seed: number, difficulty: number): MatrixQuestion {
 
 function genRotationRead(seed: number, difficulty: number): MatrixQuestion {
   const rng = makeRng(seed);
-  const rotShapes: ShapeType[] = ["arrow", "triangle", "diamond"];
+  // Diamond has 90° symmetry so at step=90, distractors can look identical.
+  // Stick to arrow/triangle/pentagon which have clear directional appearance.
+  const rotShapes: ShapeType[] = ["arrow", "triangle", "pentagon"];
   const shape: ShapeType = difficulty <= 4
     ? "arrow"
     : rotShapes[Math.floor(rng() * rotShapes.length)];
@@ -218,12 +235,17 @@ function genSizeFill(seed: number, difficulty: number): MatrixQuestion {
   }
 
   const correct = mkCell(mkSpec(shape, fillSeq[2], sizeSeq[2]));
-  const wrongShape = SHAPES.find(s => s !== shape) ?? "circle";
+  const wrongShape = DISTINCT_SHAPES.find(s => s !== shape) ?? "circle";
 
-  const d1 = mkCell(mkSpec(shape,                 fillSeq[1], sizeSeq[2])); // wrong fill
-  const d2 = mkCell(mkSpec(shape,                 fillSeq[2], sizeSeq[1])); // wrong size
-  const d3 = mkCell(mkSpec(wrongShape as ShapeType, fillSeq[2], sizeSeq[2])); // wrong shape
-  const d4 = mkCell(mkSpec(shape,                 fillSeq[0], sizeSeq[0])); // both wrong
+  // All distractors MUST differ by fill (most visible attribute).
+  // d1: wrong fill, same size
+  // d2: different fill AND different size (never size-only — imperceptible at small cells)
+  // d3: completely different shape
+  // d4: wrong fill + wrong size (third fill)
+  const d1 = mkCell(mkSpec(shape,                    fillSeq[1], sizeSeq[2]));  // fill[1], size same
+  const d2 = mkCell(mkSpec(shape,                    fillSeq[0], sizeSeq[1]));  // fill[0], size diff
+  const d3 = mkCell(mkSpec(wrongShape as ShapeType,  fillSeq[2], sizeSeq[2]));  // wrong shape
+  const d4 = mkCell(mkSpec(shape,                    fillSeq[1], sizeSeq[0]));  // fill[1], size diff
 
   const { options, correctIndex } = buildOptions(rng, correct, [d1, d2, d3, d4]);
   return {
@@ -298,7 +320,8 @@ const LATIN_SQUARES = [
 
 function genShapeLatin(seed: number, difficulty: number): MatrixQuestion {
   const rng = makeRng(seed);
-  const shapes = shuffle(rng, SHAPES).slice(0, 3) as ShapeType[];
+  // Use DISTINCT_SHAPES so all 3 chosen shapes are visually unambiguous at cell size
+  const shapes = shuffle(rng, DISTINCT_SHAPES).slice(0, 3) as ShapeType[];
   const doubleLatin = difficulty >= 6;
 
   const shapeLs = LATIN_SQUARES[Math.floor(rng() * 2)];
@@ -340,11 +363,19 @@ function genShapeLatin(seed: number, difficulty: number): MatrixQuestion {
 }
 
 // ── 7. DUAL_RULE ──────────────────────────────────────────────
-// Shape: row-based Latin square. Fill: row-based sequence. Rotation: column-based.
+// Three simultaneous rules: shape (Latin square) + fill (row) + rotation (column).
+//
+// CRITICAL: Only DIRECTIONAL_SHAPES (arrow, triangle, pentagon) are used.
+// Symmetric shapes (circle=∞-fold, square=90°, hexagon=60°, diamond=90°) produce
+// rotation distractors that look IDENTICAL to the correct answer, creating fake 50/50s.
+// Arrow (1-fold), triangle (3-fold/120°), pentagon (5-fold/72°) have clearly
+// distinguishable orientations at the 0°/90°/180° steps we use.
 
 function genDualRule(seed: number, difficulty: number): MatrixQuestion {
   const rng = makeRng(seed);
-  const shapes = shuffle(rng, SHAPES).slice(0, 3) as ShapeType[];
+
+  // ONLY directional shapes — rotation must be visually unambiguous
+  const shapes = shuffle(rng, DIRECTIONAL_SHAPES) as [ShapeType, ShapeType, ShapeType];
   const shapeLs    = LATIN_SQUARES[Math.floor(rng() * 2)];
   const rotByCol:  number[]   = [0, 90, 180];
   const fillByRow: FillType[] = ["solid", "half", "outline"];
@@ -357,14 +388,16 @@ function genDualRule(seed: number, difficulty: number): MatrixQuestion {
     }
   }
 
+  // Correct: row 2 → "outline", col 2 → 180°, shape from Latin square
   const correctShape = shapes[shapeLs[2][2]];
   const correct = mkCell(mkSpec(correctShape, "outline", "md", 180));
-  const wrongShape = shapes.find(s => s !== correctShape) ?? shapes[0];
 
-  const d1 = mkCell(mkSpec(correctShape, "solid",   "md", 180)); // wrong fill
-  const d2 = mkCell(mkSpec(correctShape, "outline", "md",  90)); // wrong rotation
-  const d3 = mkCell(mkSpec(wrongShape,   "outline", "md", 180)); // wrong shape
-  const d4 = mkCell(mkSpec(wrongShape,   "solid",   "md",  90)); // two rules wrong
+  // Distractors: each breaks exactly one rule (or two), all visually distinct
+  const wrongShapes = shapes.filter(s => s !== correctShape);
+  const d1 = mkCell(mkSpec(correctShape,   "solid",   "md", 180)); // wrong fill (outline→solid)
+  const d2 = mkCell(mkSpec(correctShape,   "half",    "md", 180)); // wrong fill (outline→half)
+  const d3 = mkCell(mkSpec(wrongShapes[0], "outline", "md", 180)); // wrong shape
+  const d4 = mkCell(mkSpec(wrongShapes[1], "outline", "md",  90)); // wrong shape + rotation
 
   const { options, correctIndex } = buildOptions(rng, correct, [d1, d2, d3, d4]);
   return {

@@ -4,7 +4,7 @@ import type { MatrixQuestion } from "./types";
 // ── Configuration ─────────────────────────────────────────────
 
 export const TOTAL_QUESTIONS  = 18;
-export const START_DIFFICULTY  = 4;  // calibration entry point
+export const START_DIFFICULTY  = 3;  // calibration entry point (easier start = better calibration)
 const MIN_DIFFICULTY           = 1;
 const MAX_DIFFICULTY           = 10;
 const SUSPICIOUS_RESPONSE_MS   = 350; // < this = flag
@@ -28,13 +28,26 @@ export function createSession(): SessionState {
 
 /**
  * Update the ability estimate after an answer.
- * Correct: ability climbs toward difficulty + 1.
- * Wrong:   ability retreats toward difficulty - 2.
+ *
+ * Correct: ability nudges upward — but only modestly (avoids runaway inflation
+ *          from lucky guesses at high difficulty).
+ * Wrong:   ability drops more aggressively — prevents high ability from being
+ *          "locked in" by a few early correct answers then many wrong ones.
+ *
+ * Asymmetric smoothing: wrong answers pull harder (0.45 weight) vs
+ * correct answers (0.25 weight). This counteracts the natural bias of adaptive
+ * tests where difficulty climbs quickly but ability estimate lags behind.
  */
 export function updateAbility(current: number, difficulty: number, correct: boolean): number {
-  const target = correct ? difficulty + 1 : difficulty - 1.5;
-  const updated = current * 0.65 + target * 0.35;
-  return Math.max(MIN_DIFFICULTY, Math.min(MAX_DIFFICULTY, updated));
+  if (correct) {
+    const target  = difficulty + 0.5;          // modest climb
+    const updated = current * 0.75 + target * 0.25;
+    return Math.max(MIN_DIFFICULTY, Math.min(MAX_DIFFICULTY, updated));
+  } else {
+    const target  = difficulty - 2;            // sharper drop
+    const updated = current * 0.55 + target * 0.45;
+    return Math.max(MIN_DIFFICULTY, Math.min(MAX_DIFFICULTY, updated));
+  }
 }
 
 /** Next question difficulty, clamped and stepped. */

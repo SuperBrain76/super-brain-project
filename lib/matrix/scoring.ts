@@ -1,10 +1,13 @@
 import type { SessionState, AssessmentResult } from "./types";
 
-// ── Percentile lookup (approximates normal distribution) ──────
+// ── Percentile lookup ─────────────────────────────────────────
+// Calibrated to the new scoring formula.
+// Scoring average: adaptive test converges to ~50% accuracy at your level,
+// so a typical difficulty-8 user with 50% accuracy scores ~52 → ~50th percentile.
 
 const SCORE_PERCENTILE: Array<[number, number]> = [
-  [95, 99], [88, 97], [80, 93], [72, 85], [63, 72],
-  [55, 55], [47, 40], [38, 27], [30, 15], [22, 7], [0, 2],
+  [90, 99], [82, 97], [73, 93], [63, 85], [54, 72],
+  [45, 55], [37, 40], [29, 27], [22, 15], [15, 7], [0, 2],
 ];
 
 function toPercentile(score: number): number {
@@ -17,43 +20,36 @@ function toPercentile(score: number): number {
 // ── Speed score ───────────────────────────────────────────────
 
 function calcSpeedScore(attempts: SessionState["attempts"]): number {
-  if (attempts.length === 0) return 50;
   const correctAttempts = attempts.filter(a => a.correct && a.responseMs > 0);
-  if (correctAttempts.length === 0) return 30;
+  if (correctAttempts.length === 0) return 0;
 
-  // Normalise: average response time compared to time limit
+  // Compare response time to a generous time budget (harder qs get more time)
   const avgRatio = correctAttempts.reduce((sum, a) => {
-    // question timeLimit not stored in attempt — use difficulty proxy
-    const limit = 40000 + (10 - a.difficulty) * 2000;
+    const limit = 40_000 + (10 - a.difficulty) * 2_000;
     return sum + Math.min(1, a.responseMs / limit);
   }, 0) / correctAttempts.length;
 
-  // Lower ratio = faster = higher score
   return Math.round(Math.max(0, Math.min(100, (1 - avgRatio) * 100)));
 }
 
 // ── Consistency score ─────────────────────────────────────────
 
 function calcConsistency(attempts: SessionState["attempts"]): number {
-  if (attempts.length < 3) return 75;
-
-  // Compute accuracy in first half vs second half
-  const mid = Math.floor(attempts.length / 2);
+  if (attempts.length < 4) return 60;
+  const mid  = Math.floor(attempts.length / 2);
   const acc1 = attempts.slice(0, mid).filter(a => a.correct).length / mid;
   const acc2 = attempts.slice(mid).filter(a => a.correct).length / (attempts.length - mid);
-
-  const diff = Math.abs(acc1 - acc2);
-  return Math.round(Math.max(0, Math.min(100, (1 - diff * 1.5) * 100)));
+  return Math.round(Math.max(0, Math.min(100, (1 - Math.abs(acc1 - acc2) * 2) * 100)));
 }
 
 // ── Profile label ─────────────────────────────────────────────
 
-function buildProfile(score: number, speedScore: number, accuracy: number) {
-  if (score >= 88) {
+function buildProfile(score: number, accuracy: number) {
+  if (score >= 90) {
     return {
       label: "Elite Fluid Reasoner",
       description:
-        "You demonstrate exceptional abstract reasoning, reaching difficulty levels rarely achieved. Your pattern recognition and logical inference operate with minimal latency.",
+        "Exceptional abstract reasoning reaching difficulty levels achieved by fewer than 1% of test-takers. Pattern recognition and logical inference operate at peak efficiency.",
       strengths: ["Advanced pattern abstraction", "Multi-rule integration", "High processing efficiency"],
     };
   }
@@ -61,30 +57,30 @@ function buildProfile(score: number, speedScore: number, accuracy: number) {
     return {
       label: "High-Range Fluid Reasoner",
       description:
-        "Strong abstract reasoning with consistent performance at high difficulty. You identify complex relational structures efficiently.",
-      strengths: ["Strong relational reasoning", "Consistent accuracy under time pressure", "Good rule abstraction"],
+        "Strong abstract reasoning with consistent accuracy at high difficulty. You identify complex relational structures and multi-rule patterns efficiently.",
+      strengths: ["Strong relational reasoning", "Accurate rule tracking", "Good processing speed"],
     };
   }
-  if (score >= 60) {
+  if (score >= 58) {
     return {
       label: "Above-Average Fluid Reasoner",
       description:
-        "Solid abstract reasoning capability. You handle multi-step patterns well and show good processing speed on moderate-complexity items.",
-      strengths: ["Clear pattern recognition", "Good working memory usage", "Efficient processing on medium difficulty"],
+        "Solid abstract reasoning capability. You handle multi-step patterns well and show good processing speed on moderate-to-high complexity items.",
+      strengths: ["Clear pattern recognition", "Good working memory", "Efficient mid-range processing"],
     };
   }
-  if (score >= 45) {
+  if (score >= 42) {
     return {
       label: "Average Fluid Reasoner",
       description:
-        "Typical abstract reasoning performance. You perform well on foundational patterns and show developing ability on more complex structures.",
-      strengths: ["Reliable on structured patterns", "Consistent rule tracking", "Good baseline processing"],
+        "Typical abstract reasoning performance. You perform consistently on foundational patterns and show developing ability on complex structures.",
+      strengths: ["Reliable on structured patterns", "Consistent rule tracking", "Solid baseline processing"],
     };
   }
   return {
     label: "Developing Fluid Reasoner",
     description:
-      "Your reasoning performance suggests room for growth in abstract pattern recognition. With targeted practice, fluid reasoning is highly trainable.",
+      "Your reasoning performance shows room for growth in abstract pattern recognition. Fluid reasoning is highly trainable with targeted practice.",
     strengths: ["Pattern awareness", "Steady engagement", "Baseline rule recognition"],
   };
 }
@@ -95,26 +91,40 @@ export function calculateResult(session: SessionState): AssessmentResult {
   const { attempts, abilityEstimate, sessionId, suspiciousTimes, focusViolations } = session;
   if (attempts.length === 0) throw new Error("No attempts");
 
-  const accuracy   = attempts.filter(a => a.correct).length / attempts.length;
-  const maxDiff    = Math.max(...attempts.map(a => a.difficulty));
-  const avgMs      = attempts.reduce((s, a) => s + a.responseMs, 0) / attempts.length;
-  const speedScore = calcSpeedScore(attempts);
-  const consistency = calcConsistency(attempts);
+  const correctCount = attempts.filter(a => a.correct).length;
+  const accuracy     = correctCount / attempts.length;
+  const maxDiff      = Math.max(...attempts.map(a => a.difficulty));
+  const avgMs        = attempts.reduce((s, a) => s + a.responseMs, 0) / attempts.length;
+  const speedScore   = calcSpeedScore(attempts);
+  const consistency  = calcConsistency(attempts);
 
-  // Core ability score: ability estimate (1–10) scaled to 0–80
-  const baseScore    = (abilityEstimate / 10) * 80;
-  // Accuracy modifier: 0.7–1.0
-  const accMod       = 0.70 + accuracy * 0.30;
-  // Speed bonus: up to 10 points
-  const speedBonus   = (speedScore / 100) * 10;
-  // Consistency bonus: up to 10 points
-  const consBonus    = (consistency / 100) * 10;
+  // ── Core score: ability × accuracy, no generous floor ────────
+  //
+  // Design goals:
+  //   • Perfect (D10, 100% accuracy) → 100
+  //   • High ability + guessing (D9, 50% accuracy) → ~52  (not 85!)
+  //   • Adaptive convergence sweet-spot (D7, 60% accuracy) → ~55
+  //   • Low difficulty, high accuracy (D4, 90%) → ~45
+  //
+  // Formula: raw = (abilityEstimate/10) * accuracy * 100
+  //          curved = raw^0.72 * 100 / 100^0.72   (stretches mid-range)
+  //
+  // The curve prevents very-low accuracy from being too punishing at the
+  // bottom while keeping high-accuracy scores appropriately separated.
 
-  const rawScore = baseScore * accMod + speedBonus + consBonus;
-  const fluidScore  = Math.round(Math.max(0, Math.min(100, rawScore)));
-  const percentile  = toPercentile(fluidScore);
+  const rawBase    = (abilityEstimate / 10) * accuracy * 100;     // 0–100
+  const curveExp   = 0.72;
+  const curvedBase = rawBase <= 0
+    ? 0
+    : Math.pow(rawBase / 100, curveExp) * 100;
 
-  // Flag if cheating signals are high
+  // Small bonuses: speed (up to 5 pts) + consistency (up to 5 pts)
+  // Weighted by accuracy so bonuses don't rescue a poor score
+  const bonus = accuracy * ((speedScore / 100) * 5 + (consistency / 100) * 5);
+
+  const fluidScore = Math.round(Math.max(0, Math.min(100, curvedBase + bonus)));
+  const percentile = toPercentile(fluidScore);
+
   const flagged = suspiciousTimes > attempts.length * 0.4 || focusViolations > 4;
 
   return {
@@ -128,6 +138,6 @@ export function calculateResult(session: SessionState): AssessmentResult {
     questionsAnswered: attempts.length,
     avgResponseMs:     Math.round(avgMs),
     flagged,
-    profile:           buildProfile(fluidScore, speedScore, accuracy),
+    profile:           buildProfile(fluidScore, accuracy),
   };
 }
