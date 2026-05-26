@@ -92,21 +92,10 @@ function ShareButtons({
   testName: string;
   score: number;
 }) {
-  const [copied,         setCopied]         = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
-
-  // Detect native share API after mount — avoids SSR/hydration mismatch
-  useEffect(() => {
-    setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
-  }, []);
+  const [copied, setCopied] = useState(false);
 
   const shareText = `I scored ${score}/100 on ${testName}. Think you can beat me?`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${challengeUrl}`)}`;
-
-  const nativeShare = () => {
-    track.resultShared("native", testName, score);
-    navigator.share({ title: "SuperBrain Challenge", text: shareText, url: challengeUrl }).catch(() => {});
-  };
 
   const copyLink = () => {
     track.resultShared("copy", testName, score);
@@ -131,20 +120,6 @@ function ShareButtons({
         </svg>
         Challenge on WhatsApp
       </a>
-
-      {/* Native share (mobile) */}
-      {canNativeShare && (
-        <button
-          onClick={nativeShare}
-          className="btn-ghost w-full flex items-center justify-center gap-2"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-          </svg>
-          Share Challenge
-        </button>
-      )}
 
       {/* Copy link */}
       <button
