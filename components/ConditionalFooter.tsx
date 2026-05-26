@@ -13,6 +13,7 @@ const HIDE_ON = [
   "/tests/pressure",
   "/tests/focus",
   "/tests/career-profile",
+  "/tests/matrix",
   "/test",    // fighter pilot test
   "/battle",  // battle room (all battle routes)
 ];

@@ -71,6 +71,15 @@ const FOCUS_TESTS = [
 
 const PROFILE_TESTS = [
   {
+    testId: "matrix",
+    title: "Fluid Intelligence Assessment",
+    description: "18 adaptive matrix reasoning questions. Abstract patterns, logical progressions, spatial transformations. Difficulty adjusts in real time to your performance.",
+    duration: "~12 min",
+    difficulty: "Hard" as const,
+    href: "/tests/matrix",
+    featured: true,
+  },
+  {
     testId: "career-profile",
     title: "Career Cognitive Profile",
     description: "20 questions. Maps your cognitive fingerprint across 7 dimensions — identifies your dominant archetype, strongest career paths, and ideal work environments.",

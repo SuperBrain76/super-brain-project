@@ -12,7 +12,7 @@ function isGameRoute(pathname: string): boolean {
   const GAME_PREFIXES = [
     "/tests/reaction", "/tests/stroop", "/tests/tap-speed",
     "/tests/verbal-memory", "/tests/memory", "/tests/pressure",
-    "/tests/focus", "/tests/career-profile",
+    "/tests/focus", "/tests/career-profile", "/tests/matrix",
     "/battle/", // match rooms only — /battle hub keeps the nav
   ];
   return GAME_PREFIXES.some((p) => pathname.startsWith(p));
