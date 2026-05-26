@@ -38,7 +38,7 @@ export default function Nav() {
           </Link>
           <Link
             href="/battle"
-            className={`px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
+            className={`hidden md:block px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
               pathname.startsWith("/battle")
                 ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
                 : "text-cockpit-dim hover:text-cockpit-text"
@@ -89,9 +89,16 @@ export default function Nav() {
               )}
               <button
                 onClick={signOut}
+                title="Sign out"
                 className="text-cockpit-muted hover:text-cockpit-red text-sm px-3 py-2 transition-colors"
               >
-                Sign out
+                <span className="hidden md:inline">Sign out</span>
+                <svg className="md:hidden" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
               </button>
             </>
           ) : (

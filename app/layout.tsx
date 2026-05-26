@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import Nav  from "@/components/Nav";
-import ConditionalFooter from "@/components/ConditionalFooter";
-import PWAInstallBanner  from "@/components/PWAInstallBanner";
+import ConditionalFooter  from "@/components/ConditionalFooter";
+import PWAInstallBanner   from "@/components/PWAInstallBanner";
+import MobileBottomNav    from "@/components/MobileBottomNav";
 import PostHogProvider from "@/components/PostHogProvider";
 
 const BASE_URL = "https://superbrain.social";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Nav />
             <main className="flex-1 flex flex-col">{children}</main>
             <ConditionalFooter />
+            <MobileBottomNav />
             <PWAInstallBanner />
           </AuthProvider>
         </PostHogProvider>
