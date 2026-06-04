@@ -14,8 +14,9 @@ const HIDE_ON = [
   "/tests/focus",
   "/tests/career-profile",
   "/tests/matrix",
-  "/test",    // fighter pilot test
-  "/battle",  // battle room (all battle routes)
+  "/test",     // fighter pilot test
+  "/battle",   // battle room (all battle routes)
+  "/predict",  // predictor (all predict routes)
 ];
 
 export default function ConditionalFooter() {

@@ -33,6 +33,16 @@ function IconTests({ active }: { active: boolean }) {
   );
 }
 
+function IconPredict({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke={active ? ACTIVE : INACTIVE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+  );
+}
+
 function IconBattle({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
@@ -72,8 +82,9 @@ export default function MobileBottomNav() {
   if (isGameRoute(pathname)) return null;
 
   const tabs = [
-    { href: "/tests",       label: "Tests",    Icon: IconTests,       match: "/tests" },
-    { href: "/battle",      label: "Battle",   Icon: IconBattle,      match: "/battle" },
+    { href: "/tests",       label: "Tests",    Icon: IconTests,       match: "/tests"       },
+    { href: "/predict",     label: "Predict",  Icon: IconPredict,     match: "/predict"     },
+    { href: "/battle",      label: "Battle",   Icon: IconBattle,      match: "/battle"      },
     { href: "/leaderboard", label: "Rankings", Icon: IconLeaderboard, match: "/leaderboard" },
     {
       href:  user ? "/profile" : "/login",
