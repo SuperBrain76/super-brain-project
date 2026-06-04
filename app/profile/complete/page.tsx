@@ -2,25 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { loadMyProfile, saveProfile } from "@/lib/profile";
-import { COUNTRIES as COUNTRY_LIST } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 
-// ── Derived option lists ──────────────────────────────────────
+// ── Shared option lists (kept in sync with settings/profile/page.tsx) ──
 
-const COUNTRIES = COUNTRY_LIST.map((c) => c.name);
-
-const CURRENT_YEAR    = new Date().getFullYear();
-const MAX_BIRTH_YEAR  = CURRENT_YEAR - 8;
-const BIRTH_YEARS = Array.from(
-  { length: MAX_BIRTH_YEAR - 1930 + 1 },
+const CURRENT_YEAR   = new Date().getFullYear();
+const MIN_AGE        = 8;
+const MAX_BIRTH_YEAR = CURRENT_YEAR - MIN_AGE;
+const MIN_BIRTH_YEAR = 1920;
+const BIRTH_YEARS    = Array.from(
+  { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
   (_, i) => MAX_BIRTH_YEAR - i,
 );
 
 const GENDERS = [
-  { value: "male",             label: "Male" },
-  { value: "female",           label: "Female" },
-  { value: "non_binary",       label: "Non-binary" },
+  { value: "male",              label: "Male"              },
+  { value: "female",            label: "Female"            },
+  { value: "non_binary",        label: "Non-binary"        },
   { value: "prefer_not_to_say", label: "Prefer not to say" },
 ];
 
@@ -43,6 +44,57 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+// ── Searchable country select ─────────────────────────────────
+
+function CountrySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [query, setQuery] = useState(value);
+  const [open,  setOpen]  = useState(false);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  const filtered = query.trim() === "" || query === value
+    ? COUNTRIES
+    : COUNTRIES.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
+
+  const select = (name: string) => { onChange(name); setQuery(name); setOpen(false); };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); if (!e.target.value) onChange(""); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Search country…"
+        className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 mt-1 w-full bg-cockpit-card border border-cockpit-border rounded-sm max-h-48 overflow-y-auto shadow-xl">
+          {filtered.map((c) => (
+            <li key={c.code}>
+              <button
+                type="button"
+                onMouseDown={() => select(c.name)}
+                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors hover:bg-cockpit-surface ${
+                  value === c.name ? "text-cockpit-accent" : "text-cockpit-text"
+                }`}
+              >
+                <span className="w-5 text-base shrink-0">
+                  {c.code !== "XX"
+                    ? String.fromCodePoint(...Array.from(c.code).map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65))
+                    : "🌐"}
+                </span>
+                {c.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────
 
 export default function ProfileCompletePage() {
@@ -56,12 +108,10 @@ export default function ProfileCompletePage() {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState<string | null>(null);
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [user, loading, router]);
 
-  // Pre-fill any values that were previously saved
   useEffect(() => {
     if (!user) return;
     loadMyProfile().then((p) => {
@@ -99,49 +149,44 @@ export default function ProfileCompletePage() {
   };
 
   return (
-    <div className="min-h-screen hud-grid flex items-center justify-center px-5 py-16">
-      <div className="w-full max-w-sm module-enter">
+    <div className="min-h-screen hud-grid flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm">
 
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-7">
+          <Link href="/" className="inline-flex items-center gap-2 mb-5">
+            <div className="w-7 h-7 rounded-sm bg-cockpit-accent flex items-center justify-center">
+              <span className="text-cockpit-bg font-black text-xs">SB</span>
+            </div>
+            <span className="font-bold tracking-widest text-sm text-white">SUPERBRAIN</span>
+          </Link>
           <p className="text-cockpit-muted text-xs tracking-widest uppercase mb-2 font-mono">
-            Optional
+            Optional · 30 seconds
           </p>
-          <h1 className="text-2xl font-bold text-white mb-2">Complete your profile</h1>
+          <h1 className="text-xl font-bold text-white mb-2">Complete your profile</h1>
           <p className="text-cockpit-dim text-sm leading-relaxed">
-            Helps us personalise leaderboard filters and improve the tests.
-            <br />
-            <span className="text-cockpit-muted">None of this is required.</span>
+            Helps personalise leaderboard filters and improve the tests.
+            None of this is required.
           </p>
         </div>
 
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-7 flex flex-col gap-5">
+        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 flex flex-col gap-5">
 
-          {/* Country */}
           <Field label="Country">
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
-            >
-              <option value="">— Select country —</option>
-              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CountrySelect value={country} onChange={setCountry} />
           </Field>
 
-          {/* Year of birth */}
           <Field label="Year of birth">
             <select
               value={birthYear}
               onChange={(e) => setBirthYear(e.target.value)}
-              className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+              className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
             >
               <option value="">— Select year —</option>
               {BIRTH_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </Field>
 
-          {/* Gender */}
           <Field label="Gender">
             <div className="grid grid-cols-2 gap-2">
               {GENDERS.map((g) => (
@@ -149,10 +194,10 @@ export default function ProfileCompletePage() {
                   key={g.value}
                   type="button"
                   onClick={() => setGender(gender === g.value ? "" : g.value)}
-                  className={`px-3 py-2 rounded-sm border text-sm text-left transition-all duration-150 ${
+                  className={`px-3 py-2.5 rounded-sm border text-sm text-left transition-all duration-150 ${
                     gender === g.value
                       ? "border-cockpit-accent text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                      : "border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-dim"
+                      : "border-cockpit-border text-cockpit-dim hover:border-cockpit-dim"
                   }`}
                 >
                   {g.label}
@@ -161,21 +206,23 @@ export default function ProfileCompletePage() {
             </div>
           </Field>
 
-          {/* Industry */}
           <Field label="Industry / occupation">
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+              className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
             >
               <option value="">— Select industry —</option>
               {INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
             </select>
           </Field>
 
-          {error && <p className="text-cockpit-red text-xs">{error}</p>}
+          {error && (
+            <div className="px-3 py-2.5 rounded-sm border border-red-500 border-opacity-30 bg-red-500 bg-opacity-10">
+              <p className="text-red-400 text-xs">{error}</p>
+            </div>
+          )}
 
-          {/* Actions */}
           <div className="flex flex-col gap-2 pt-1">
             <button
               onClick={() => submit(false)}
@@ -195,7 +242,7 @@ export default function ProfileCompletePage() {
         </div>
 
         <p className="text-center text-cockpit-muted text-xs mt-5 leading-relaxed">
-          Personal data (birth year, gender, industry) is never shown publicly.
+          Birth year, gender, and industry are never shown publicly.
           Only your display name and country appear on the leaderboard.
         </p>
       </div>

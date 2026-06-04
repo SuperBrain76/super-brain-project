@@ -225,13 +225,13 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
                 placeholder="••••••••"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
               />
               {mode === "signup" && (
-                <p className="text-cockpit-muted text-xs">Minimum 6 characters.</p>
+                <p className="text-cockpit-muted text-xs">Minimum 8 characters.</p>
               )}
             </div>
 

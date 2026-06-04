@@ -13,9 +13,10 @@ create table if not exists public.user_profiles (
   id               uuid        primary key references auth.users(id) on delete cascade,
   display_name     text        not null default 'Anonymous',
   country          text,                          -- optional
-  birth_year       integer     check (birth_year between 1920 and 2015),  -- optional
+  birth_year       integer     check (birth_year between 1920 and 2030),  -- optional; upper bound is generous
   gender           text,                          -- optional: male|female|non_binary|prefer_not_to_say
   industry         text,                          -- optional: Technology|Finance|Healthcare|Education|Student|Other
+  avatar_color     text        not null default '#00d4ff',
   profile_complete boolean     not null default false,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
@@ -78,13 +79,14 @@ create index if not exists test_results_share_id_idx on public.test_results (sha
 
 alter table public.test_results enable row level security;
 
+-- IMPORTANT: There is intentionally NO "anyone can read shared results" policy.
+-- Shared results are served exclusively via the get_challenge_result() SECURITY
+-- DEFINER RPC, which accepts a share_id and returns only safe public fields.
+-- A permissive policy here would expose ALL results (every row has a share_id).
+
 create policy "users can read own results"
   on public.test_results for select
   using (auth.uid() = user_id);
-
-create policy "anyone can read shared results"
-  on public.test_results for select
-  using (share_id is not null);
 
 create policy "users can insert own results"
   on public.test_results for insert
