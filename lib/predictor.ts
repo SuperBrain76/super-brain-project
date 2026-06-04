@@ -304,6 +304,53 @@ export async function getMyPredictions(
 
 // ── Leagues ───────────────────────────────────────────────────
 
+// Basic profanity guard — blocks the most obvious English slurs/offensive terms.
+// Not a comprehensive filter; it catches casual bad-faith names.
+const BLOCKED_TERMS = [
+  "nigger","nigga","faggot","fag","kike","spic","chink","gook","tranny",
+  "retard","cunt","whore","slut","bitch","asshole","bastard","motherfucker",
+  "fuck","shit","piss","cock","dick","pussy","penis","vagina","rape","hitler",
+  "nazi","kkk",
+];
+
+function hasProfanity(text: string): boolean {
+  const lower = text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return BLOCKED_TERMS.some((t) => lower.includes(t));
+}
+
+export async function getLeague(leagueId: string): Promise<PredictionLeague | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase
+    .from("prediction_leagues")
+    .select("id, competition_id, name, invite_code, created_by, created_at")
+    .eq("id", leagueId)
+    .single();
+  if (error || !data) return null;
+  const l = data as Record<string, unknown>;
+  return {
+    id:            l.id as string,
+    competitionId: l.competition_id as string,
+    name:          l.name as string,
+    inviteCode:    l.invite_code as string,
+    createdBy:     l.created_by as string,
+    createdAt:     l.created_at as string,
+  };
+}
+
+export async function isLeagueMember(
+  leagueId: string,
+  userId: string,
+): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  const { data } = await supabase
+    .from("prediction_league_members")
+    .select("id")
+    .eq("league_id", leagueId)
+    .eq("user_id", userId)
+    .single();
+  return !!data;
+}
+
 export async function getMyLeagues(competitionId: string): Promise<PredictionLeague[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -346,6 +393,8 @@ export async function createLeague(
     return { league: null, error: "League name must be at least 2 characters." };
   if (trimmedName.length > 40)
     return { league: null, error: "League name must be 40 characters or fewer." };
+  if (hasProfanity(trimmedName))
+    return { league: null, error: "League name contains disallowed words. Please choose a different name." };
 
   const { data, error } = await supabase
     .from("prediction_leagues")
@@ -400,6 +449,10 @@ export async function joinLeague(
 ): Promise<{ error: string | null }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "You must be signed in to join a league." };
+
+  // Enforce max 100 members (soft cap — not in DB schema)
+  const count = await getLeagueMemberCount(leagueId);
+  if (count >= 100) return { error: "This league is full (100 members maximum)." };
 
   const { error } = await supabase
     .from("prediction_league_members")
