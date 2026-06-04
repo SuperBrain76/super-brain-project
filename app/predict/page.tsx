@@ -233,6 +233,22 @@ export default function PredictHub() {
           </Link>
         </div>
 
+        {/* ── Rules link ────────────────────────────────────── */}
+        <Link
+          href="/predict/rules"
+          className="flex items-center justify-between px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8899aa" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span className="text-cockpit-dim text-sm">How scoring works · Rules &amp; FAQ</span>
+          </div>
+          <span className="text-cockpit-muted text-xs font-mono">View →</span>
+        </Link>
+
         {/* ── Tabs ─────────────────────────────────────────── */}
         <div className="flex gap-1 bg-cockpit-surface rounded-sm p-1 border border-cockpit-border">
           {([
@@ -246,7 +262,7 @@ export default function PredictHub() {
               className="flex-1 py-2 rounded-sm text-xs font-semibold transition-all duration-150"
               style={{
                 background: tab === t.id ? "#1e2a38" : "transparent",
-                color:      tab === t.id ? "#fff"    : "#7a8fa6",
+                color:      tab === t.id ? "#fff"    : "#8899aa",
               }}
             >
               {t.label}
@@ -279,7 +295,7 @@ export default function PredictHub() {
                 <div className="flex items-center gap-3 mb-2">
                   <span
                     className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: isToday(dayFixtures[0].kicksOffAt) ? "#00d4ff" : "#7a8fa6" }}
+                    style={{ color: isToday(dayFixtures[0].kicksOffAt) ? "#00d4ff" : "#8899aa" }}
                   >
                     {isToday(dayFixtures[0].kicksOffAt) ? "Today · " : ""}{dateLabel}
                   </span>
