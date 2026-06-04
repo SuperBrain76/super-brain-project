@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { validateLeagueName } from "./leagueName";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -50,13 +51,14 @@ export interface Prediction {
 }
 
 export interface PredictionLeague {
-  id:           string;
-  competitionId: string;
-  name:         string;
-  inviteCode:   string;
-  createdBy:    string;
-  createdAt:    string;
-  memberCount?: number;
+  id:             string;
+  competitionId:  string;
+  name:           string;           // original display name as entered by the user
+  normalizedName: string;           // lowercase, diacritics removed, whitespace collapsed
+  inviteCode:     string;
+  createdBy:      string;
+  createdAt:      string;
+  memberCount?:   number;
 }
 
 export interface LeaderboardRow {
@@ -304,36 +306,24 @@ export async function getMyPredictions(
 
 // ── Leagues ───────────────────────────────────────────────────
 
-// Basic profanity guard — blocks the most obvious English slurs/offensive terms.
-// Not a comprehensive filter; it catches casual bad-faith names.
-const BLOCKED_TERMS = [
-  "nigger","nigga","faggot","fag","kike","spic","chink","gook","tranny",
-  "retard","cunt","whore","slut","bitch","asshole","bastard","motherfucker",
-  "fuck","shit","piss","cock","dick","pussy","penis","vagina","rape","hitler",
-  "nazi","kkk",
-];
-
-function hasProfanity(text: string): boolean {
-  const lower = text.toLowerCase().replace(/[^a-z0-9]/g, "");
-  return BLOCKED_TERMS.some((t) => lower.includes(t));
-}
 
 export async function getLeague(leagueId: string): Promise<PredictionLeague | null> {
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .select("id, competition_id, name, invite_code, created_by, created_at")
+    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at")
     .eq("id", leagueId)
     .single();
   if (error || !data) return null;
   const l = data as Record<string, unknown>;
   return {
-    id:            l.id as string,
-    competitionId: l.competition_id as string,
-    name:          l.name as string,
-    inviteCode:    l.invite_code as string,
-    createdBy:     l.created_by as string,
-    createdAt:     l.created_at as string,
+    id:             l.id as string,
+    competitionId:  l.competition_id as string,
+    name:           l.name as string,
+    normalizedName: l.normalized_name as string,
+    inviteCode:     l.invite_code as string,
+    createdBy:      l.created_by as string,
+    createdAt:      l.created_at as string,
   };
 }
 
@@ -359,7 +349,7 @@ export async function getMyLeagues(competitionId: string): Promise<PredictionLea
     .from("prediction_league_members")
     .select(`
       league:prediction_leagues (
-        id, competition_id, name, invite_code, created_by, created_at
+        id, competition_id, name, normalized_name, invite_code, created_by, created_at
       )
     `)
     .eq("user_id", user.id);
@@ -370,12 +360,13 @@ export async function getMyLeagues(competitionId: string): Promise<PredictionLea
     .map((row) => {
       const l = row.league as Record<string, unknown>;
       return {
-        id:            l.id as string,
-        competitionId: l.competition_id as string,
-        name:          l.name as string,
-        inviteCode:    l.invite_code as string,
-        createdBy:     l.created_by as string,
-        createdAt:     l.created_at as string,
+        id:             l.id as string,
+        competitionId:  l.competition_id as string,
+        name:           l.name as string,
+        normalizedName: l.normalized_name as string,
+        inviteCode:     l.invite_code as string,
+        createdBy:      l.created_by as string,
+        createdAt:      l.created_at as string,
       };
     })
     .filter((l) => l.competitionId === competitionId);
@@ -388,17 +379,22 @@ export async function createLeague(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { league: null, error: "You must be signed in." };
 
-  const trimmedName = name.trim();
-  if (!trimmedName || trimmedName.length < 2)
-    return { league: null, error: "League name must be at least 2 characters." };
-  if (trimmedName.length > 40)
-    return { league: null, error: "League name must be 40 characters or fewer." };
-  if (hasProfanity(trimmedName))
-    return { league: null, error: "League name contains disallowed words. Please choose a different name." };
+  // Server-side validation — same rules enforced client-side in validateLeagueName()
+  const validation = validateLeagueName(name);
+  if (!validation.valid) {
+    return { league: null, error: validation.error! };
+  }
+  const trimmedName     = name.trim().replace(/\s+/g, " ");
+  const normalizedName  = validation.normalizedName!;
 
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .insert({ competition_id: competitionId, name: trimmedName, created_by: user.id })
+    .insert({
+      competition_id:  competitionId,
+      name:            trimmedName,
+      normalized_name: normalizedName,
+      created_by:      user.id,
+    })
     .select()
     .single();
 
@@ -406,12 +402,13 @@ export async function createLeague(
 
   const league = data as Record<string, unknown>;
   const newLeague: PredictionLeague = {
-    id:            league.id as string,
-    competitionId: league.competition_id as string,
-    name:          league.name as string,
-    inviteCode:    league.invite_code as string,
-    createdBy:     league.created_by as string,
-    createdAt:     league.created_at as string,
+    id:             league.id as string,
+    competitionId:  league.competition_id as string,
+    name:           league.name as string,
+    normalizedName: league.normalized_name as string,
+    inviteCode:     league.invite_code as string,
+    createdBy:      league.created_by as string,
+    createdAt:      league.created_at as string,
   };
 
   // Auto-join the creator
@@ -428,19 +425,20 @@ export async function getLeagueByInviteCode(
 ): Promise<PredictionLeague | null> {
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .select("id, competition_id, name, invite_code, created_by, created_at")
+    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at")
     .eq("invite_code", code.toUpperCase())
     .single();
 
   if (error || !data) return null;
   const l = data as Record<string, unknown>;
   return {
-    id:            l.id as string,
-    competitionId: l.competition_id as string,
-    name:          l.name as string,
-    inviteCode:    l.invite_code as string,
-    createdBy:     l.created_by as string,
-    createdAt:     l.created_at as string,
+    id:             l.id as string,
+    competitionId:  l.competition_id as string,
+    name:           l.name as string,
+    normalizedName: l.normalized_name as string,
+    inviteCode:     l.invite_code as string,
+    createdBy:      l.created_by as string,
+    createdAt:      l.created_at as string,
   };
 }
 
