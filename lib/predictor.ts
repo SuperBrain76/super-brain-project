@@ -465,6 +465,51 @@ export async function joinLeague(
   return { error: null };
 }
 
+/**
+ * Leave a league.
+ *
+ * Owner protection: if the caller is the league owner AND they are the
+ * only remaining member, the leave is blocked. This prevents a league from
+ * becoming permanently ownerless. The caller must either delete the league
+ * (future feature) or transfer ownership (future feature) first.
+ *
+ * For all other members (including the owner with other members present),
+ * the leave succeeds and removes the membership row.
+ */
+export async function leaveLeague(
+  leagueId: string,
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  // Fetch the league to check ownership
+  const league = await getLeague(leagueId);
+  if (!league) return { error: "League not found." };
+
+  const isOwner = league.createdBy === user.id;
+
+  if (isOwner) {
+    // Block only if they are the sole remaining member
+    const count = await getLeagueMemberCount(leagueId);
+    if (count <= 1) {
+      return {
+        error:
+          "You're the only member and owner of this league. " +
+          "Delete the league instead, or invite someone before leaving.",
+      };
+    }
+  }
+
+  const { error } = await supabase
+    .from("prediction_league_members")
+    .delete()
+    .eq("league_id", leagueId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: "Could not leave the league. Please try again." };
+  return { error: null };
+}
+
 export async function getLeagueMemberCount(leagueId: string): Promise<number> {
   const { count } = await supabase
     .from("prediction_league_members")

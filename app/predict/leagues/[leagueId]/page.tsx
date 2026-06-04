@@ -89,9 +89,11 @@ function RankBadge({ rank }: { rank: number }) {
 function LeaderboardTable({
   rows,
   currentUserId,
+  ownerId,
 }: {
-  rows: LeaderboardRow[];
+  rows:          LeaderboardRow[];
   currentUserId: string | null;
+  ownerId:       string;
 }) {
   if (rows.length === 0) {
     return (
@@ -113,7 +115,8 @@ function LeaderboardTable({
       </div>
 
       {rows.map((row) => {
-        const isMe = row.userId === currentUserId;
+        const isMe      = row.userId === currentUserId;
+        const isOwner   = row.userId === ownerId;
         return (
           <div
             key={`${row.rank}-${row.displayName}`}
@@ -126,10 +129,19 @@ function LeaderboardTable({
             <RankBadge rank={row.rank} />
 
             {/* Player */}
-            <div className="flex-1 min-w-0 flex items-center gap-1.5">
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
               <span className="text-white text-sm font-medium truncate">
                 {row.displayName}
               </span>
+              {isOwner && (
+                <span
+                  className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
+                  style={{ color: "#ffab00", background: "#ffab0015" }}
+                  title="League owner"
+                >
+                  OWNER
+                </span>
+              )}
               {isMe && (
                 <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
                   style={{ color: "#00d4ff", background: "#00d4ff15" }}>
@@ -348,7 +360,11 @@ export default function LeagueDetailPage() {
           </div>
 
           <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
-            <LeaderboardTable rows={rows} currentUserId={user?.id ?? null} />
+            <LeaderboardTable
+              rows={rows}
+              currentUserId={user?.id ?? null}
+              ownerId={league.createdBy}
+            />
           </div>
 
           {rows.length > 0 && rows.every((r) => r.totalPoints === 0) && (
