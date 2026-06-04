@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, isSupabaseConfigured } from "./supabase";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -129,17 +129,30 @@ function rowToFixture(r: Record<string, unknown>): Fixture {
 
 // ── Competitions ──────────────────────────────────────────────
 
-export async function getCompetition(slug: string): Promise<Competition | null> {
+export async function getCompetition(
+  slug: string,
+): Promise<{ competition: Competition | null; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { competition: null, error: "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local." };
+  }
+
   const { data, error } = await supabase
     .from("competitions")
     .select("*")
     .eq("slug", slug)
     .single();
-  if (error || !data) return null;
-  return rowToCompetition(data as Record<string, unknown>);
+
+  if (error) {
+    return { competition: null, error: `competitions query failed: ${error.message} (code: ${error.code})` };
+  }
+  if (!data) {
+    return { competition: null, error: `No competition found with slug "${slug}". Run the wc2026 seed SQL.` };
+  }
+  return { competition: rowToCompetition(data as Record<string, unknown>), error: null };
 }
 
 export async function listCompetitions(): Promise<Competition[]> {
+  if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from("competitions")
     .select("*")
@@ -149,21 +162,30 @@ export async function listCompetitions(): Promise<Competition[]> {
 }
 
 // ── Fixtures ──────────────────────────────────────────────────
+//
+// PostgREST join syntax for tables with multiple FKs to the same target:
+//   alias:target_table!fk_column_name ( fields )
+//
+// WRONG: home_team:home_team_id(...)   — treats "home_team_id" as a table name
+// RIGHT: home_team:teams!home_team_id(...) — traverses FK from home_team_id → teams.id
 
 const FIXTURE_SELECT = `
   id, competition_id, stage, group_name, fixture_number,
   home_score, away_score, kicks_off_at, venue, status,
-  home_team:home_team_id ( id, name, code, flag_emoji, group_name ),
-  away_team:away_team_id ( id, name, code, flag_emoji, group_name ),
+  home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name ),
+  away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name ),
   predictions ( home_score, away_score, points_awarded )
 `;
 
-/** Returns fixtures for a competition, optionally filtered by stage.
- *  Joins the current user's own prediction for each fixture (via RLS). */
+/** Returns fixtures for a competition, optionally filtered by stage. */
 export async function getFixtures(
   competitionId: string,
   stage?: string,
-): Promise<Fixture[]> {
+): Promise<{ fixtures: Fixture[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { fixtures: [], error: "Supabase is not configured." };
+  }
+
   let q = supabase
     .from("fixtures")
     .select(FIXTURE_SELECT)
@@ -173,8 +195,18 @@ export async function getFixtures(
   if (stage) q = q.eq("stage", stage);
 
   const { data, error } = await q;
-  if (error || !data) return [];
-  return (data as Record<string, unknown>[]).map(rowToFixture);
+
+  if (error) {
+    return { fixtures: [], error: `fixtures query failed: ${error.message} (code: ${error.code})` };
+  }
+  if (!data || data.length === 0) {
+    return { fixtures: [], error: null }; // genuinely empty — seed hasn't been run or wrong comp ID
+  }
+
+  return {
+    fixtures: (data as Record<string, unknown>[]).map(rowToFixture),
+    error: null,
+  };
 }
 
 export async function getFixture(fixtureId: string): Promise<Fixture | null> {

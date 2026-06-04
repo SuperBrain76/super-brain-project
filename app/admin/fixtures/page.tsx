@@ -203,7 +203,7 @@ export default function AdminFixturesPage() {
 
   const loadFixtures = useCallback(async (comp: Competition) => {
     setFetching(true);
-    const data = await getFixtures(comp.id);
+    const { fixtures: data } = await getFixtures(comp.id);
     setFixtures(data);
     setFetching(false);
   }, []);

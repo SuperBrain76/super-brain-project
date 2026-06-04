@@ -54,18 +54,23 @@ export default function PredictHub() {
   const [fixtures,    setFixtures]    = useState<Fixture[]>([]);
   const [myStats,     setMyStats]     = useState<MyStats | null>(null);
   const [fetching,    setFetching]    = useState(true);
+  const [loadError,   setLoadError]   = useState<string | null>(null);
   const [tab,         setTab]         = useState<Tab>("all");
 
   useEffect(() => {
     async function load() {
       setFetching(true);
-      const comp = await getCompetition("wc2026");
-      if (!comp) { setFetching(false); return; }
+      setLoadError(null);
+
+      // Step 1: load competition
+      const { competition: comp, error: compErr } = await getCompetition("wc2026");
+      if (compErr) { setLoadError(compErr); setFetching(false); return; }
+      if (!comp)   { setLoadError('Competition "wc2026" not found. Run the fixture seed SQL in Supabase.'); setFetching(false); return; }
       setCompetition(comp);
 
-      const [fx] = await Promise.all([
-        getFixtures(comp.id),
-      ]);
+      // Step 2: load fixtures
+      const { fixtures: fx, error: fxErr } = await getFixtures(comp.id);
+      if (fxErr) { setLoadError(fxErr); setFetching(false); return; }
       setFixtures(fx);
       setFetching(false);
     }
@@ -110,10 +115,34 @@ export default function PredictHub() {
     );
   }
 
+  // ── Error state — show exactly what failed ───────────────────
+  if (loadError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-12">
+        <div className="w-full max-w-md bg-cockpit-card border border-red-500 border-opacity-30 rounded-sm p-5 flex flex-col gap-3">
+          <p className="text-red-400 text-sm font-semibold">Failed to load predictor</p>
+          <p className="text-cockpit-dim text-xs font-mono leading-relaxed break-all">{loadError}</p>
+          <div className="border-t border-cockpit-border pt-3 flex flex-col gap-1">
+            <p className="text-cockpit-muted text-xs font-mono">Checklist:</p>
+            <p className="text-cockpit-muted text-xs">1. NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local</p>
+            <p className="text-cockpit-muted text-xs">2. predictor-schema.sql has been run in Supabase SQL Editor</p>
+            <p className="text-cockpit-muted text-xs">3. wc2026-fixtures.sql has been run (seeds 48 teams + 104 fixtures)</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="btn-ghost text-sm self-start"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!competition) {
     return (
       <div className="flex-1 flex items-center justify-center px-4">
-        <p className="text-cockpit-muted text-sm">Competition data not found. Run the fixture seed in Supabase.</p>
+        <p className="text-cockpit-muted text-sm">Competition not found.</p>
       </div>
     );
   }
@@ -226,7 +255,15 @@ export default function PredictHub() {
         </div>
 
         {/* ── Fixture list ─────────────────────────────────── */}
-        {groups.size === 0 ? (
+        {fixtures.length === 0 ? (
+          // Fixtures loaded but DB is empty — seed hasn't been run
+          <div className="py-10 px-4 text-center flex flex-col gap-2">
+            <p className="text-cockpit-dim text-sm">No fixtures in database.</p>
+            <p className="text-cockpit-muted text-xs">
+              Run <code className="font-mono text-cockpit-accent">wc2026-fixtures.sql</code> in the Supabase SQL Editor to seed all 104 fixtures.
+            </p>
+          </div>
+        ) : groups.size === 0 ? (
           <div className="py-10 text-center">
             <p className="text-cockpit-muted text-sm">
               {tab === "today"   ? "No fixtures today."   :
