@@ -58,6 +58,7 @@ export interface PredictionLeague {
   inviteCode:     string;
   createdBy:      string;
   createdAt:      string;
+  maxMembers:     number | null;    // null = unlimited; positive integer = hard cap
   memberCount?:   number;
 }
 
@@ -311,7 +312,7 @@ export async function getLeague(leagueId: string): Promise<PredictionLeague | nu
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at")
+    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at, max_members")
     .eq("id", leagueId)
     .single();
   if (error || !data) return null;
@@ -324,6 +325,7 @@ export async function getLeague(leagueId: string): Promise<PredictionLeague | nu
     inviteCode:     l.invite_code as string,
     createdBy:      l.created_by as string,
     createdAt:      l.created_at as string,
+    maxMembers:     (l.max_members as number | null) ?? null,
   };
 }
 
@@ -349,7 +351,7 @@ export async function getMyLeagues(competitionId: string): Promise<PredictionLea
     .from("prediction_league_members")
     .select(`
       league:prediction_leagues (
-        id, competition_id, name, normalized_name, invite_code, created_by, created_at
+        id, competition_id, name, normalized_name, invite_code, created_by, created_at, max_members
       )
     `)
     .eq("user_id", user.id);
@@ -367,6 +369,7 @@ export async function getMyLeagues(competitionId: string): Promise<PredictionLea
         inviteCode:     l.invite_code as string,
         createdBy:      l.created_by as string,
         createdAt:      l.created_at as string,
+        maxMembers:     (l.max_members as number | null) ?? null,
       };
     })
     .filter((l) => l.competitionId === competitionId);
@@ -398,7 +401,14 @@ export async function createLeague(
     .select()
     .single();
 
-  if (error || !data) return { league: null, error: "Could not create league. Try again." };
+  if (error) {
+    // Unique constraint violation — duplicate normalized name in this competition
+    if (error.code === "23505") {
+      return { league: null, error: "That league name is already taken. Try a different name." };
+    }
+    return { league: null, error: "Could not create league. Try again." };
+  }
+  if (!data) return { league: null, error: "Could not create league. Try again." };
 
   const league = data as Record<string, unknown>;
   const newLeague: PredictionLeague = {
@@ -409,6 +419,7 @@ export async function createLeague(
     inviteCode:     league.invite_code as string,
     createdBy:      league.created_by as string,
     createdAt:      league.created_at as string,
+    maxMembers:     (league.max_members as number | null) ?? null,
   };
 
   // Auto-join the creator
@@ -425,7 +436,7 @@ export async function getLeagueByInviteCode(
 ): Promise<PredictionLeague | null> {
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at")
+    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at, max_members")
     .eq("invite_code", code.toUpperCase())
     .single();
 
@@ -439,6 +450,7 @@ export async function getLeagueByInviteCode(
     inviteCode:     l.invite_code as string,
     createdBy:      l.created_by as string,
     createdAt:      l.created_at as string,
+    maxMembers:     (l.max_members as number | null) ?? null,
   };
 }
 

@@ -12,11 +12,12 @@
  *   4. No phone numbers (7+ digit sequences)
  *   5. No excessive special characters (max 5, or max 40% of length)
  *   6. Profanity / racial slur filter (case-insensitive, leetspeak-aware)
+ *   7. Reserved names (exact match on normalized form)
  *
  * Two names are stored:
- *   original_name   — exactly what the user typed (after whitespace trim/collapse)
+ *   name            — exactly what the user typed (after whitespace trim/collapse)
  *   normalized_name — lowercase, diacritics removed, whitespace collapsed;
- *                     used for display consistency and future dedup checks
+ *                     used for deduplication and reserved-name checks
  */
 
 // ── Result type ───────────────────────────────────────────────────────────────
@@ -26,6 +27,23 @@ export interface NameValidationResult {
   error?:         string;
   normalizedName?: string;   // only present when valid === true
 }
+
+// ── Reserved names ────────────────────────────────────────────────────────────
+// Exact-match check on the fully normalized name (lowercase, diacritics removed,
+// whitespace collapsed). "admin" blocks "Admin", "ADMIN", "ádmin" but NOT "Admin FC".
+// "world cup" blocks "World Cup" and "WORLD CUP" but NOT "My World Cup League".
+
+const RESERVED_NAMES: readonly string[] = [
+  "admin",
+  "administrator",
+  "moderator",
+  "support",
+  "superbrain",
+  "fifa",
+  "world cup",
+  "official",
+  "system",
+];
 
 // ── Blocked terms ─────────────────────────────────────────────────────────────
 // Covers: racial/ethnic slurs, homophobic/transphobic slurs, ableist slurs,
@@ -140,7 +158,7 @@ export function validateLeagueName(raw: string): NameValidationResult {
     // Bare domain patterns: word.tld or word.tld/path
     /\b\w{2,}\.(com|net|org|io|co|uk|app|gg|tv|me|info|site|club|online)\b/i.test(trimmed)
   ) {
-    return { valid: false, error: "League names cannot contain URLs." };
+    return { valid: false, error: "League names cannot contain websites." };
   }
 
   // ── 3. No email addresses ───────────────────────────────────────────────────
@@ -174,9 +192,21 @@ export function validateLeagueName(raw: string): NameValidationResult {
     };
   }
 
+  // ── 7. Reserved names ───────────────────────────────────────────────────────
+  // Compare the exact normalized name against the reserved list.
+  // Uses the same normalizeName() output that will be stored in the DB,
+  // so the check is consistent with the uniqueness constraint.
+  const normalized = normalizeName(trimmed);
+  if (RESERVED_NAMES.includes(normalized)) {
+    return {
+      valid: false,
+      error: `"${trimmed}" is a reserved name and cannot be used for a league.`,
+    };
+  }
+
   // ── All checks passed ───────────────────────────────────────────────────────
   return {
     valid: true,
-    normalizedName: normalizeName(trimmed),
+    normalizedName: normalized,
   };
 }
