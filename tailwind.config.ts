@@ -19,9 +19,9 @@ const config: Config = {
           green: "#00e676",
           amber: "#ffab00",
           red: "#ff3d00",
-          muted: "#64748b",
+          muted: "#8899aa",   // was #64748b — ~3.5:1 → ~5.2:1 on card (WCAG AA)
           text: "#e2e8f0",
-          dim: "#94a3b8",
+          dim: "#a8b8cc",    // was #94a3b8 — ~5.5:1 → ~7.5:1 on card
         },
       },
       fontFamily: {

@@ -95,7 +95,7 @@ function FixtureRow({
           style={{
             color: isComplete ? "#00e676"
                  : isPast     ? "#ffab00"
-                 : "#4a5568",
+                 : "#8899aa",
           }}
         >
           {resultLabel(fixture)}

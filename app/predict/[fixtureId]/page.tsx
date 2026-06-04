@@ -272,7 +272,7 @@ export default function FixturePredictPage() {
             </button>
 
             {/* Deadline warning */}
-            <p className="text-cockpit-border text-[10px] text-center font-mono">
+            <p className="text-cockpit-muted text-[10px] text-center font-mono">
               Locks at kickoff · {countdown} remaining
             </p>
           </div>

@@ -59,7 +59,7 @@ function ScoreBadge({ fixture }: { fixture: Fixture }) {
     <div className="flex items-center justify-center shrink-0 px-2">
       <span
         className="text-xs font-mono tracking-widest uppercase"
-        style={{ color: open ? "#00d4ff" : "#4a5568" }}
+        style={{ color: open ? "#00d4ff" : "#8899aa" }}
       >
         {open ? "vs" : fixture.status === "live" ? "LIVE" : "vs"}
       </span>
@@ -80,7 +80,7 @@ function PredictionRow({ fixture }: { fixture: Fixture }) {
       );
     }
     return (
-      <p className="text-cockpit-border text-xs font-mono">
+      <p className="text-cockpit-muted text-xs font-mono">
         No prediction made
       </p>
     );
@@ -144,7 +144,7 @@ export default function FixtureCard({
         <span className="text-[10px] font-mono uppercase tracking-widest text-cockpit-muted">
           {fixture.groupName ? `Group ${fixture.groupName}` : stageLabel(fixture.stage)}
         </span>
-        <span className="text-[10px] font-mono text-cockpit-border shrink-0">
+        <span className="text-[10px] font-mono text-cockpit-muted shrink-0">
           {formatKickoff(fixture.kicksOffAt, { date: true, time: false })}
           {" · "}
           {formatKickoff(fixture.kicksOffAt, { time: true })}
@@ -165,7 +165,7 @@ export default function FixtureCard({
 
       {/* Venue */}
       {!compact && fixture.venue && (
-        <p className="text-[10px] text-cockpit-border font-mono truncate">
+        <p className="text-[10px] text-cockpit-muted font-mono truncate">
           {fixture.venue}
         </p>
       )}

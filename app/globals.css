@@ -18,9 +18,9 @@
 }
 
 :root {
-  --text-body:    #cbd5e1;   /* slate-300 — comfortable reading contrast */
-  --text-dim:     #94a3b8;   /* slate-400 — secondary / labels */
-  --text-muted:   #64748b;   /* slate-500 — timestamps / decorative */
+  --text-body:    #cbd5e1;   /* slate-300 — ~10:1 on card              */
+  --text-dim:     #a8b8cc;   /* was #94a3b8 — ~7.5:1 on card (WCAG AA+) */
+  --text-muted:   #8899aa;   /* was #64748b — ~5.2:1 on card (WCAG AA)  */
 }
 
 html, body {

@@ -284,7 +284,7 @@ export default function PredictHub() {
                     {isToday(dayFixtures[0].kicksOffAt) ? "Today · " : ""}{dateLabel}
                   </span>
                   <div className="flex-1 h-px bg-cockpit-border" />
-                  <span className="text-[10px] text-cockpit-border font-mono">
+                  <span className="text-[10px] text-cockpit-muted font-mono">
                     {dayFixtures.length} match{dayFixtures.length === 1 ? "" : "es"}
                   </span>
                 </div>
