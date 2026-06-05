@@ -10,6 +10,7 @@ import {
   createLeague,
   joinLeague,
   getLeagueByInviteCode,
+  getLeagueMemberCount,
   type Competition,
   type PredictionLeague,
 } from "@/lib/predictor";
@@ -68,9 +69,16 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 // ── League card ───────────────────────────────────────────────
 
 function LeagueCard({ league }: { league: PredictionLeague }) {
-  // memberCount is now included in the league object from getMyLeaguesBySlug —
-  // no separate DB call needed (eliminates N+1 pattern).
-  const memberCount = league.memberCount ?? null;
+  // Fast path: memberCount already in the object when RPC is available (migration 005b).
+  // Fallback: load separately when RPC wasn't available and memberCount is undefined.
+  const [memberCount, setMemberCount] = useState<number | null>(
+    league.memberCount !== undefined ? league.memberCount : null,
+  );
+
+  useEffect(() => {
+    if (league.memberCount !== undefined) return; // already have it
+    getLeagueMemberCount(league.id).then(setMemberCount);
+  }, [league.id, league.memberCount]);
 
   return (
     <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-4 flex flex-col gap-3">
@@ -126,6 +134,7 @@ function LeaguesContent() {
   const [myLeagues,      setMyLeagues]      = useState<PredictionLeague[]>([]);
   const [loading,        setLoading]        = useState(true);
   const [loadError,      setLoadError]      = useState<string | null>(null);
+  const [leagueLoadWarn, setLeagueLoadWarn] = useState<string | null>(null);
 
   // Create form
   const [createName,     setCreateName]     = useState("");
@@ -143,20 +152,32 @@ function LeaguesContent() {
   const autoLooked = useRef(false);
 
   // Load competition + user leagues in parallel.
-  // getMyLeaguesBySlug accepts the slug directly so both queries can
-  // fire at the same time rather than waiting for the competition ID.
+  // getMyLeaguesBySlug tries the fast RPC, then falls back to a direct
+  // query if the RPC isn't deployed yet. Returns { leagues, error }.
   useEffect(() => {
     async function load() {
-      const [compResult, leagues] = await Promise.all([
+      const [compResult, leaguesResult] = await Promise.all([
         getCompetition("wc2026"),
-        user ? getMyLeaguesBySlug("wc2026") : Promise.resolve([]),
+        user
+          ? getMyLeaguesBySlug("wc2026")
+          : Promise.resolve({ leagues: [] as PredictionLeague[], error: null }),
       ]);
 
-      const { competition: comp, error } = compResult;
-      if (error || !comp) { setLoadError(error ?? "Competition not found."); setLoading(false); return; }
+      const { competition: comp, error: compError } = compResult;
+      if (compError || !comp) {
+        setLoadError(compError ?? "Competition not found.");
+        setLoading(false);
+        return;
+      }
 
       setCompetition(comp);
-      setMyLeagues(leagues);
+      setMyLeagues(leaguesResult.leagues);
+
+      // Surface a non-blocking warning if league loading partially failed
+      if (leaguesResult.error) {
+        setLeagueLoadWarn("Could not load your leagues. Please refresh the page.");
+      }
+
       setLoading(false);
     }
     if (!authLoading) load();
@@ -265,7 +286,25 @@ function LeaguesContent() {
               <span className="text-cockpit-muted text-xs font-mono">{myLeagues.length} league{myLeagues.length !== 1 ? "s" : ""}</span>
             </div>
 
-            {myLeagues.length === 0 ? (
+            {/* League load warning — shown when league query failed but didn't crash */}
+            {leagueLoadWarn && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-sm border border-cockpit-amber border-opacity-30 bg-cockpit-surface">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <p className="text-cockpit-amber text-xs">{leagueLoadWarn}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="ml-auto text-[10px] font-mono text-cockpit-amber hover:underline shrink-0"
+                >
+                  Refresh
+                </button>
+              </div>
+            )}
+
+            {myLeagues.length === 0 && !leagueLoadWarn ? (
               <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-6 text-center">
                 <p className="text-cockpit-dim text-sm">You haven&apos;t joined any leagues yet.</p>
                 <p className="text-cockpit-muted text-xs mt-1">Create one below or ask a friend for their invite code.</p>

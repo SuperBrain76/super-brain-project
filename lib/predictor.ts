@@ -401,29 +401,78 @@ export async function isLeagueMember(
  * Takes the competition SLUG so it can be called in parallel with
  * getCompetition() — no sequential dependency.
  */
+/**
+ * Returns leagues the current user has joined for a competition.
+ *
+ * Fast path: calls get_my_leagues_with_counts RPC (migration 005b)
+ * which returns leagues + member counts in a single query.
+ *
+ * Fallback path: if the RPC is unavailable (migration not yet run),
+ * falls back to a direct table query. Member counts are not included
+ * in the fallback — LeagueCard fetches them individually in that case.
+ *
+ * Never silently swallows errors: returns { leagues, error } so the
+ * calling page can surface failures to the user.
+ */
 export async function getMyLeaguesBySlug(
   competitionSlug: string,
-): Promise<PredictionLeague[]> {
+): Promise<{ leagues: PredictionLeague[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { leagues: [], error: "Supabase not configured." };
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { leagues: [], error: null };
 
-  const { data, error } = await supabase.rpc("get_my_leagues_with_counts", {
-    p_competition_slug: competitionSlug,
-  });
+  // ── Fast path: RPC with member counts ────────────────────────
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "get_my_leagues_with_counts",
+    { p_competition_slug: competitionSlug },
+  );
 
-  if (error || !data) return [];
+  if (!rpcError && rpcData !== null) {
+    const leagues = (rpcData as Record<string, unknown>[]).map((r) => ({
+      id:             r.id as string,
+      competitionId:  r.competition_id as string,
+      name:           r.name as string,
+      normalizedName: r.normalized_name as string,
+      inviteCode:     r.invite_code as string,
+      createdBy:      r.created_by as string,
+      createdAt:      r.created_at as string,
+      maxMembers:     (r.max_members as number | null) ?? null,
+      memberCount:    Number(r.member_count),
+    }));
+    return { leagues, error: null };
+  }
 
-  return (data as Record<string, unknown>[]).map((r) => ({
-    id:             r.id as string,
-    competitionId:  r.competition_id as string,
-    name:           r.name as string,
-    normalizedName: r.normalized_name as string,
-    inviteCode:     r.invite_code as string,
-    createdBy:      r.created_by as string,
-    createdAt:      r.created_at as string,
-    maxMembers:     (r.max_members as number | null) ?? null,
-    memberCount:    Number(r.member_count),
-  }));
+  // ── Fallback: direct table query (RPC not yet deployed) ───────
+  // The RPC is created by migration 005b_get_my_leagues_rpc.sql.
+  // Until that migration is run, we fall back to a direct query.
+  // Member counts will be loaded per-card by LeagueCard's useEffect.
+  if (rpcError) {
+    console.warn(
+      "[getMyLeaguesBySlug] RPC get_my_leagues_with_counts unavailable — " +
+      "falling back to direct query. Run 005b_get_my_leagues_rpc.sql to fix. " +
+      "Error:", rpcError.message,
+    );
+  }
+
+  // Get competition UUID from slug
+  const { data: compRow, error: compErr } = await supabase
+    .from("competitions")
+    .select("id")
+    .eq("slug", competitionSlug)
+    .single();
+
+  if (compErr || !compRow) {
+    const msg = compErr?.message ?? `Competition '${competitionSlug}' not found`;
+    console.error("[getMyLeaguesBySlug] competition lookup failed:", msg);
+    return { leagues: [], error: msg };
+  }
+
+  const competitionId = (compRow as Record<string, unknown>).id as string;
+  const fallbackLeagues = await getMyLeagues(competitionId);
+  return { leagues: fallbackLeagues, error: null };
 }
 
 export async function getMyLeagues(competitionId: string): Promise<PredictionLeague[]> {
