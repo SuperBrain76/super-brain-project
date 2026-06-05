@@ -6,11 +6,10 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import {
   getCompetition,
-  getMyLeagues,
+  getMyLeaguesBySlug,
   createLeague,
   joinLeague,
   getLeagueByInviteCode,
-  getLeagueMemberCount,
   type Competition,
   type PredictionLeague,
 } from "@/lib/predictor";
@@ -69,11 +68,9 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 // ── League card ───────────────────────────────────────────────
 
 function LeagueCard({ league }: { league: PredictionLeague }) {
-  const [memberCount, setMemberCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    getLeagueMemberCount(league.id).then(setMemberCount);
-  }, [league.id]);
+  // memberCount is now included in the league object from getMyLeaguesBySlug —
+  // no separate DB call needed (eliminates N+1 pattern).
+  const memberCount = league.memberCount ?? null;
 
   return (
     <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-4 flex flex-col gap-3">
@@ -145,16 +142,21 @@ function LeaguesContent() {
 
   const autoLooked = useRef(false);
 
-  // Load competition + user leagues
+  // Load competition + user leagues in parallel.
+  // getMyLeaguesBySlug accepts the slug directly so both queries can
+  // fire at the same time rather than waiting for the competition ID.
   useEffect(() => {
     async function load() {
-      const { competition: comp, error } = await getCompetition("wc2026");
+      const [compResult, leagues] = await Promise.all([
+        getCompetition("wc2026"),
+        user ? getMyLeaguesBySlug("wc2026") : Promise.resolve([]),
+      ]);
+
+      const { competition: comp, error } = compResult;
       if (error || !comp) { setLoadError(error ?? "Competition not found."); setLoading(false); return; }
+
       setCompetition(comp);
-      if (user) {
-        const leagues = await getMyLeagues(comp.id);
-        setMyLeagues(leagues);
-      }
+      setMyLeagues(leagues);
       setLoading(false);
     }
     if (!authLoading) load();

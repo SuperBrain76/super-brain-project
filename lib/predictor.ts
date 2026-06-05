@@ -343,6 +343,37 @@ export async function isLeagueMember(
   return !!data;
 }
 
+/**
+ * Returns leagues the current user has joined for a competition,
+ * with member counts included in a single DB round-trip.
+ * Takes the competition SLUG so it can be called in parallel with
+ * getCompetition() — no sequential dependency.
+ */
+export async function getMyLeaguesBySlug(
+  competitionSlug: string,
+): Promise<PredictionLeague[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc("get_my_leagues_with_counts", {
+    p_competition_slug: competitionSlug,
+  });
+
+  if (error || !data) return [];
+
+  return (data as Record<string, unknown>[]).map((r) => ({
+    id:             r.id as string,
+    competitionId:  r.competition_id as string,
+    name:           r.name as string,
+    normalizedName: r.normalized_name as string,
+    inviteCode:     r.invite_code as string,
+    createdBy:      r.created_by as string,
+    createdAt:      r.created_at as string,
+    maxMembers:     (r.max_members as number | null) ?? null,
+    memberCount:    Number(r.member_count),
+  }));
+}
+
 export async function getMyLeagues(competitionId: string): Promise<PredictionLeague[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -583,23 +614,32 @@ export async function getMyStats(
 
 // ── Admin tools ───────────────────────────────────────────────
 
-/** Update fixture result. Admin only (checked on calling page). */
+/**
+ * Update fixture result via SECURITY DEFINER RPC.
+ * Server-side check: caller must be in app_admins table.
+ * Non-admins receive "Access denied" — client-side guard is
+ * a UX convenience only and cannot be relied upon for security.
+ */
 export async function adminSetResult(
   fixtureId: string,
   homeScore: number,
   awayScore: number,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from("fixtures")
-    .update({
-      home_score:  homeScore,
-      away_score:  awayScore,
-      status:      "completed",
-      updated_at:  new Date().toISOString(),
-    })
-    .eq("id", fixtureId);
+  const { error } = await supabase.rpc("admin_set_fixture_result", {
+    p_fixture_id: fixtureId,
+    p_home_score: homeScore,
+    p_away_score: awayScore,
+  });
 
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.message.includes("Access denied") || error.message.includes("admin privileges")) {
+      return { error: "Access denied. Admin privileges required." };
+    }
+    if (error.message.includes("Authentication required")) {
+      return { error: "You must be signed in." };
+    }
+    return { error: error.message };
+  }
   return { error: null };
 }
 
