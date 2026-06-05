@@ -1,158 +1,238 @@
 /**
- * POST /api/cron/ingest-results
+ * GET|POST /api/cron/ingest-results
  *
- * Called every 5 minutes by a GitHub Actions scheduled workflow.
- * Also supports GET (Vercel cron format) so it works with Vercel Pro if needed.
+ * Triggered every 5 minutes by GitHub Actions. Also accepts Vercel cron
+ * format (GET) if Vercel Pro is ever enabled.
  *
  * Authentication: Authorization: Bearer <CRON_SECRET>
  *
- * Flow:
- *   1. Fetch live WC2026 fixtures from API-Football
- *   2. If none live, fetch today's fixtures (catches FT results up to 3h after kickoff)
- *   3. Match each to our DB fixture by kickoff timestamp (±5 min)
- *   4. Update status for live matches (never write partial scores)
- *   5. Write home_score + away_score + status=completed for finished matches
- *      → auto_score_predictions DB trigger fires automatically
- *      → predictions.points_awarded is set for all predictors
- *      → leaderboards update on next read (computed on demand, no action needed)
+ * Request-efficient polling — three pre-flight checks before any API call:
+ *
+ *   CHECK 1 — Tournament window
+ *     If today is outside WC2026 dates (Jun 11 – Jul 19), return immediately.
+ *     Zero API calls on off-season days regardless of cron schedule.
+ *
+ *   CHECK 2 — DB fixtures in window
+ *     Query our own fixtures table for matches in the next ±3 hours.
+ *     If none exist, return immediately. Zero API calls on non-match days.
+ *
+ *   CHECK 3 — Active match window
+ *     Inspect those fixtures: is any match live, recently started (< 3h ago
+ *     and not completed), or kicking off within 30 minutes?
+ *     If none qualify, return immediately. Zero API calls between matches.
+ *
+ *   Only if all three checks pass does the handler call API-Football.
+ *
+ * Scoring safety:
+ *   - extractScore() returns null/null for all non-final statuses
+ *   - Scores are only written to DB when status = 'completed'
+ *   - This ensures auto_score_predictions trigger fires exactly once per
+ *     fixture, with confirmed fulltime scores (never partial live scores)
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { createClient }              from "@supabase/supabase-js";
+import { NextRequest, NextResponse }    from "next/server";
+import { createClient }                  from "@supabase/supabase-js";
 import {
+  isTournamentWindow,
+  getPollReason,
   fetchLiveFixtures,
   fetchFixturesByDate,
   mapStatus,
   extractScore,
   findDbFixtureByKickoff,
+  RateLimitError,
+  AuthError,
+  type DbFixture,
+  type QuotaMeta,
 } from "@/lib/ingestion";
 
 // ── Environment ───────────────────────────────────────────────
 
-const CRON_SECRET       = process.env.CRON_SECRET              ?? "";
-const FOOTBALL_API_KEY  = process.env.FOOTBALL_API_KEY         ?? "";
-const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_SRK      = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const CRON_SECRET      = process.env.CRON_SECRET               ?? "";
+const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY          ?? "";
+const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
+const SUPABASE_SRK     = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-// ── DB types ──────────────────────────────────────────────────
-
-interface DbFixture {
-  id:         string;
-  kicks_off_at: string;
-  home_score: number | null;
-  away_score: number | null;
-  status:     string;
-}
-
-// ── Auth helper ───────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────
 
 function isAuthorized(req: NextRequest): boolean {
   if (!CRON_SECRET) return false;
-
-  // GitHub Actions / external callers: Authorization: Bearer <secret>
-  const authHeader = req.headers.get("authorization");
-  if (authHeader === `Bearer ${CRON_SECRET}`) return true;
-
-  // Vercel cron (if ever used): includes vercel-cron user agent
-  // Vercel also sends the secret as a query param when configured
-  const urlSecret = req.nextUrl.searchParams.get("secret");
-  if (urlSecret === CRON_SECRET) return true;
-
+  const auth = req.headers.get("authorization");
+  if (auth === `Bearer ${CRON_SECRET}`) return true;
+  // Vercel cron query-param fallback
+  if (req.nextUrl.searchParams.get("secret") === CRON_SECRET) return true;
   return false;
 }
 
-// ── Handler (supports both GET and POST) ─────────────────────
+// ── Handler ───────────────────────────────────────────────────
 
 async function handler(req: NextRequest): Promise<NextResponse> {
+
+  // ── Auth ────────────────────────────────────────────────────
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!FOOTBALL_API_KEY) {
+  // ── Config check ────────────────────────────────────────────
+  if (!FOOTBALL_API_KEY || !SUPABASE_URL || !SUPABASE_SRK) {
+    const missing = [
+      !FOOTBALL_API_KEY ? "FOOTBALL_API_KEY" : null,
+      !SUPABASE_URL     ? "NEXT_PUBLIC_SUPABASE_URL" : null,
+      !SUPABASE_SRK     ? "SUPABASE_SERVICE_ROLE_KEY" : null,
+    ].filter(Boolean).join(", ");
     return NextResponse.json(
-      { error: "FOOTBALL_API_KEY not configured" },
+      { error: `Missing env vars: ${missing}` },
       { status: 500 },
     );
   }
-
-  if (!SUPABASE_URL || !SUPABASE_SRK) {
-    return NextResponse.json(
-      { error: "Supabase service role credentials not configured" },
-      { status: 500 },
-    );
-  }
-
-  // Service-role client — bypasses RLS for server-side ingestion
-  const db = createClient(SUPABASE_URL, SUPABASE_SRK);
 
   const startedAt = Date.now();
 
+  // ── CHECK 1: Tournament window ───────────────────────────────
+  // Hard cutoff — zero API requests outside WC2026 dates.
+  if (!isTournamentWindow()) {
+    return NextResponse.json({
+      skipped:  true,
+      reason:   "outside_tournament_window",
+      apiCalls: 0,
+      duration: Date.now() - startedAt,
+    });
+  }
+
+  // Service-role DB client (bypasses RLS — server-side only)
+  const db = createClient(SUPABASE_URL, SUPABASE_SRK);
+
+  // ── CHECK 2: DB fixtures in ±3-hour window ───────────────────
+  // Query our own DB before touching the external API.
+  const now         = Date.now();
+  const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+  const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
+
+  const { data: dbFixtures, error: dbErr } = await db
+    .from("fixtures")
+    .select("id, kicks_off_at, home_score, away_score, status")
+    .gte("kicks_off_at", windowStart)
+    .lte("kicks_off_at", windowEnd)
+    .order("kicks_off_at", { ascending: true });
+
+  if (dbErr) {
+    // DB error is a real error — return 500 so GitHub marks the run failed
+    console.error("[ingest] DB query failed:", dbErr.message);
+    return NextResponse.json({ error: `DB error: ${dbErr.message}` }, { status: 500 });
+  }
+
+  const typedDb = (dbFixtures ?? []) as DbFixture[];
+
+  if (typedDb.length === 0) {
+    return NextResponse.json({
+      skipped:  true,
+      reason:   "no_fixtures_in_window",
+      apiCalls: 0,
+      duration: Date.now() - startedAt,
+    });
+  }
+
+  // ── CHECK 3: Active match window ─────────────────────────────
+  // Only proceed if a match is live, in-progress, or imminent.
+  const pollReason = getPollReason(typedDb, now);
+
+  if (!pollReason) {
+    // No active window — next match is more than 30 min away
+    const nextFixture = typedDb
+      .filter((f) => f.status === "scheduled")
+      .sort((a, b) => new Date(a.kicks_off_at).getTime() - new Date(b.kicks_off_at).getTime())[0];
+
+    const nextKickoffMs = nextFixture
+      ? new Date(nextFixture.kicks_off_at).getTime()
+      : null;
+
+    const minsUntilNext = nextKickoffMs
+      ? Math.round((nextKickoffMs - now) / 60_000)
+      : null;
+
+    return NextResponse.json({
+      skipped:       true,
+      reason:        "no_active_match_window",
+      nextKickoffIn: minsUntilNext !== null ? `${minsUntilNext}m` : null,
+      apiCalls:      0,
+      duration:      Date.now() - startedAt,
+    });
+  }
+
+  // ── All checks passed — call API-Football ────────────────────
+
+  let apiCallsMade = 0;
+  let quota: QuotaMeta = {
+    requestsLimit: null,
+    requestsRemaining: null,
+    requestsUsed: null,
+  };
+
   try {
-    // ── Step 1: Fetch from API-Football ──────────────────────
-    // Try live first; if nothing live, fall back to today's full schedule
-    // (catches FT results in the minutes after a match ends while status settles)
-    let apiFixtures = await fetchLiveFixtures(FOOTBALL_API_KEY);
+    // Step A: Fetch live fixtures first (most request-efficient path)
+    const liveResult = await fetchLiveFixtures(FOOTBALL_API_KEY);
+    apiCallsMade += liveResult.apiCallsMade;
+    quota = liveResult.quota;
 
-    const todayUtc = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    let apiFixtures = liveResult.fixtures;
 
+    // Step B: If nothing live, fetch today's full schedule to catch
+    //         matches that recently finished (status just changed to FT)
     if (apiFixtures.length === 0) {
-      apiFixtures = await fetchFixturesByDate(FOOTBALL_API_KEY, todayUtc);
+      const todayUtc    = new Date().toISOString().slice(0, 10);
+      const todayResult = await fetchFixturesByDate(FOOTBALL_API_KEY, todayUtc);
+      apiCallsMade += todayResult.apiCallsMade;
+      quota = todayResult.quota; // most recent quota is the most accurate
+
+      apiFixtures = todayResult.fixtures;
     }
+
+    // Log quota after every API call for monitoring
+    console.log(
+      `[ingest] api calls this run: ${apiCallsMade} | ` +
+      `quota: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} used ` +
+      `(${quota.requestsRemaining ?? "?"} remaining today) | ` +
+      `poll reason: ${pollReason}`,
+    );
 
     if (apiFixtures.length === 0) {
       return NextResponse.json({
-        updated:  0,
-        checked:  0,
-        message:  "No WC2026 fixtures found for today",
-        duration: Date.now() - startedAt,
+        updated:     0,
+        checked:     0,
+        apiCalls:    apiCallsMade,
+        quota,
+        pollReason,
+        message:     "API returned no fixtures for today",
+        duration:    Date.now() - startedAt,
       });
     }
 
-    // ── Step 2: Load our DB fixtures for a ±3h window ────────
-    // This covers any match that started in the last 3 hours or kicks off
-    // in the next 3 hours, which is sufficient for all edge cases.
-    const windowStart = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-    const windowEnd   = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
-
-    const { data: dbFixtures, error: dbErr } = await db
-      .from("fixtures")
-      .select("id, kicks_off_at, home_score, away_score, status")
-      .gte("kicks_off_at", windowStart)
-      .lte("kicks_off_at", windowEnd);
-
-    if (dbErr) {
-      throw new Error(`DB query failed: ${dbErr.message}`);
-    }
-
-    if (!dbFixtures || dbFixtures.length === 0) {
-      return NextResponse.json({
-        updated:  0,
-        checked:  apiFixtures.length,
-        message:  "No DB fixtures in current 6-hour window",
-        duration: Date.now() - startedAt,
-      });
-    }
-
-    const typedDb = dbFixtures as DbFixture[];
-
-    // ── Step 3: Diff and update ───────────────────────────────
-
-    let updated = 0;
-    const log: string[] = [];
+    // ── Diff and update ───────────────────────────────────────
+    let updated    = 0;
+    let skippedNoMatch = 0;
+    const changes: string[] = [];
 
     for (const apiFix of apiFixtures) {
       const dbFix = findDbFixtureByKickoff(apiFix.fixture.date, typedDb);
-      if (!dbFix) continue; // Not a WC2026 fixture in our window
 
-      const newStatus = mapStatus(apiFix.fixture.status.short);
+      if (!dbFix) {
+        skippedNoMatch++;
+        continue; // Fixture not in our ±3h window
+      }
+
+      const newStatus               = mapStatus(apiFix.fixture.status.short);
       const { homeScore, awayScore } = extractScore(apiFix);
 
-      // Build update payload
-      // SAFETY: Only write scores when status is 'completed'
-      //         Never write partial live scores — prevents trigger misfiring
       const statusChanged = newStatus !== dbFix.status;
-      const scoreChanged  =
+
+      // Score change only meaningful when match is complete AND
+      // extractScore returned real values (non-null fulltime scores).
+      // This is the gatekeeper that prevents partial live scores from
+      // ever reaching the auto_score_predictions trigger.
+      const scoreChanged =
         newStatus === "completed" &&
+        homeScore !== null &&
+        awayScore !== null &&
         (homeScore !== dbFix.home_score || awayScore !== dbFix.away_score);
 
       if (!statusChanged && !scoreChanged) continue;
@@ -162,12 +242,12 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         updated_at: new Date().toISOString(),
       };
 
-      if (scoreChanged && homeScore !== null && awayScore !== null) {
+      if (scoreChanged) {
+        // Writing both scores triggers the auto_score_predictions AFTER UPDATE
+        // trigger, which sets predictions.points_awarded for all users.
+        // Leaderboard RPCs are computed on-demand — no further action needed.
         updatePayload.home_score = homeScore;
         updatePayload.away_score = awayScore;
-        // ↑ Writing scores triggers auto_score_predictions DB trigger
-        //   which sets predictions.points_awarded for all predictors.
-        //   Leaderboard RPCs are computed on-demand — nothing else needed.
       }
 
       const { error: updateErr } = await db
@@ -176,32 +256,70 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         .eq("id", dbFix.id);
 
       if (updateErr) {
-        console.error(`[ingest] Failed to update fixture ${dbFix.id}:`, updateErr.message);
+        console.error(`[ingest] update failed for ${dbFix.id}:`, updateErr.message);
         continue;
       }
 
       updated++;
-      log.push(
-        `${dbFix.id.slice(0, 8)} | ${dbFix.status}→${newStatus}` +
-        (scoreChanged ? ` | score: ${homeScore}-${awayScore}` : " | status only"),
-      );
+      const label = scoreChanged
+        ? `SCORED ${homeScore}-${awayScore}`
+        : `STATUS ${dbFix.status}→${newStatus}`;
+      const changeMsg = `${dbFix.id.slice(0, 8)} | ${label}`;
+      changes.push(changeMsg);
+      console.log(`[ingest] ${changeMsg}`);
     }
 
     const duration = Date.now() - startedAt;
-    console.log(`[ingest] done in ${duration}ms — ${updated} updated of ${apiFixtures.length} checked`);
-    if (log.length > 0) console.log("[ingest] changes:", log.join("\n"));
+
+    console.log(
+      `[ingest] complete: ${updated} updated, ${apiFixtures.length - skippedNoMatch} matched, ` +
+      `${skippedNoMatch} outside window | ${duration}ms`,
+    );
 
     return NextResponse.json({
       updated,
-      checked:  apiFixtures.length,
+      checked:     apiFixtures.length,
+      apiCalls:    apiCallsMade,
+      quota,
+      pollReason,
+      changes,
       duration,
-      changes:  log,
     });
 
   } catch (err) {
+
+    // ── Typed error handling ──────────────────────────────────
+
+    if (err instanceof RateLimitError) {
+      // Rate limited: this is expected under heavy load — log a warning
+      // but return 200 so GitHub doesn't mark the run as failed.
+      // The next 5-minute run will succeed once the rate window resets.
+      console.warn("[ingest] rate limited:", err.message, "quota:", err.quota);
+      return NextResponse.json({
+        warning:  "rate_limited",
+        message:  err.message,
+        apiCalls: apiCallsMade,
+        quota:    err.quota ?? quota,
+        duration: Date.now() - startedAt,
+      });
+    }
+
+    if (err instanceof AuthError) {
+      // Auth errors mean the API key is wrong or expired — 500 to alert
+      console.error("[ingest] auth error:", err.message);
+      return NextResponse.json(
+        { error: "auth_error", message: err.message, apiCalls: apiCallsMade },
+        { status: 500 },
+      );
+    }
+
+    // Unexpected error — 500 so GitHub marks the run failed for alerting
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[ingest] error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[ingest] unexpected error:", message);
+    return NextResponse.json(
+      { error: "unexpected", message, apiCalls: apiCallsMade },
+      { status: 500 },
+    );
   }
 }
 

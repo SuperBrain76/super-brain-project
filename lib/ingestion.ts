@@ -1,27 +1,97 @@
 /**
  * Automated match result ingestion — API-Football Pro
  *
- * Fetches live and completed fixtures from API-Football (league=1, season=2026)
- * and updates the SuperBrain fixtures table. The existing auto_score_predictions
- * DB trigger fires automatically when home_score/away_score are written,
- * scoring all predictions without any additional code.
+ * Design principles:
+ *   1. DB-first: always check our own fixtures table before touching the
+ *      external API. Skip the API call entirely if no match is active or
+ *      imminent. This is the primary request-saving mechanism.
  *
- * Score extraction rules:
- *   - LIVE matches: only update status → 'live' (never write partial scores)
- *   - COMPLETED matches: write score.fulltime (90-minute result only, per rules)
- *   - AET / PEN matches: still use score.fulltime (the 90-min draw that led to ET/pens)
+ *   2. Tournament window: hard-coded start/end dates ensure zero API calls
+ *      outside the WC2026 dates regardless of cron schedule.
  *
- * This prevents the auto_score_predictions trigger from firing with wrong
- * live partial scores.
+ *   3. Never write partial live scores: extractScore() returns null/null
+ *      for any non-final status, so the auto_score_predictions trigger
+ *      can only fire when both fulltime scores are confirmed.
+ *
+ *   4. 90-minute result only: even for AET/PEN matches we write
+ *      score.fulltime (not goals, not penalty totals) as required by rules.
+ *
+ *   5. Idempotent: every update is guarded by a diff — unchanged fixtures
+ *      are skipped silently with no DB write.
  */
+
+// ── Tournament window ────────────────────────────────────────
+// The GitHub Actions cron runs every 5 minutes indefinitely.
+// These constants gate the expensive API call to WC2026 dates only.
+
+export const TOURNAMENT_START_MS = new Date("2026-06-11T18:45:00Z").getTime(); // 15 min before first kickoff
+export const TOURNAMENT_END_MS   = new Date("2026-07-20T03:00:00Z").getTime(); // final + 8h buffer
+
+export function isTournamentWindow(): boolean {
+  const now = Date.now();
+  return now >= TOURNAMENT_START_MS && now <= TOURNAMENT_END_MS;
+}
+
+// ── DB fixture type (what the route loads from Supabase) ─────
+
+export interface DbFixture {
+  id:           string;
+  kicks_off_at: string;
+  home_score:   number | null;
+  away_score:   number | null;
+  status:       string;
+}
+
+// ── Match-window decision ────────────────────────────────────
+//
+// Given today's DB fixtures, decide whether an API call is warranted.
+// Returns null if no API call is needed (saves a request quota).
+
+export type PollReason =
+  | "live_match"           // DB shows status='live'
+  | "match_in_progress"    // Started within last 3h, not yet completed
+  | "kickoff_imminent"     // Kicks off within next 30 min
+  | null;                  // No active window — skip API call
+
+export function getPollReason(
+  dbFixtures: DbFixture[],
+  nowMs: number = Date.now(),
+): PollReason {
+  for (const f of dbFixtures) {
+    // Already marked live in our DB
+    if (f.status === "live") return "live_match";
+
+    const kickoffMs = new Date(f.kicks_off_at).getTime();
+    const msSinceKickoff = nowMs - kickoffMs;
+    const msUntilKickoff = kickoffMs - nowMs;
+
+    // Match started in the last 3 hours and isn't completed/postponed
+    // (covers matches in progress where our DB status is stale)
+    if (
+      msSinceKickoff > 0 &&
+      msSinceKickoff < 3 * 60 * 60 * 1000 &&
+      f.status !== "completed" &&
+      f.status !== "postponed"
+    ) {
+      return "match_in_progress";
+    }
+
+    // Kickoff within the next 30 minutes
+    if (msUntilKickoff > 0 && msUntilKickoff < 30 * 60 * 1000) {
+      return "kickoff_imminent";
+    }
+  }
+
+  return null; // Nothing active or imminent
+}
 
 // ── API-Football response types ───────────────────────────────
 
 export interface ApiFootballFixture {
   fixture: {
     id:     number;
-    date:   string;           // ISO UTC, e.g. "2026-06-11T19:00:00+00:00"
-    status: { short: string }; // "NS" | "1H" | "HT" | "2H" | "FT" | "AET" | "PEN" etc.
+    date:   string;           // ISO UTC e.g. "2026-06-11T19:00:00+00:00"
+    status: { short: string }; // NS | 1H | HT | 2H | FT | AET | PEN …
   };
   teams: {
     home: { id: number; name: string };
@@ -35,21 +105,27 @@ export interface ApiFootballFixture {
   };
 }
 
-export interface IngestedScore {
-  homeScore: number | null;
-  awayScore: number | null;
+export interface QuotaMeta {
+  requestsLimit:     number | null; // daily limit, e.g. 7500
+  requestsRemaining: number | null; // remaining today
+  requestsUsed:      number | null; // derived: limit - remaining
+}
+
+export interface ApiFootballResponse {
+  fixtures:     ApiFootballFixture[];
+  quota:        QuotaMeta;
+  apiCallsMade: number; // how many HTTP requests this invocation made
 }
 
 // ── Status mapping ────────────────────────────────────────────
-//
-// API-Football short codes → SuperBrain DB status
+// API-Football short codes → SuperBrain DB status values
 // DB CHECK constraint: 'scheduled' | 'live' | 'completed' | 'postponed'
 
 const STATUS_MAP: Record<string, string> = {
   // Not started
   NS:   "scheduled",
   TBD:  "scheduled",
-  // Live (all phases)
+  // Live — all phases, we never write scores for these
   "1H": "live",
   HT:   "live",
   "2H": "live",
@@ -58,14 +134,14 @@ const STATUS_MAP: Record<string, string> = {
   P:    "live",    // Penalty in progress
   SUSP: "live",    // Suspended
   INT:  "live",    // Interrupted
-  LIVE: "live",    // Generic live fallback
-  // Final — triggers auto_score_predictions
+  LIVE: "live",    // Generic live
+  // Final — triggers auto_score_predictions when scores written
   FT:   "completed",
-  AET:  "completed", // After extra time
-  PEN:  "completed", // After penalties
-  AWD:  "completed", // Awarded (e.g. walkover result)
+  AET:  "completed", // After extra time (fulltime = pre-ET draw)
+  PEN:  "completed", // After penalties (fulltime = pre-ET draw)
+  AWD:  "completed", // Awarded
   WO:   "completed", // Walkover
-  // Not playing
+  // Not happening
   PST:  "postponed",
   CANC: "postponed",
   ABD:  "postponed",
@@ -77,52 +153,65 @@ export function mapStatus(apiShortStatus: string): string {
 
 // ── Score extraction ──────────────────────────────────────────
 //
-// CRITICAL: We use score.fulltime (90-min result) for all final states.
+// CRITICAL INVARIANT: This function NEVER returns non-null scores
+// for a match that has not fully concluded at 90 minutes.
 //
-// For knockout matches that go to extra time (AET):
-//   score.fulltime = the draw score after 90 min (e.g. {1,1})
-//   goals = FT+ET result (e.g. {2,1})
-//   We write score.fulltime so predictions are scored on 90-min result.
+// Why this matters: the auto_score_predictions trigger fires on
+// UPDATE OF home_score, away_score WHERE both are NOT NULL.
+// If we ever wrote a live running score (e.g. 1-0 at 67 min) and
+// then correctly wrote 2-1 at FT, the trigger would fire TWICE —
+// first awarding points based on 1-0, then correcting to 2-1.
+// Keeping scores null until FT means the trigger fires exactly once.
 //
-// For matches decided by penalties (PEN):
-//   score.fulltime = draw after 90+ET (e.g. {0,0})
-//   score.penalty = shootout result (e.g. {4,3})
-//   We write score.fulltime so penalty goals don't affect scoring.
+// AET (after extra time): score.fulltime = the 90-min draw (e.g. 1-1).
+//   We store this so predictions are scored on 90-min result per rules.
+//   The ET winner doesn't affect prediction scoring.
 //
-// For live matches: return null/null so we NEVER write partial scores to DB.
-// This prevents the auto_score_predictions trigger from misfiring.
+// PEN (after penalties): score.fulltime = the 90+ET draw (e.g. 0-0).
+//   Penalty shootout goals are in score.penalty and are never stored.
+
+export interface IngestedScore {
+  homeScore: number | null;
+  awayScore: number | null;
+}
 
 export function extractScore(fixture: ApiFootballFixture): IngestedScore {
   const short = fixture.fixture.status.short;
+
   const isFinal = ["FT", "AET", "PEN", "AWD", "WO"].includes(short);
 
+  // Non-final: return null/null — do NOT write to DB
   if (!isFinal) {
-    // Not started or live — never write scores to DB during play
     return { homeScore: null, awayScore: null };
   }
 
-  return {
-    homeScore: fixture.score.fulltime.home,
-    awayScore: fixture.score.fulltime.away,
-  };
+  // Final: always use score.fulltime (90-min result only)
+  // Guard against unexpected null from API during transition period
+  const home = fixture.score.fulltime.home;
+  const away = fixture.score.fulltime.away;
+
+  if (home === null || away === null) {
+    // fulltime not yet populated — treat as non-final until it arrives
+    return { homeScore: null, awayScore: null };
+  }
+
+  return { homeScore: home, awayScore: away };
 }
 
 // ── Fixture matching ──────────────────────────────────────────
-//
-// Match API-Football fixtures to our DB fixtures by kickoff timestamp.
-// We use a ±5-minute window to tolerate minor clock differences between
-// our NBC Sports-sourced data and API-Football's official FIFA data.
-// Within WC2026, no two fixtures kick off within 5 minutes of each other,
-// so this is a unique match.
+// Match API fixtures to DB fixtures by kickoff timestamp.
+// ±5-minute tolerance handles minor clock differences between
+// our NBC Sports-sourced data and API-Football's official times.
+// WC2026 never has two fixtures within 5 min of each other.
 
 export function findDbFixtureByKickoff(
   apiKickoffIso: string,
-  dbFixtures: Array<{ id: string; kicks_off_at: string; home_score: number | null; away_score: number | null; status: string }>,
-): typeof dbFixtures[0] | undefined {
+  dbFixtures: DbFixture[],
+): DbFixture | undefined {
   const apiMs = new Date(apiKickoffIso).getTime();
   return dbFixtures.find((f) => {
     const dbMs = new Date(f.kicks_off_at).getTime();
-    return Math.abs(dbMs - apiMs) <= 5 * 60 * 1000; // ±5 minutes
+    return Math.abs(dbMs - apiMs) <= 5 * 60 * 1000;
   });
 }
 
@@ -131,7 +220,20 @@ export function findDbFixtureByKickoff(
 const API_BASE = "https://v3.football.api-sports.io";
 const WC2026   = "league=1&season=2026";
 
-async function apiFetch(path: string, apiKey: string): Promise<ApiFootballFixture[]> {
+function parseQuota(headers: Headers): QuotaMeta {
+  const limit     = parseInt(headers.get("x-ratelimit-requests-limit")     ?? "", 10);
+  const remaining = parseInt(headers.get("x-ratelimit-requests-remaining") ?? "", 10);
+  return {
+    requestsLimit:     isNaN(limit)     ? null : limit,
+    requestsRemaining: isNaN(remaining) ? null : remaining,
+    requestsUsed:      (!isNaN(limit) && !isNaN(remaining)) ? limit - remaining : null,
+  };
+}
+
+async function apiFetch(
+  path:   string,
+  apiKey: string,
+): Promise<{ fixtures: ApiFootballFixture[]; quota: QuotaMeta }> {
   const res = await fetch(`${API_BASE}/${path}`, {
     headers: {
       "x-rapidapi-key":  apiKey,
@@ -140,29 +242,73 @@ async function apiFetch(path: string, apiKey: string): Promise<ApiFootballFixtur
     cache: "no-store",
   });
 
+  const quota = parseQuota(res.headers);
+
+  if (res.status === 429) {
+    // Rate limit hit — not a crash, caller handles gracefully
+    const err = new RateLimitError("API-Football rate limit reached (429)");
+    (err as RateLimitError).quota = quota;
+    throw err;
+  }
+
   if (!res.ok) {
-    throw new Error(`API-Football ${res.status}: ${await res.text()}`);
+    throw new Error(`API-Football HTTP ${res.status}: ${await res.text()}`);
   }
 
   const json = await res.json();
 
-  // API-Football returns errors in the response body even on 200
+  // API-Football surfaces errors in the body even on 200
   if (json.errors && Object.keys(json.errors).length > 0) {
-    throw new Error(`API-Football error: ${JSON.stringify(json.errors)}`);
+    const msg = JSON.stringify(json.errors);
+    // Auth errors
+    if (msg.includes("token") || msg.includes("key") || msg.includes("auth")) {
+      throw new AuthError(`API-Football auth error: ${msg}`);
+    }
+    throw new Error(`API-Football response error: ${msg}`);
   }
 
-  return (json.response as ApiFootballFixture[]) ?? [];
+  return {
+    fixtures: (json.response as ApiFootballFixture[]) ?? [],
+    quota,
+  };
 }
 
-/** Fetch all currently live WC2026 fixtures. Returns [] if none are live. */
-export async function fetchLiveFixtures(apiKey: string): Promise<ApiFootballFixture[]> {
-  return apiFetch(`fixtures?${WC2026}&live=all`, apiKey);
+// Custom error classes for typed catch handling
+
+export class RateLimitError extends Error {
+  quota?: QuotaMeta;
+  constructor(message: string) { super(message); this.name = "RateLimitError"; }
 }
 
-/** Fetch all WC2026 fixtures for a given UTC date (YYYY-MM-DD). */
+export class AuthError extends Error {
+  constructor(message: string) { super(message); this.name = "AuthError"; }
+}
+
+/**
+ * Fetch all currently live WC2026 fixtures.
+ * Returns empty fixtures array (not an error) when nothing is live.
+ */
+export async function fetchLiveFixtures(
+  apiKey: string,
+): Promise<ApiFootballResponse> {
+  const { fixtures, quota } = await apiFetch(
+    `fixtures?${WC2026}&live=all`,
+    apiKey,
+  );
+  return { fixtures, quota, apiCallsMade: 1 };
+}
+
+/**
+ * Fetch all WC2026 fixtures for a given UTC date (YYYY-MM-DD).
+ * Used when no live match is detected to catch recent FT results.
+ */
 export async function fetchFixturesByDate(
   apiKey: string,
-  date: string,
-): Promise<ApiFootballFixture[]> {
-  return apiFetch(`fixtures?${WC2026}&date=${date}`, apiKey);
+  date:   string,
+): Promise<ApiFootballResponse> {
+  const { fixtures, quota } = await apiFetch(
+    `fixtures?${WC2026}&date=${date}`,
+    apiKey,
+  );
+  return { fixtures, quota, apiCallsMade: 1 };
 }
