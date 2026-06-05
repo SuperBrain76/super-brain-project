@@ -1,6 +1,7 @@
 import Link from "next/link";
 import CountdownTimer from "@/components/CountdownTimer";
 import HomepageAnalytics from "@/components/HomepageAnalytics";
+import HeroSection from "@/components/HeroSection";
 
 const FEATURES = [
   {
@@ -78,9 +79,7 @@ export default function LandingPage() {
       <HomepageAnalytics />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden hud-grid">
-        {/* Full-section click target — sits behind content, CTAs sit above via z-10 */}
-        <Link href="/predict" className="absolute inset-0 z-0" aria-label="Start predicting" />
+      <HeroSection>
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -93,7 +92,7 @@ export default function LandingPage() {
           style={{ background: "linear-gradient(to bottom, transparent, #080b0f)" }}
         />
 
-        <div className="relative z-10 max-w-5xl mx-auto px-5 pt-16 pb-20 text-center">
+        <div className="relative max-w-5xl mx-auto px-5 pt-16 pb-20 text-center">
 
           {/* Badge */}
           <div className="inline-flex items-center gap-2.5 border border-cockpit-accent border-opacity-25 bg-cockpit-surface px-4 py-2 rounded-sm mb-8">
@@ -136,7 +135,7 @@ export default function LandingPage() {
                 Join Free — Start Predicting →
               </button>
             </Link>
-            <Link href="/leaderboard" className="w-full sm:w-auto relative z-10">
+            <Link href="/predict/leaderboard" className="w-full sm:w-auto relative z-10">
               <button className="btn-ghost text-sm px-8 py-4 w-full sm:w-auto">
                 View Leaderboard
               </button>
@@ -158,7 +157,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </HeroSection>
 
       {/* ── FEATURES ──────────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-5 py-16">
@@ -330,7 +329,7 @@ export default function LandingPage() {
                     Compete for the Watch →
                   </button>
                 </Link>
-                <Link href="/leaderboard" className="w-full sm:w-auto">
+                <Link href="/predict/leaderboard" className="w-full sm:w-auto">
                   <button className="btn-ghost w-full sm:w-auto text-sm px-8 py-4">
                     See Leaderboard
                   </button>
