@@ -650,22 +650,19 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
 
 export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
   if (!isSupabaseConfigured) return [];
-  const { data, error } = await supabase
-    .from("prediction_league_members")
-    .select("user_id, joined_at, profiles:user_id(display_name, country)")
-    .eq("league_id", leagueId)
-    .order("joined_at", { ascending: true });
-  if (error || !data) return [];
-  return (data as Record<string, unknown>[]).map((row) => {
-    const profile = (row.profiles ?? {}) as Record<string, unknown>;
-    return {
-      userId:      row.user_id as string,
-      displayName: (profile.display_name as string | null) ?? "Anonymous",
-      country:     (profile.country as string | null) ?? null,
-      joinedAt:    (row.joined_at as string | null) ?? null,
-      isOwner:     false, // set by caller
-    };
+  // Uses a SECURITY DEFINER RPC to bypass user_profiles RLS
+  // (which only allows users to read their own profile).
+  const { data, error } = await supabase.rpc("get_league_members", {
+    p_league_id: leagueId,
   });
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((row) => ({
+    userId:      row.user_id as string,
+    displayName: (row.display_name as string | null) ?? "Anonymous",
+    country:     (row.country as string | null) ?? null,
+    joinedAt:    (row.joined_at as string | null) ?? null,
+    isOwner:     false, // set by caller
+  }));
 }
 
 export async function updateLeagueAdmin(
