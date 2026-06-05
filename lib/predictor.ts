@@ -60,6 +60,13 @@ export interface PredictionLeague {
   createdAt:      string;
   maxMembers:     number | null;    // null = unlimited; positive integer = hard cap
   memberCount?:   number;
+  // Public / Featured league fields (added in migration 007)
+  visibility:          "private" | "public";
+  isFeatured:          boolean;
+  sponsorName:         string | null;
+  sponsorUrl:          string | null;
+  sponsorDescription:  string | null;
+  sponsorLogoUrl:      string | null;
 }
 
 export interface LeaderboardRow {
@@ -359,26 +366,39 @@ export async function getMyPredictions(
 
 // ── Leagues ───────────────────────────────────────────────────
 
+const LEAGUE_SELECT =
+  "id, competition_id, name, normalized_name, invite_code, created_by, created_at, " +
+  "max_members, visibility, is_featured, sponsor_name, sponsor_url, sponsor_description, sponsor_logo_url";
+
+function mapLeagueRow(l: Record<string, unknown>, extra?: { memberCount?: number }): PredictionLeague {
+  return {
+    id:                 l.id as string,
+    competitionId:      l.competition_id as string,
+    name:               l.name as string,
+    normalizedName:     l.normalized_name as string,
+    inviteCode:         l.invite_code as string,
+    createdBy:          l.created_by as string,
+    createdAt:          l.created_at as string,
+    maxMembers:         (l.max_members as number | null) ?? null,
+    visibility:         (l.visibility as "private" | "public") ?? "private",
+    isFeatured:         (l.is_featured as boolean) ?? false,
+    sponsorName:        (l.sponsor_name as string | null) ?? null,
+    sponsorUrl:         (l.sponsor_url as string | null) ?? null,
+    sponsorDescription: (l.sponsor_description as string | null) ?? null,
+    sponsorLogoUrl:     (l.sponsor_logo_url as string | null) ?? null,
+    ...extra,
+  };
+}
 
 export async function getLeague(leagueId: string): Promise<PredictionLeague | null> {
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at, max_members")
+    .select(LEAGUE_SELECT)
     .eq("id", leagueId)
     .single();
   if (error || !data) return null;
-  const l = data as Record<string, unknown>;
-  return {
-    id:             l.id as string,
-    competitionId:  l.competition_id as string,
-    name:           l.name as string,
-    normalizedName: l.normalized_name as string,
-    inviteCode:     l.invite_code as string,
-    createdBy:      l.created_by as string,
-    createdAt:      l.created_at as string,
-    maxMembers:     (l.max_members as number | null) ?? null,
-  };
+  return mapLeagueRow(data as unknown as Record<string, unknown>);
 }
 
 export async function isLeagueMember(
@@ -431,17 +451,9 @@ export async function getMyLeaguesBySlug(
   );
 
   if (!rpcError && rpcData !== null) {
-    const leagues = (rpcData as Record<string, unknown>[]).map((r) => ({
-      id:             r.id as string,
-      competitionId:  r.competition_id as string,
-      name:           r.name as string,
-      normalizedName: r.normalized_name as string,
-      inviteCode:     r.invite_code as string,
-      createdBy:      r.created_by as string,
-      createdAt:      r.created_at as string,
-      maxMembers:     (r.max_members as number | null) ?? null,
-      memberCount:    Number(r.member_count),
-    }));
+    const leagues = (rpcData as Record<string, unknown>[]).map((r) =>
+      mapLeagueRow(r, { memberCount: Number(r.member_count) }),
+    );
     return { leagues, error: null };
   }
 
@@ -481,29 +493,13 @@ export async function getMyLeagues(competitionId: string): Promise<PredictionLea
 
   const { data, error } = await supabase
     .from("prediction_league_members")
-    .select(`
-      league:prediction_leagues (
-        id, competition_id, name, normalized_name, invite_code, created_by, created_at, max_members
-      )
-    `)
+    .select(`league:prediction_leagues (${LEAGUE_SELECT})`)
     .eq("user_id", user.id);
 
   if (error || !data) return [];
 
   return (data as Record<string, unknown>[])
-    .map((row) => {
-      const l = row.league as Record<string, unknown>;
-      return {
-        id:             l.id as string,
-        competitionId:  l.competition_id as string,
-        name:           l.name as string,
-        normalizedName: l.normalized_name as string,
-        inviteCode:     l.invite_code as string,
-        createdBy:      l.created_by as string,
-        createdAt:      l.created_at as string,
-        maxMembers:     (l.max_members as number | null) ?? null,
-      };
-    })
+    .map((row) => mapLeagueRow(row.league as unknown as Record<string, unknown>))
     .filter((l) => l.competitionId === competitionId);
 }
 
@@ -542,17 +538,7 @@ export async function createLeague(
   }
   if (!data) return { league: null, error: "Could not create league. Try again." };
 
-  const league = data as Record<string, unknown>;
-  const newLeague: PredictionLeague = {
-    id:             league.id as string,
-    competitionId:  league.competition_id as string,
-    name:           league.name as string,
-    normalizedName: league.normalized_name as string,
-    inviteCode:     league.invite_code as string,
-    createdBy:      league.created_by as string,
-    createdAt:      league.created_at as string,
-    maxMembers:     (league.max_members as number | null) ?? null,
-  };
+  const newLeague = mapLeagueRow(data as unknown as Record<string, unknown>);
 
   // Auto-join the creator
   await supabase.from("prediction_league_members").insert({
@@ -568,22 +554,12 @@ export async function getLeagueByInviteCode(
 ): Promise<PredictionLeague | null> {
   const { data, error } = await supabase
     .from("prediction_leagues")
-    .select("id, competition_id, name, normalized_name, invite_code, created_by, created_at, max_members")
+    .select(LEAGUE_SELECT)
     .eq("invite_code", code.toUpperCase())
     .single();
 
   if (error || !data) return null;
-  const l = data as Record<string, unknown>;
-  return {
-    id:             l.id as string,
-    competitionId:  l.competition_id as string,
-    name:           l.name as string,
-    normalizedName: l.normalized_name as string,
-    inviteCode:     l.invite_code as string,
-    createdBy:      l.created_by as string,
-    createdAt:      l.created_at as string,
-    maxMembers:     (l.max_members as number | null) ?? null,
-  };
+  return mapLeagueRow(data as unknown as Record<string, unknown>);
 }
 
 export async function joinLeague(
@@ -658,6 +634,51 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
     .select("*", { count: "exact", head: true })
     .eq("league_id", leagueId);
   return count ?? 0;
+}
+
+// ── Public / Featured league discovery ───────────────────────
+
+/**
+ * Returns all public and featured leagues for a competition,
+ * ordered featured-first, then by creation date ascending.
+ * No auth required — respects the leagues_select_public RLS policy.
+ */
+export async function getPublicLeagues(
+  competitionId: string,
+): Promise<PredictionLeague[]> {
+  if (!isSupabaseConfigured) return [];
+
+  const { data, error } = await supabase
+    .from("prediction_leagues")
+    .select(LEAGUE_SELECT)
+    .eq("competition_id", competitionId)
+    .or("visibility.eq.public,is_featured.eq.true")
+    .order("is_featured", { ascending: false })
+    .order("created_at",  { ascending: true });
+
+  if (error || !data) return [];
+  return (data as unknown as Record<string, unknown>[]).map((r) => mapLeagueRow(r));
+}
+
+/**
+ * Joins a public or featured league directly — no invite code required.
+ * Uses the league_members_insert_public RLS policy (migration 007).
+ */
+export async function joinPublicLeague(
+  leagueId: string,
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { error } = await supabase
+    .from("prediction_league_members")
+    .insert({ league_id: leagueId, user_id: user.id });
+
+  if (error) {
+    if (error.code === "23505") return { error: null }; // already a member — treat as success
+    return { error: "Could not join league. Please try again." };
+  }
+  return { error: null };
 }
 
 // ── Leaderboards ──────────────────────────────────────────────

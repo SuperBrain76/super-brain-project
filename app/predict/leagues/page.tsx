@@ -261,10 +261,20 @@ function LeaguesContent() {
             <span>/</span>
             <span className="text-cockpit-dim">My Leagues</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Private Leagues</h1>
-          <p className="text-cockpit-dim text-sm mt-1">
-            Compete with friends. Only people with your invite link or code can join.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-white">My Leagues</h1>
+              <p className="text-cockpit-dim text-sm mt-1">
+                Create or join a private league with your invite code.
+              </p>
+            </div>
+            <Link
+              href="/predict/leagues/discover"
+              className="shrink-0 text-xs px-3 py-2 rounded-sm border border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors font-mono tracking-widest uppercase whitespace-nowrap"
+            >
+              Discover →
+            </Link>
+          </div>
         </div>
 
         {/* ── Guest gate ───────────────────────────────────── */}
