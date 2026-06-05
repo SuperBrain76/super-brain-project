@@ -1,0 +1,55 @@
+# ── Automated match result ingestion ─────────────────────────
+# Polls the SuperBrain ingestion endpoint every 5 minutes.
+# This triggers our /api/cron/ingest-results route which:
+#   1. Fetches live/completed WC2026 fixtures from API-Football
+#   2. Updates our DB fixtures table
+#   3. The auto_score_predictions DB trigger fires automatically
+#      → prediction points awarded, leaderboards updated
+#
+# Requirements:
+#   GitHub repo secrets:
+#     CRON_SECRET   — shared secret (same value as Vercel env var CRON_SECRET)
+#     APP_URL       — https://superbrain.social
+#
+# Cost: Free (uses GitHub Actions free minutes)
+# Frequency: every 5 minutes (GitHub minimum for scheduled workflows)
+# Duration per run: ~2-3 seconds
+
+name: Ingest Match Results
+
+on:
+  schedule:
+    # Every 5 minutes (GitHub scheduler has ±2 min drift — acceptable for a predictor)
+    - cron: "*/5 * * * *"
+
+  # Allow manual trigger from GitHub Actions UI (useful for testing and emergencies)
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    name: Poll ingestion endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 2  # Hard kill if something hangs
+
+    steps:
+      - name: Call ingest-results endpoint
+        run: |
+          HTTP_STATUS=$(curl \
+            --silent \
+            --output /tmp/response.json \
+            --write-out "%{http_code}" \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 5 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/ingest-results")
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response:"
+          cat /tmp/response.json
+
+          # Fail the workflow step on non-2xx so GitHub marks it as failed
+          if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
+            echo "::error::Ingestion endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
