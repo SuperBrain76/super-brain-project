@@ -98,11 +98,11 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public'
-      AND tablename  = 'league_members'
+      AND tablename  = 'prediction_league_members'
       AND policyname = 'league_members_insert_public'
   ) THEN
     CREATE POLICY league_members_insert_public
-      ON public.league_members
+      ON public.prediction_league_members
       FOR INSERT
       TO authenticated
       WITH CHECK (
