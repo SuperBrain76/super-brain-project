@@ -233,21 +233,33 @@ export default function PredictHub() {
           </Link>
         </div>
 
-        {/* ── Rules link ────────────────────────────────────── */}
-        <Link
-          href="/predict/rules"
-          className="flex items-center justify-between px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
-        >
-          <div className="flex items-center gap-2.5">
+        {/* ── Bonus + Rules ─────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href="/predict/bonus"
+            className="flex items-center gap-2.5 px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
+          >
+            <span className="text-lg leading-none shrink-0">🏆</span>
+            <div>
+              <p className="text-white text-sm font-semibold leading-none">Bonus Questions</p>
+              <p className="text-cockpit-muted text-[10px] mt-0.5">Up to 75 extra pts</p>
+            </div>
+          </Link>
+          <Link
+            href="/predict/rules"
+            className="flex items-center gap-2.5 px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
+          >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8899aa" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span className="text-cockpit-dim text-sm">How scoring works · Rules &amp; FAQ</span>
-          </div>
-          <span className="text-cockpit-muted text-xs font-mono">View →</span>
-        </Link>
+            <div>
+              <p className="text-cockpit-dim text-sm leading-none">Rules &amp; FAQ</p>
+              <p className="text-cockpit-muted text-[10px] mt-0.5">Scoring explained</p>
+            </div>
+          </Link>
+        </div>
 
         {/* ── Tabs ─────────────────────────────────────────── */}
         <div className="flex gap-1 bg-cockpit-surface rounded-sm p-1 border border-cockpit-border">

@@ -63,14 +63,15 @@ export interface PredictionLeague {
 }
 
 export interface LeaderboardRow {
-  rank:        number;
-  displayName: string;
-  country:     string | null;
-  totalPoints: number;
-  predictions: number;
-  exactScores: number;
-  userId?:     string;  // only in league leaderboard
-  isMe?:       boolean; // set client-side
+  rank:         number;
+  displayName:  string;
+  country:      string | null;
+  totalPoints:  number;
+  predictions:  number;
+  exactScores:  number;
+  bonusPoints?: number;  // included when bonus questions have been scored
+  userId?:      string;  // only in league leaderboard
+  isMe?:        boolean; // set client-side
 }
 
 export interface MyStats {
@@ -78,6 +79,35 @@ export interface MyStats {
   predictions: number;
   exactScores: number;
   globalRank:  number;
+  bonusPoints: number;
+}
+
+// ── Bonus question types ──────────────────────────────────────
+
+export type BonusAnswerType     = "team" | "player";
+export type BonusQuestionStatus = "open" | "locked" | "answered";
+
+export interface BonusQuestion {
+  id:                 string;
+  competitionId:      string;
+  questionKey:        string;
+  questionText:       string;
+  pointsValue:        number;
+  answerType:         BonusAnswerType;
+  status:             BonusQuestionStatus;
+  correctTeamId:      string | null;
+  correctAnswerText:  string | null;
+  correctTeam:        Team | null;    // joined — only non-null when status='answered'
+}
+
+export interface BonusPrediction {
+  id:            string;
+  userId:        string;
+  questionId:    string;
+  answerTeamId:  string | null;
+  answerText:    string | null;
+  pointsAwarded: number | null;
+  submittedAt:   string;
 }
 
 // ── Row mappers ───────────────────────────────────────────────
@@ -100,6 +130,22 @@ function rowToTeam(r: Record<string, unknown>): Team {
     code:      r.code as string,
     flagEmoji: r.flag_emoji as string | null,
     groupName: r.group_name as string | null,
+  };
+}
+
+function rowToBonusQuestion(r: Record<string, unknown>): BonusQuestion {
+  const ct = r.correct_team as Record<string, unknown> | null;
+  return {
+    id:                r.id as string,
+    competitionId:     r.competition_id as string,
+    questionKey:       r.question_key as string,
+    questionText:      r.question_text as string,
+    pointsValue:       Number(r.points_value),
+    answerType:        r.answer_type as BonusAnswerType,
+    status:            r.status as BonusQuestionStatus,
+    correctTeamId:     r.correct_team_id as string | null,
+    correctAnswerText: r.correct_answer_text as string | null,
+    correctTeam:       ct ? rowToTeam(ct) : null,
   };
 }
 
@@ -575,6 +621,7 @@ export async function getPredictorLeaderboard(
     totalPoints: Number(r.total_points),
     predictions: Number(r.predictions),
     exactScores: Number(r.exact_scores),
+    bonusPoints: Number(r.bonus_points ?? 0),
   }));
 }
 
@@ -593,6 +640,7 @@ export async function getLeagueLeaderboard(
     totalPoints: Number(r.total_points),
     predictions: Number(r.predictions),
     exactScores: Number(r.exact_scores),
+    bonusPoints: Number(r.bonus_points ?? 0),
   }));
 }
 
@@ -609,7 +657,114 @@ export async function getMyStats(
     predictions: Number(r.predictions),
     exactScores: Number(r.exact_scores),
     globalRank:  Number(r.global_rank),
+    bonusPoints: Number(r.bonus_points ?? 0),
   };
+}
+
+// ── Bonus questions ───────────────────────────────────────────
+
+export async function getTeams(competitionId: string): Promise<Team[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("teams")
+    .select("id, competition_id, name, code, flag_emoji, group_name")
+    .eq("competition_id", competitionId)
+    .order("name", { ascending: true });
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map(rowToTeam);
+}
+
+export async function getBonusQuestions(
+  competitionId: string,
+): Promise<BonusQuestion[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("bonus_questions")
+    .select(`
+      id, competition_id, question_key, question_text,
+      points_value, answer_type, status,
+      correct_team_id, correct_answer_text,
+      correct_team:teams!correct_team_id ( id, competition_id, name, code, flag_emoji, group_name )
+    `)
+    .eq("competition_id", competitionId)
+    .order("points_value", { ascending: false });
+  if (error || !data) return [];
+  return (data as unknown as Record<string, unknown>[]).map(rowToBonusQuestion);
+}
+
+export async function getMyBonusPredictions(
+  questionIds: string[],
+): Promise<BonusPrediction[]> {
+  if (!isSupabaseConfigured || questionIds.length === 0) return [];
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from("bonus_predictions")
+    .select("id, user_id, question_id, answer_team_id, answer_text, points_awarded, submitted_at")
+    .eq("user_id", user.id)
+    .in("question_id", questionIds);
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    id:            r.id as string,
+    userId:        r.user_id as string,
+    questionId:    r.question_id as string,
+    answerTeamId:  r.answer_team_id as string | null,
+    answerText:    r.answer_text as string | null,
+    pointsAwarded: r.points_awarded as number | null,
+    submittedAt:   r.submitted_at as string,
+  }));
+}
+
+/** Submit or update a bonus prediction via SECURITY DEFINER RPC. */
+export async function upsertBonusPrediction(
+  questionId: string,
+  teamId?:    string | null,
+  answerText?: string | null,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("upsert_bonus_prediction", {
+    p_question_id: questionId,
+    p_team_id:     teamId ?? null,
+    p_answer_text: answerText ?? null,
+  });
+  if (error) {
+    if (error.message.includes("no longer accepting")) {
+      return { error: "This question is locked and no longer accepting predictions." };
+    }
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/** Admin: lock a bonus question (open → locked). */
+export async function adminLockBonusQuestion(
+  questionId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("admin_lock_bonus_question", {
+    p_question_id: questionId,
+  });
+  if (error) {
+    if (error.message.includes("Access denied")) return { error: "Access denied." };
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/** Admin: set the correct answer and score all predictions. Returns count scored. */
+export async function adminSetBonusAnswer(
+  questionId: string,
+  teamId?:    string | null,
+  answerText?: string | null,
+): Promise<{ updated: number; error: string | null }> {
+  const { data, error } = await supabase.rpc("admin_set_bonus_answer", {
+    p_question_id: questionId,
+    p_team_id:     teamId ?? null,
+    p_answer_text: answerText ?? null,
+  });
+  if (error) {
+    if (error.message.includes("Access denied")) return { updated: 0, error: "Access denied." };
+    return { updated: 0, error: error.message };
+  }
+  return { updated: Number(data), error: null };
 }
 
 // ── Admin tools ───────────────────────────────────────────────

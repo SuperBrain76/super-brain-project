@@ -110,8 +110,9 @@ function LeaderboardTable({
         <div className="w-7 shrink-0" />
         <span className="flex-1 text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Player</span>
         <span className="w-10 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Pts</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden sm:block">Pred</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden sm:block">Exact</span>
+        <span className="w-10 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block" title="Bonus question points">🏆</span>
+        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden md:block">Pred</span>
+        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden md:block">Exact</span>
       </div>
 
       {rows.map((row) => {
@@ -158,13 +159,21 @@ function LeaderboardTable({
               {row.totalPoints}
             </span>
 
+            {/* Bonus */}
+            <span
+              className="w-10 text-right text-xs font-mono tabular-nums hidden sm:block"
+              style={{ color: (row.bonusPoints ?? 0) > 0 ? "#ffab00" : "#8899aa" }}
+            >
+              {(row.bonusPoints ?? 0) > 0 ? `+${row.bonusPoints}` : "—"}
+            </span>
+
             {/* Predicted */}
-            <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden sm:block">
+            <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden md:block">
               {row.predictions}
             </span>
 
             {/* Exact */}
-            <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden sm:block">
+            <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden md:block">
               {row.exactScores}
             </span>
           </div>
