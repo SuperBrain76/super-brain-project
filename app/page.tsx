@@ -46,6 +46,7 @@ const BONUS_QUESTIONS = [
   "Golden Ball",
   "Golden Glove",
   "Surprise Team",
+  "Top Assists",
 ];
 
 const HOW_IT_WORKS = [
@@ -78,6 +79,8 @@ export default function LandingPage() {
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden hud-grid">
+        {/* Full-section click target — sits behind content, CTAs sit above via z-10 */}
+        <Link href="/predict" className="absolute inset-0 z-0" aria-label="Start predicting" />
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -90,7 +93,7 @@ export default function LandingPage() {
           style={{ background: "linear-gradient(to bottom, transparent, #080b0f)" }}
         />
 
-        <div className="relative max-w-5xl mx-auto px-5 pt-16 pb-20 text-center">
+        <div className="relative z-10 max-w-5xl mx-auto px-5 pt-16 pb-20 text-center">
 
           {/* Badge */}
           <div className="inline-flex items-center gap-2.5 border border-cockpit-accent border-opacity-25 bg-cockpit-surface px-4 py-2 rounded-sm mb-8">
@@ -128,12 +131,12 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/login" className="w-full sm:w-auto">
+            <Link href="/predict" className="w-full sm:w-auto relative z-10">
               <button className="btn-primary text-sm sm:text-base px-10 py-4 w-full sm:w-auto">
                 Join Free — Start Predicting →
               </button>
             </Link>
-            <Link href="/leaderboard" className="w-full sm:w-auto">
+            <Link href="/leaderboard" className="w-full sm:w-auto relative z-10">
               <button className="btn-ghost text-sm px-8 py-4 w-full sm:w-auto">
                 View Leaderboard
               </button>
@@ -143,9 +146,9 @@ export default function LandingPage() {
           {/* Stats strip */}
           <div className="mt-14 flex flex-wrap justify-center gap-8 sm:gap-12">
             {[
-              { v: "64", l: "Matches" },
-              { v: "32", l: "Teams" },
-              { v: "6",  l: "Bonus Questions" },
+              { v: "104", l: "Matches" },
+              { v: "48",  l: "Teams" },
+              { v: "7",   l: "Bonus Questions" },
               { v: "Free", l: "Always" },
             ].map((s) => (
               <div key={s.l} className="text-center">
@@ -196,13 +199,13 @@ export default function LandingPage() {
             <div className="flex-1">
               <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-3">Bonus Predictions</p>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight mb-4">
-                Six questions.<br />Massive points.
+                Seven questions.<br />Massive points.
               </h2>
               <p className="text-cockpit-dim text-sm sm:text-base leading-relaxed mb-6">
                 Beyond match scores, predict the tournament&apos;s biggest individual awards.
                 Nail these and you can leap the leaderboard overnight.
               </p>
-              <Link href="/login">
+              <Link href="/predict">
                 <button className="btn-primary text-sm px-8 py-3">
                   Make Your Picks →
                 </button>
@@ -314,7 +317,7 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center md:items-start gap-3">
-                <Link href="/login" className="w-full sm:w-auto">
+                <Link href="/predict" className="w-full sm:w-auto">
                   <button
                     className="w-full sm:w-auto font-semibold px-10 py-4 rounded-sm text-sm tracking-widest uppercase transition-all duration-150 border min-h-[44px]"
                     style={{
@@ -342,7 +345,12 @@ export default function LandingPage() {
       <section className="max-w-5xl mx-auto px-5 py-16">
         <div className="text-center mb-10">
           <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-2">Play with friends</p>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Create a private league</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-4">Create a private league</h2>
+          <Link href="/predict">
+            <button className="btn-primary text-sm px-10 py-3">
+              Create or Join a League →
+            </button>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -401,7 +409,7 @@ export default function LandingPage() {
             <p className="text-cockpit-dim text-base sm:text-lg mb-10 max-w-md mx-auto">
               Free to play. Predictions lock at kickoff. The leaderboard never lies.
             </p>
-            <Link href="/login">
+            <Link href="/predict">
               <button className="btn-primary text-sm sm:text-base px-12 py-4 w-full sm:w-auto">
                 Join Free Now →
               </button>
