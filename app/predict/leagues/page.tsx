@@ -137,9 +137,10 @@ function LeaguesContent() {
   const [leagueLoadWarn, setLeagueLoadWarn] = useState<string | null>(null);
 
   // Create form
-  const [createName,     setCreateName]     = useState("");
-  const [creating,       setCreating]       = useState(false);
-  const [createError,    setCreateError]    = useState<string | null>(null);
+  const [createName,       setCreateName]       = useState("");
+  const [createVisibility, setCreateVisibility] = useState<"private" | "public">("private");
+  const [creating,         setCreating]         = useState(false);
+  const [createError,      setCreateError]      = useState<string | null>(null);
 
   // Join form
   const [joinCode,       setJoinCode]       = useState(searchParams.get("join") ?? "");
@@ -222,7 +223,7 @@ function LeaguesContent() {
     if (!competition) return;
     setCreating(true);
     setCreateError(null);
-    const { league, error } = await createLeague(competition.id, createName);
+    const { league, error } = await createLeague(competition.id, createName, createVisibility);
     setCreating(false);
     if (error) { setCreateError(error); return; }
     if (league) {
@@ -230,7 +231,7 @@ function LeaguesContent() {
       setCreateName("");
       router.push(`/predict/leagues/${league.id}`);
     }
-  }, [competition, createName, router]);
+  }, [competition, createName, createVisibility, router]);
 
   // ── Loading ───────────────────────────────────────────────────
   if (authLoading || loading) {
@@ -261,21 +262,29 @@ function LeaguesContent() {
             <span>/</span>
             <span className="text-cockpit-dim">My Leagues</span>
           </div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold text-white">My Leagues</h1>
-              <p className="text-cockpit-dim text-sm mt-1">
-                Create or join a private league with your invite code.
-              </p>
-            </div>
-            <Link
-              href="/predict/leagues/discover"
-              className="shrink-0 text-xs px-3 py-2 rounded-sm border border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors font-mono tracking-widest uppercase whitespace-nowrap"
-            >
-              Discover →
-            </Link>
-          </div>
+          <h1 className="text-xl font-bold text-white">My Leagues</h1>
+          <p className="text-cockpit-dim text-sm mt-1">Create or join a league to compete with your crew.</p>
         </div>
+
+        {/* ── Discover CTA ──────────────────────────────────── */}
+        <Link
+          href="/predict/leagues/discover"
+          className="flex items-center gap-3 px-4 py-3.5 rounded-sm border transition-colors"
+          style={{ background: "#ffab0008", borderColor: "#ffab0030" }}
+        >
+          <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ background: "#ffab0015" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-semibold leading-none">Discover Public Leagues</p>
+            <p className="text-cockpit-muted text-[10px] mt-0.5">Browse featured &amp; open leagues — no invite needed</p>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
 
         {/* ── Guest gate ───────────────────────────────────── */}
         {!user && (
@@ -335,6 +344,28 @@ function LeaguesContent() {
               <h2 className="text-white font-semibold text-sm">Create a League</h2>
             </div>
 
+            {/* Visibility toggle */}
+            <div className="flex gap-1 p-1 bg-cockpit-bg border border-cockpit-border rounded-sm">
+              {(["private", "public"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setCreateVisibility(v)}
+                  className="flex-1 py-1.5 rounded-sm text-xs font-semibold transition-all duration-150 capitalize"
+                  style={{
+                    background: createVisibility === v ? "#1e2a38" : "transparent",
+                    color:      createVisibility === v ? "#fff"    : "#64748b",
+                  }}
+                >
+                  {v === "private" ? "🔒 Private" : "🌐 Public"}
+                </button>
+              ))}
+            </div>
+            <p className="text-cockpit-muted text-[10px] font-mono -mt-1">
+              {createVisibility === "private"
+                ? "Invite-only · not listed publicly · share a code to invite friends"
+                : "Listed on Discover · anyone can join · no invite code needed"}
+            </p>
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -355,7 +386,7 @@ function LeaguesContent() {
             </div>
 
             <p className="text-cockpit-muted text-[10px] font-mono">
-              2–40 characters · You&apos;ll get a shareable invite code · Max 100 members
+              2–40 characters · Max 100 members
             </p>
 
             {createError && (

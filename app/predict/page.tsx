@@ -257,8 +257,8 @@ export default function PredictHub() {
               <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
             <div>
-              <p className="text-white text-sm font-semibold leading-none">My Leagues</p>
-              <p className="text-cockpit-muted text-[10px] mt-0.5">Create or join</p>
+              <p className="text-white text-sm font-semibold leading-none">Create or Join a League</p>
+              <p className="text-cockpit-muted text-[10px] mt-0.5">Private, public, or featured</p>
             </div>
           </Link>
 
@@ -277,6 +277,29 @@ export default function PredictHub() {
             </div>
           </Link>
         </div>
+
+        {/* ── Discover public leagues ───────────────────────── */}
+        <Link
+          href="/predict/leagues/discover"
+          className="flex items-center gap-3 px-4 py-3.5 rounded-sm border transition-colors hover:border-opacity-60"
+          style={{ background: "#ffab0008", borderColor: "#ffab0030" }}
+        >
+          <div
+            className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0"
+            style={{ background: "#ffab0015" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-semibold leading-none">Discover Public Leagues</p>
+            <p className="text-cockpit-muted text-[10px] mt-0.5">Browse featured &amp; open leagues — no invite needed</p>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
 
         {/* ── Bonus + Rules ─────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-2">

@@ -8,12 +8,15 @@ import {
   getLeague,
   isLeagueMember,
   joinLeague,
+  joinPublicLeague,
   getLeagueLeaderboard,
   getLeagueMemberCount,
+  getLeagueMembers,
   getCompetition,
   getMyStats,
   type PredictionLeague,
   type LeaderboardRow,
+  type LeagueMember,
   type MyStats,
 } from "@/lib/predictor";
 
@@ -183,6 +186,75 @@ function LeaderboardTable({
   );
 }
 
+// ── Members list ──────────────────────────────────────────────
+
+function MembersList({
+  members,
+  currentUserId,
+}: {
+  members:       LeagueMember[];
+  currentUserId: string | null;
+}) {
+  if (members.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="text-white font-semibold text-sm">Members</h2>
+      <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
+        {members.map((m, i) => {
+          const isMe = m.userId === currentUserId;
+          return (
+            <div
+              key={m.userId}
+              className="flex items-center gap-3 px-4 py-3 border-b border-cockpit-border last:border-0"
+              style={{
+                background: isMe ? "#00d4ff06" : undefined,
+                borderLeft: isMe ? "2px solid #00d4ff40" : "2px solid transparent",
+              }}
+            >
+              {/* Avatar initial */}
+              <div
+                className="w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ background: isMe ? "#00d4ff20" : "#1e2a38", color: isMe ? "#00d4ff" : "#a8b8cc" }}
+              >
+                {m.displayName[0]?.toUpperCase() ?? "?"}
+              </div>
+
+              {/* Name + badges */}
+              <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+                <span className="text-white text-sm font-medium truncate">{m.displayName}</span>
+                {m.country && (
+                  <span className="text-cockpit-muted text-xs">{m.country}</span>
+                )}
+                {m.isOwner && (
+                  <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"
+                    style={{ color: "#ffab00", background: "#ffab0015" }}>OWNER</span>
+                )}
+                {isMe && (
+                  <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"
+                    style={{ color: "#00d4ff", background: "#00d4ff15" }}>YOU</span>
+                )}
+              </div>
+
+              {/* Joined date */}
+              {m.joinedAt && (
+                <span className="text-cockpit-muted text-[10px] font-mono shrink-0">
+                  {new Date(m.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </span>
+              )}
+
+              {/* Position indicator */}
+              <span className="text-cockpit-muted text-[10px] font-mono w-5 text-right shrink-0">
+                {i + 1}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────
 
 export default function LeagueDetailPage() {
@@ -192,6 +264,7 @@ export default function LeagueDetailPage() {
 
   const [league,      setLeague]      = useState<PredictionLeague | null>(null);
   const [rows,        setRows]        = useState<LeaderboardRow[]>([]);
+  const [members,     setMembers]     = useState<LeagueMember[]>([]);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [isMember,    setIsMember]    = useState<boolean | null>(null);
   const [myStats,     setMyStats]     = useState<MyStats | null>(null);
@@ -226,11 +299,13 @@ export default function LeagueDetailPage() {
       const member = await isLeagueMember(leagueId, user.id);
       setIsMember(member);
       if (member) {
-        const [leaderboard, compResult] = await Promise.all([
+        const [leaderboard, memberList, compResult] = await Promise.all([
           getLeagueLeaderboard(leagueId),
+          getLeagueMembers(leagueId),
           getCompetition("wc2026"),
         ]);
         setRows(leaderboard.map((r) => ({ ...r, isMe: r.userId === user.id })));
+        setMembers(memberList.map((m) => ({ ...m, isOwner: m.userId === lg.createdBy })));
         if (compResult.competition) {
           const stats = await getMyStats(compResult.competition.id);
           setMyStats(stats);
@@ -251,10 +326,12 @@ export default function LeagueDetailPage() {
     if (!league || !user) return;
     setJoining(true);
     setJoinError(null);
-    const { error: err } = await joinLeague(league.id);
+    const fn = (league.visibility === "public" || league.isFeatured)
+      ? joinPublicLeague
+      : joinLeague;
+    const { error: err } = await fn(league.id);
     setJoining(false);
     if (err) { setJoinError(err); return; }
-    // Re-load to show leaderboard
     load();
   };
 
@@ -417,6 +494,9 @@ export default function LeagueDetailPage() {
           )}
         </div>
 
+        {/* ── Members list ────────────────────────────────── */}
+        <MembersList members={members} currentUserId={user?.id ?? null} />
+
         {/* Back */}
         <Link href="/predict/leagues" className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono">
           ← Back to leagues
@@ -447,13 +527,22 @@ function LeagueHeader({
   league: PredictionLeague;
   memberCount: number | null;
 }) {
+  const visibilityLabel = league.isFeatured ? "Featured" : league.visibility === "public" ? "Public" : "Private";
+  const visibilityColor = league.isFeatured ? "#ffab00" : league.visibility === "public" ? "#00e676" : "#64748b";
+
   return (
     <div>
-      <h1 className="text-xl font-bold text-white leading-tight">{league.name}</h1>
-      <p className="text-cockpit-dim text-sm mt-1">
+      <div className="flex items-center gap-2 flex-wrap mb-1">
+        <h1 className="text-xl font-bold text-white leading-tight">{league.name}</h1>
+        <span
+          className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm border shrink-0"
+          style={{ color: visibilityColor, borderColor: `${visibilityColor}40`, background: `${visibilityColor}12` }}
+        >
+          {visibilityLabel.toUpperCase()}
+        </span>
+      </div>
+      <p className="text-cockpit-dim text-sm">
         {memberCount === null ? "…" : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
-        {" · "}
-        Private league
       </p>
     </div>
   );

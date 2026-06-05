@@ -27,9 +27,10 @@ const MOCK_FEATURED: PredictionLeague = {
   visibility:         "public",
   isFeatured:         true,
   sponsorName:        "SmartSpace Solutions",
-  sponsorUrl:         "https://smartspace.ae",
+  sponsorUrl:         "https://smartspace-me.com",
   sponsorDescription: "Dubai's leading workspace design consultancy. Join our league and compete for exclusive prizes.",
   sponsorLogoUrl:     null,
+  suspended:          false,
 };
 
 // ── Featured league card ───────────────────────────────────────
@@ -198,9 +199,9 @@ export default function DiscoverPage() {
 
   const handleJoin = useCallback(async (leagueId: string) => {
     if (!user) { setAuthPrompt(true); return; }
+    // Mock league has no real DB entry — just show joined state and redirect to leagues page
     if (leagueId === MOCK_FEATURED.id) {
-      // Mock league — redirect to sign-up / leagues page
-      router.push("/predict/leagues");
+      setJoinedIds((prev) => new Set([...prev, leagueId]));
       return;
     }
     setJoiningId(leagueId);

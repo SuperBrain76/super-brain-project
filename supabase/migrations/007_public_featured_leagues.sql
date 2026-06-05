@@ -60,6 +60,14 @@ COMMENT ON COLUMN public.prediction_leagues.sponsor_description IS 'Short sponso
 COMMENT ON COLUMN public.prediction_leagues.sponsor_logo_url    IS 'CDN URL for sponsor logo image (Featured leagues only).';
 
 
+-- ── 3b. suspended flag ────────────────────────────────────────
+ALTER TABLE public.prediction_leagues
+  ADD COLUMN IF NOT EXISTS suspended boolean NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN public.prediction_leagues.suspended IS
+  'Admin-set. Suspended leagues are hidden from Discover and cannot be joined.';
+
+
 -- ── 4. Index for discover queries ────────────────────────────
 CREATE INDEX IF NOT EXISTS prediction_leagues_discover_idx
   ON public.prediction_leagues (competition_id, visibility, is_featured);

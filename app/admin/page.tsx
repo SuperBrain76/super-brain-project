@@ -146,7 +146,15 @@ export default function AdminPage() {
       {/* Header */}
       <div className="mb-6">
         <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-1">Admin</p>
-        <h1 className="text-2xl font-bold text-white">Score Manager</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-white">Score Manager</h1>
+          <a
+            href="/admin/leagues"
+            className="text-xs px-3 py-2 rounded-sm border border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors font-mono tracking-widest uppercase"
+          >
+            League Admin →
+          </a>
+        </div>
         <p className="text-cockpit-dim text-sm mt-0.5">
           {total.toLocaleString()} results total
         </p>

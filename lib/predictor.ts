@@ -67,6 +67,15 @@ export interface PredictionLeague {
   sponsorUrl:          string | null;
   sponsorDescription:  string | null;
   sponsorLogoUrl:      string | null;
+  suspended:           boolean;
+}
+
+export interface LeagueMember {
+  userId:      string;
+  displayName: string;
+  country:     string | null;
+  joinedAt:    string | null;
+  isOwner:     boolean;
 }
 
 export interface LeaderboardRow {
@@ -368,7 +377,7 @@ export async function getMyPredictions(
 
 const LEAGUE_SELECT =
   "id, competition_id, name, normalized_name, invite_code, created_by, created_at, " +
-  "max_members, visibility, is_featured, sponsor_name, sponsor_url, sponsor_description, sponsor_logo_url";
+  "max_members, visibility, is_featured, sponsor_name, sponsor_url, sponsor_description, sponsor_logo_url, suspended";
 
 function mapLeagueRow(l: Record<string, unknown>, extra?: { memberCount?: number }): PredictionLeague {
   return {
@@ -386,6 +395,7 @@ function mapLeagueRow(l: Record<string, unknown>, extra?: { memberCount?: number
     sponsorUrl:         (l.sponsor_url as string | null) ?? null,
     sponsorDescription: (l.sponsor_description as string | null) ?? null,
     sponsorLogoUrl:     (l.sponsor_logo_url as string | null) ?? null,
+    suspended:          (l.suspended as boolean) ?? false,
     ...extra,
   };
 }
@@ -506,6 +516,7 @@ export async function getMyLeagues(competitionId: string): Promise<PredictionLea
 export async function createLeague(
   competitionId: string,
   name: string,
+  visibility: "private" | "public" = "private",
 ): Promise<{ league: PredictionLeague | null; error: string | null }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { league: null, error: "You must be signed in." };
@@ -525,6 +536,7 @@ export async function createLeague(
       name:            trimmedName,
       normalized_name: normalizedName,
       created_by:      user.id,
+      visibility,
     })
     .select()
     .single();
@@ -634,6 +646,56 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
     .select("*", { count: "exact", head: true })
     .eq("league_id", leagueId);
   return count ?? 0;
+}
+
+export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("prediction_league_members")
+    .select("user_id, joined_at, profiles:user_id(display_name, country)")
+    .eq("league_id", leagueId)
+    .order("joined_at", { ascending: true });
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((row) => {
+    const profile = (row.profiles ?? {}) as Record<string, unknown>;
+    return {
+      userId:      row.user_id as string,
+      displayName: (profile.display_name as string | null) ?? "Anonymous",
+      country:     (profile.country as string | null) ?? null,
+      joinedAt:    (row.joined_at as string | null) ?? null,
+      isOwner:     false, // set by caller
+    };
+  });
+}
+
+export async function updateLeagueAdmin(
+  leagueId: string,
+  fields: {
+    visibility?:         "private" | "public";
+    isFeatured?:         boolean;
+    sponsorName?:        string | null;
+    sponsorUrl?:         string | null;
+    sponsorDescription?: string | null;
+    sponsorLogoUrl?:     string | null;
+    suspended?:          boolean;
+  },
+): Promise<{ error: string | null }> {
+  const updates: Record<string, unknown> = {};
+  if (fields.visibility         !== undefined) updates.visibility          = fields.visibility;
+  if (fields.isFeatured         !== undefined) updates.is_featured         = fields.isFeatured;
+  if (fields.sponsorName        !== undefined) updates.sponsor_name        = fields.sponsorName;
+  if (fields.sponsorUrl         !== undefined) updates.sponsor_url         = fields.sponsorUrl;
+  if (fields.sponsorDescription !== undefined) updates.sponsor_description = fields.sponsorDescription;
+  if (fields.sponsorLogoUrl     !== undefined) updates.sponsor_logo_url    = fields.sponsorLogoUrl;
+  if (fields.suspended          !== undefined) updates.suspended           = fields.suspended;
+
+  const { error } = await supabase
+    .from("prediction_leagues")
+    .update(updates)
+    .eq("id", leagueId);
+
+  if (error) return { error: error.message };
+  return { error: null };
 }
 
 // ── Public / Featured league discovery ───────────────────────
