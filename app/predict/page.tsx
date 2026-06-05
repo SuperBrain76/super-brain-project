@@ -191,11 +191,56 @@ export default function PredictHub() {
 
         {/* ── My stats ─────────────────────────────────────── */}
         {user && myStats && myStats.predictions > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <StatChip label="Pts"         value={Number(myStats.totalPoints)} color="#00d4ff" />
-            <StatChip label="Rank"        value={`#${myStats.globalRank}`}    color="#ffab00" />
-            <StatChip label="Predicted"   value={Number(myStats.predictions)} color="#00e676" />
-            <StatChip label="Exact"       value={Number(myStats.exactScores)} color="#ff6d00" />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatChip label="Pts"   value={Number(myStats.totalPoints)} color="#00d4ff" />
+              <StatChip label="Rank"  value={`#${myStats.globalRank}`}    color="#ffab00" />
+              <StatChip label="Match" value={Number(myStats.matchPoints)} color="#00e676" />
+              <StatChip label="Bonus" value={`+${myStats.bonusPoints}`}   color="#ffab00" />
+              <StatChip label="Exact" value={Number(myStats.exactScores)} color="#ff6d00" />
+            </div>
+
+            {/* ── Completion indicators ───────────────────── */}
+            <div className="flex items-center gap-4 px-4 py-2.5 bg-cockpit-surface border border-cockpit-border rounded-sm flex-wrap">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-mono font-bold"
+                  style={{
+                    color: myStats.predictions >= fixtures.length && fixtures.length > 0
+                      ? "#00e676" : "#a8b8cc",
+                  }}
+                >
+                  {myStats.predictions}/{fixtures.length || 104}
+                </span>
+                <span className="text-cockpit-muted text-[10px]">match predictions</span>
+              </div>
+              {myStats.bonusTotal > 0 && (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-[10px] font-mono font-bold"
+                    style={{
+                      color: myStats.bonusAnswered >= myStats.bonusTotal
+                        ? "#00e676" : "#a8b8cc",
+                    }}
+                  >
+                    {myStats.bonusAnswered}/{myStats.bonusTotal}
+                  </span>
+                  <span className="text-cockpit-muted text-[10px]">bonus questions</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Sign-in nudge with completion hint (guest) ──── */}
+        {user && myStats && myStats.predictions === 0 && (
+          <div className="px-4 py-2.5 bg-cockpit-surface border border-cockpit-border rounded-sm">
+            <p className="text-cockpit-muted text-xs">
+              <span className="text-white font-semibold">0</span>/{fixtures.length || 104} match predictions
+              {myStats.bonusTotal > 0 && (
+                <> · <span className="text-white font-semibold">0</span>/{myStats.bonusTotal} bonus questions</>
+              )}
+            </p>
           </div>
         )}
 

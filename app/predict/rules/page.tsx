@@ -78,12 +78,12 @@ function Faq({ q, a }: { q: string; a: React.ReactNode }) {
 // ── Table of contents ─────────────────────────────────────────
 
 const TOC = [
-  { href: "#scoring",     label: "Scoring" },
-  { href: "#deadlines",   label: "Deadlines" },
-  { href: "#leagues",     label: "Leagues & Tie-breakers" },
-  { href: "#bonus",       label: "Bonus Questions" },
-  { href: "#faq",         label: "FAQ" },
-  { href: "#disclaimer",  label: "Disclaimer" },
+  { href: "#scoring",    label: "Match Scoring" },
+  { href: "#deadlines",  label: "Deadlines" },
+  { href: "#leagues",    label: "Leagues & Tie-breakers" },
+  { href: "#bonus",      label: "Bonus Questions" },
+  { href: "#faq",        label: "FAQ" },
+  { href: "#disclaimer", label: "Disclaimer" },
 ];
 
 // ── Page ──────────────────────────────────────────────────────
@@ -267,15 +267,24 @@ export default function RulesPage() {
             </Card>
 
             <Card>
+              <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">Points breakdown</p>
+              <p className="text-cockpit-dim text-sm leading-relaxed">
+                Total Points = <span className="text-white font-semibold">Match Points</span> + <span className="text-cockpit-amber font-semibold">Bonus Points</span>.
+                Both are shown separately on the leaderboard so you can always see where your score comes from.
+              </p>
+            </Card>
+
+            <Card>
               <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-3">
                 Tie-breaker order
               </p>
               <div className="flex flex-col gap-2">
                 {[
-                  { n: "1", label: "Total points",          detail: "Higher total points wins" },
-                  { n: "2", label: "Most exact scores",     detail: "More ⚡ 5-point predictions" },
-                  { n: "3", label: "Most predictions made", detail: "More fixtures predicted" },
-                  { n: "4", label: "Earliest join date",    detail: "Earlier sign-up to the league" },
+                  { n: "1", label: "Total points",             detail: "Match points + Bonus points combined" },
+                  { n: "2", label: "Most exact match scores",  detail: "More ⚡ 5-point predictions" },
+                  { n: "3", label: "Most bonus questions correct", detail: "More bonus questions answered correctly" },
+                  { n: "4", label: "Most predictions made",    detail: "More fixtures predicted" },
+                  { n: "5", label: "Earliest join date",       detail: "Earlier sign-up to the league" },
                 ].map((row) => (
                   <div key={row.n} className="flex items-center gap-3 py-2 border-b border-cockpit-border last:border-0">
                     <span
@@ -305,22 +314,79 @@ export default function RulesPage() {
 
         {/* ── 4. Bonus Questions ───────────────────────────── */}
         <Section id="bonus" title="Bonus Questions">
-          <div
-            className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 flex items-start gap-4"
-            style={{ borderColor: "#ffab0040" }}
-          >
-            <span className="text-2xl shrink-0">🚧</span>
-            <div>
-              <p className="text-white font-semibold text-sm">Coming soon</p>
-              <p className="text-cockpit-dim text-sm mt-1 leading-relaxed">
-                Bonus questions — such as tournament winner, top scorer, and golden glove — will be
-                introduced later in the competition. Scoring rules will be published here before they go live.
-              </p>
-              <p className="text-cockpit-muted text-xs mt-2 font-mono">
-                No bonus questions are active yet. No action required.
-              </p>
+          <p className="text-cockpit-dim text-sm leading-relaxed">
+            Six tournament-wide questions worth up to <span className="text-white font-semibold">75 bonus points</span> on
+            top of your match prediction score. Submit your answers at{" "}
+            <Link href="/predict/bonus" className="text-cockpit-accent hover:underline">Bonus Questions</Link>.
+          </p>
+
+          {/* Scoring table */}
+          <Card>
+            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-3">Points per question</p>
+            <div className="flex flex-col">
+              {[
+                { icon: "🏆", label: "World Cup Winner",                   pts: 20 },
+                { icon: "👟", label: "Golden Boot Winner",                  pts: 15 },
+                { icon: "🥈", label: "Runner Up",                           pts: 10 },
+                { icon: "⚽", label: "Team Scoring Most Goals",             pts: 10 },
+                { icon: "🛡️", label: "Team Conceding Fewest Goals",         pts: 10 },
+                { icon: "⭐", label: "Surprise Team",                       pts: 10 },
+              ].map((r) => (
+                <div key={r.label} className="flex items-center gap-3 py-2.5 border-b border-cockpit-border last:border-0">
+                  <span className="text-xl shrink-0 w-8 text-center">{r.icon}</span>
+                  <span className="flex-1 text-cockpit-dim text-sm">{r.label}</span>
+                  <span className="font-black font-mono text-sm" style={{ color: "#ffab00" }}>
+                    {r.pts} pts
+                  </span>
+                </div>
+              ))}
             </div>
-          </div>
+          </Card>
+
+          {/* Auto-lock */}
+          <Card accent="#ff3d00">
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0">🔒</span>
+              <div>
+                <p className="text-white font-semibold text-sm">Auto-lock at tournament kickoff</p>
+                <p className="text-cockpit-dim text-sm mt-1 leading-relaxed">
+                  All bonus predictions lock <span className="text-white font-semibold">automatically</span> the
+                  moment the first match kicks off (June 11, 2026 · 19:00 UTC). This is enforced at the
+                  database level — no submission or edit is possible after that time, regardless of
+                  whether an admin has manually locked a question.
+                </p>
+                <p className="text-cockpit-muted text-xs mt-2 font-mono">
+                  Make all six predictions before tournament kickoff.
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Surprise Team definition */}
+          <Card>
+            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">
+              Surprise Team — official definition
+            </p>
+            <p className="text-cockpit-dim text-sm leading-relaxed">
+              The <span className="text-white font-semibold">highest finishing team</span> that was ranked
+              outside the <span className="text-white font-semibold">FIFA Top 20</span> in the official
+              FIFA Men&apos;s World Rankings <span className="text-white font-semibold">immediately before the tournament begins</span>.
+            </p>
+            <p className="text-cockpit-muted text-xs mt-2 font-mono">
+              Final position is determined by official FIFA tournament standings. In the event of a tie,
+              the team with the lower pre-tournament FIFA ranking is selected.
+            </p>
+          </Card>
+
+          {/* Scoring */}
+          <Card>
+            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">How answers are scored</p>
+            <p className="text-cockpit-dim text-sm leading-relaxed">
+              Team questions require an exact team match. The Golden Boot question requires an exact
+              player name match (case-insensitive). Points are awarded in full — there are no partial
+              points for bonus questions. All scoring is automatic once the admin enters the correct answer.
+            </p>
+          </Card>
         </Section>
 
         {/* ── 5. FAQ ───────────────────────────────────────── */}

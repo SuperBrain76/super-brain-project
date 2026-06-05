@@ -67,19 +67,23 @@ export interface LeaderboardRow {
   displayName:  string;
   country:      string | null;
   totalPoints:  number;
+  matchPoints:  number;   // match predictions only
+  bonusPoints:  number;   // bonus questions only
   predictions:  number;
   exactScores:  number;
-  bonusPoints?: number;  // included when bonus questions have been scored
-  userId?:      string;  // only in league leaderboard
-  isMe?:        boolean; // set client-side
+  userId?:      string;   // only in league leaderboard
+  isMe?:        boolean;  // set client-side
 }
 
 export interface MyStats {
-  totalPoints: number;
-  predictions: number;
-  exactScores: number;
-  globalRank:  number;
-  bonusPoints: number;
+  totalPoints:   number;
+  matchPoints:   number;   // match predictions only
+  bonusPoints:   number;   // bonus questions only
+  predictions:   number;   // ALL submitted match predictions (not just scored)
+  exactScores:   number;
+  globalRank:    number;
+  bonusAnswered: number;   // bonus questions the user has submitted
+  bonusTotal:    number;   // total bonus questions in this competition
 }
 
 // ── Bonus question types ──────────────────────────────────────
@@ -95,6 +99,7 @@ export interface BonusQuestion {
   pointsValue:        number;
   answerType:         BonusAnswerType;
   status:             BonusQuestionStatus;
+  locksAt:            string;         // ISO timestamp — predictions rejected after this
   correctTeamId:      string | null;
   correctAnswerText:  string | null;
   correctTeam:        Team | null;    // joined — only non-null when status='answered'
@@ -143,6 +148,7 @@ function rowToBonusQuestion(r: Record<string, unknown>): BonusQuestion {
     pointsValue:       Number(r.points_value),
     answerType:        r.answer_type as BonusAnswerType,
     status:            r.status as BonusQuestionStatus,
+    locksAt:           r.locks_at as string,
     correctTeamId:     r.correct_team_id as string | null,
     correctAnswerText: r.correct_answer_text as string | null,
     correctTeam:       ct ? rowToTeam(ct) : null,
@@ -619,9 +625,10 @@ export async function getPredictorLeaderboard(
     displayName: r.display_name as string,
     country:     r.country as string | null,
     totalPoints: Number(r.total_points),
+    matchPoints: Number(r.match_points ?? 0),
+    bonusPoints: Number(r.bonus_points ?? 0),
     predictions: Number(r.predictions),
     exactScores: Number(r.exact_scores),
-    bonusPoints: Number(r.bonus_points ?? 0),
   }));
 }
 
@@ -638,9 +645,10 @@ export async function getLeagueLeaderboard(
     displayName: r.display_name as string,
     country:     r.country as string | null,
     totalPoints: Number(r.total_points),
+    matchPoints: Number(r.match_points ?? 0),
+    bonusPoints: Number(r.bonus_points ?? 0),
     predictions: Number(r.predictions),
     exactScores: Number(r.exact_scores),
-    bonusPoints: Number(r.bonus_points ?? 0),
   }));
 }
 
@@ -653,11 +661,14 @@ export async function getMyStats(
   if (error || !data || !Array.isArray(data) || data.length === 0) return null;
   const r = data[0] as Record<string, unknown>;
   return {
-    totalPoints: Number(r.total_points),
-    predictions: Number(r.predictions),
-    exactScores: Number(r.exact_scores),
-    globalRank:  Number(r.global_rank),
-    bonusPoints: Number(r.bonus_points ?? 0),
+    totalPoints:   Number(r.total_points),
+    matchPoints:   Number(r.match_points ?? 0),
+    bonusPoints:   Number(r.bonus_points ?? 0),
+    predictions:   Number(r.predictions),
+    exactScores:   Number(r.exact_scores),
+    globalRank:    Number(r.global_rank),
+    bonusAnswered: Number(r.bonus_answered ?? 0),
+    bonusTotal:    Number(r.bonus_total ?? 0),
   };
 }
 
@@ -682,7 +693,7 @@ export async function getBonusQuestions(
     .from("bonus_questions")
     .select(`
       id, competition_id, question_key, question_text,
-      points_value, answer_type, status,
+      points_value, answer_type, status, locks_at,
       correct_team_id, correct_answer_text,
       correct_team:teams!correct_team_id ( id, competition_id, name, code, flag_emoji, group_name )
     `)

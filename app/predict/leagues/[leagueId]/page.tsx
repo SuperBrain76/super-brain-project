@@ -10,8 +10,11 @@ import {
   joinLeague,
   getLeagueLeaderboard,
   getLeagueMemberCount,
+  getCompetition,
+  getMyStats,
   type PredictionLeague,
   type LeaderboardRow,
+  type MyStats,
 } from "@/lib/predictor";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -109,10 +112,9 @@ function LeaderboardTable({
       <div className="flex items-center gap-2 px-3 py-2 border-b border-cockpit-border">
         <div className="w-7 shrink-0" />
         <span className="flex-1 text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Player</span>
-        <span className="w-10 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Pts</span>
-        <span className="w-10 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block" title="Bonus question points">🏆</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden md:block">Pred</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden md:block">Exact</span>
+        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden sm:block">Match</span>
+        <span className="w-12 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block">Bonus</span>
+        <span className="w-12 text-right text-[10px] text-cockpit-accent uppercase tracking-widest font-mono">Total</span>
       </div>
 
       {rows.map((row) => {
@@ -151,30 +153,28 @@ function LeaderboardTable({
               )}
             </div>
 
-            {/* Points */}
+            {/* Match pts */}
             <span
-              className="w-10 text-right font-bold font-mono text-sm tabular-nums"
+              className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
+              style={{ color: row.matchPoints > 0 ? "#a8b8cc" : "#8899aa" }}
+            >
+              {row.matchPoints}
+            </span>
+
+            {/* Bonus pts */}
+            <span
+              className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
+              style={{ color: row.bonusPoints > 0 ? "#ffab00" : "#8899aa" }}
+            >
+              {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
+            </span>
+
+            {/* Total pts */}
+            <span
+              className="w-12 text-right font-bold font-mono text-sm tabular-nums"
               style={{ color: row.totalPoints > 0 ? "#00d4ff" : "#8899aa" }}
             >
               {row.totalPoints}
-            </span>
-
-            {/* Bonus */}
-            <span
-              className="w-10 text-right text-xs font-mono tabular-nums hidden sm:block"
-              style={{ color: (row.bonusPoints ?? 0) > 0 ? "#ffab00" : "#8899aa" }}
-            >
-              {(row.bonusPoints ?? 0) > 0 ? `+${row.bonusPoints}` : "—"}
-            </span>
-
-            {/* Predicted */}
-            <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden md:block">
-              {row.predictions}
-            </span>
-
-            {/* Exact */}
-            <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden md:block">
-              {row.exactScores}
             </span>
           </div>
         );
@@ -194,6 +194,7 @@ export default function LeagueDetailPage() {
   const [rows,        setRows]        = useState<LeaderboardRow[]>([]);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [isMember,    setIsMember]    = useState<boolean | null>(null);
+  const [myStats,     setMyStats]     = useState<MyStats | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
 
@@ -220,14 +221,20 @@ export default function LeagueDetailPage() {
     setLeague(lg);
     setMemberCount(count);
 
-    // Check membership
+    // Check membership and load leaderboard + user stats in parallel
     if (user) {
       const member = await isLeagueMember(leagueId, user.id);
       setIsMember(member);
       if (member) {
-        const leaderboard = await getLeagueLeaderboard(leagueId);
-        // Mark current user's row
+        const [leaderboard, compResult] = await Promise.all([
+          getLeagueLeaderboard(leagueId),
+          getCompetition("wc2026"),
+        ]);
         setRows(leaderboard.map((r) => ({ ...r, isMe: r.userId === user.id })));
+        if (compResult.competition) {
+          const stats = await getMyStats(compResult.competition.id);
+          setMyStats(stats);
+        }
       }
     } else {
       setIsMember(false);
@@ -359,12 +366,39 @@ export default function LeagueDetailPage() {
           </p>
         </div>
 
+        {/* ── Your completion ─────────────────────────────── */}
+        {myStats && (
+          <div className="flex items-center gap-4 px-4 py-2.5 bg-cockpit-surface border border-cockpit-border rounded-sm flex-wrap">
+            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest shrink-0">Your progress</p>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[10px] font-mono font-bold"
+                style={{ color: myStats.predictions >= 104 ? "#00e676" : "#a8b8cc" }}
+              >
+                {myStats.predictions}/104
+              </span>
+              <span className="text-cockpit-muted text-[10px]">match predictions</span>
+            </div>
+            {myStats.bonusTotal > 0 && (
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-mono font-bold"
+                  style={{ color: myStats.bonusAnswered >= myStats.bonusTotal ? "#00e676" : "#a8b8cc" }}
+                >
+                  {myStats.bonusAnswered}/{myStats.bonusTotal}
+                </span>
+                <span className="text-cockpit-muted text-[10px]">bonus questions</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Leaderboard ─────────────────────────────────── */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold text-sm">Standings</h2>
             <span className="text-cockpit-muted text-xs font-mono">
-              5 pts exact · 3 pts goal diff · 2 pts result
+              Match + Bonus = Total
             </span>
           </div>
 

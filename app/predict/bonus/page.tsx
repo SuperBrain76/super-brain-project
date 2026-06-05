@@ -24,7 +24,7 @@ const BONUS_META: Record<string, { icon: string; hint: string }> = {
   golden_boot:   { icon: "👟", hint: "Which player will score the most goals?" },
   most_goals:    { icon: "⚽", hint: "Which team will score the most goals overall?" },
   best_defence:  { icon: "🛡️", hint: "Which team will concede the fewest goals?" },
-  surprise_team: { icon: "⭐", hint: "Best finishing team ranked outside FIFA's top 10." },
+  surprise_team: { icon: "⭐", hint: "Highest finishing team ranked outside FIFA Top 20 immediately before the tournament begins." },
 };
 
 // ── Status pill ───────────────────────────────────────────────
@@ -106,7 +106,9 @@ function QuestionCard({
     setText(prediction?.answerText      ?? "");
   }, [prediction?.answerTeamId, prediction?.answerText]);
 
-  const open   = question.status === "open";
+  // Double-gate: status must be 'open' AND we must be before locks_at.
+  // Mirrors the server-side check in upsert_bonus_prediction RPC.
+  const open   = question.status === "open" && new Date(question.locksAt) > new Date();
   const done   = question.status === "answered";
   const locked = question.status === "locked";
   const pts    = prediction?.pointsAwarded;
@@ -334,7 +336,10 @@ export default function BonusPage() {
     });
   }, [questions, user]);
 
-  const openCount   = questions.filter((q) => q.status === "open").length;
+  const now = new Date();
+  const openCount = questions.filter(
+    (q) => q.status === "open" && new Date(q.locksAt) > now,
+  ).length;
   const savedCount  = predictions.filter((p) => {
     const q = questions.find((q) => q.id === p.questionId);
     return q?.status === "open" || q?.status === "locked";

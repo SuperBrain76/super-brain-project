@@ -130,13 +130,13 @@ export default function PredictorLeaderboardPage() {
           <div className="flex flex-col gap-2">
             <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest">Your stats</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <StatChip label="Points"  value={myStats.totalPoints} color="#00d4ff" />
-              <StatChip label="Rank"    value={`#${myStats.globalRank}`} color="#ffab00" />
-              <StatChip label="Picks"   value={myStats.predictions} color="#00e676" />
-              <StatChip label="Exact"   value={myStats.exactScores} color="#ff6d00" />
+              <StatChip label="Total"  value={myStats.totalPoints}      color="#00d4ff" />
+              <StatChip label="Rank"   value={`#${myStats.globalRank}`}  color="#ffab00" />
+              <StatChip label="Match"  value={myStats.matchPoints}       color="#00e676" />
               {myStats.bonusPoints > 0 && (
                 <StatChip label="Bonus" value={`+${myStats.bonusPoints}`} color="#ffab00" />
               )}
+              <StatChip label="Exact"  value={myStats.exactScores}       color="#ff6d00" />
             </div>
           </div>
         )}
@@ -160,10 +160,9 @@ export default function PredictorLeaderboardPage() {
           <div className="flex items-center gap-2 px-3 py-2 border-b border-cockpit-border bg-cockpit-surface">
             <div className="w-7 shrink-0" />
             <span className="flex-1 text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Player</span>
-            <span className="w-10 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Pts</span>
-            <span className="w-10 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block" title="Bonus question points">🏆</span>
-            <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden md:block">Pred</span>
-            <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden md:block">Exact</span>
+            <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden sm:block">Match</span>
+            <span className="w-12 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block">Bonus</span>
+            <span className="w-12 text-right text-[10px] text-cockpit-accent uppercase tracking-widest font-mono">Total</span>
           </div>
 
           {/* Empty state */}
@@ -212,31 +211,30 @@ export default function PredictorLeaderboardPage() {
                   )}
                 </div>
 
-                {/* Points */}
+                {/* Match pts */}
                 <span
-                  className="w-10 text-right font-bold font-mono text-sm tabular-nums"
+                  className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
+                  style={{ color: row.matchPoints > 0 ? "#a8b8cc" : "#8899aa" }}
+                >
+                  {row.matchPoints}
+                </span>
+
+                {/* Bonus pts */}
+                <span
+                  className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
+                  style={{ color: row.bonusPoints > 0 ? "#ffab00" : "#8899aa" }}
+                >
+                  {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
+                </span>
+
+                {/* Total pts */}
+                <span
+                  className="w-12 text-right font-bold font-mono text-sm tabular-nums"
                   style={{ color: row.totalPoints > 0 ? "#00d4ff" : "#8899aa" }}
                 >
                   {row.totalPoints}
                 </span>
 
-                {/* Bonus */}
-                <span
-                  className="w-10 text-right text-xs font-mono tabular-nums hidden sm:block"
-                  style={{ color: (row.bonusPoints ?? 0) > 0 ? "#ffab00" : "#8899aa" }}
-                >
-                  {(row.bonusPoints ?? 0) > 0 ? `+${row.bonusPoints}` : "—"}
-                </span>
-
-                {/* Predicted */}
-                <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden md:block">
-                  {row.predictions}
-                </span>
-
-                {/* Exact */}
-                <span className="w-12 text-right text-cockpit-muted text-xs font-mono tabular-nums hidden md:block">
-                  {row.exactScores}
-                </span>
               </div>
             );
           })}
