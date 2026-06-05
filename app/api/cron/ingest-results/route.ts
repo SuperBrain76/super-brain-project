@@ -104,13 +104,29 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   // ── CHECK 2: DB fixtures in ±3-hour window ───────────────────
   // Query our own DB before touching the external API.
+  // Filter by competition slug to avoid matching non-WC fixtures.
   const now         = Date.now();
   const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
   const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
 
+  // Resolve competition ID by slug (one fast PK-range index lookup)
+  const { data: compRow } = await db
+    .from("competitions")
+    .select("id")
+    .eq("slug", "wc2026")
+    .single();
+
+  const competitionId = (compRow as Record<string, unknown> | null)?.id as string | null;
+
+  if (!competitionId) {
+    console.error("[ingest] competition wc2026 not found in DB");
+    return NextResponse.json({ error: "Competition wc2026 not found" }, { status: 500 });
+  }
+
   const { data: dbFixtures, error: dbErr } = await db
     .from("fixtures")
     .select("id, kicks_off_at, home_score, away_score, status")
+    .eq("competition_id", competitionId)
     .gte("kicks_off_at", windowStart)
     .lte("kicks_off_at", windowEnd)
     .order("kicks_off_at", { ascending: true });
@@ -170,30 +186,25 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   try {
     // Step A: Fetch live fixtures first (most request-efficient path)
+    console.log(`[ingest:API] calling GET /fixtures?league=1&season=2026&live=all | reason: ${pollReason}`);
     const liveResult = await fetchLiveFixtures(FOOTBALL_API_KEY);
     apiCallsMade += liveResult.apiCallsMade;
     quota = liveResult.quota;
 
     let apiFixtures = liveResult.fixtures;
+    console.log(`[ingest:API] live response: ${apiFixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
 
     // Step B: If nothing live, fetch today's full schedule to catch
     //         matches that recently finished (status just changed to FT)
     if (apiFixtures.length === 0) {
-      const todayUtc    = new Date().toISOString().slice(0, 10);
+      const todayUtc = new Date().toISOString().slice(0, 10);
+      console.log(`[ingest:API] no live matches — calling GET /fixtures?league=1&season=2026&date=${todayUtc}`);
       const todayResult = await fetchFixturesByDate(FOOTBALL_API_KEY, todayUtc);
       apiCallsMade += todayResult.apiCallsMade;
-      quota = todayResult.quota; // most recent quota is the most accurate
-
+      quota = todayResult.quota;
       apiFixtures = todayResult.fixtures;
+      console.log(`[ingest:API] date response: ${apiFixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
     }
-
-    // Log quota after every API call for monitoring
-    console.log(
-      `[ingest] api calls this run: ${apiCallsMade} | ` +
-      `quota: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} used ` +
-      `(${quota.requestsRemaining ?? "?"} remaining today) | ` +
-      `poll reason: ${pollReason}`,
-    );
 
     if (apiFixtures.length === 0) {
       return NextResponse.json({
@@ -208,6 +219,12 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     }
 
     // ── Diff and update ───────────────────────────────────────
+    console.log(
+      `[ingest:CHECK] api fixtures: ${apiFixtures.length} | ` +
+      `db window fixtures: ${typedDb.length} | ` +
+      `api calls this run: ${apiCallsMade}`,
+    );
+
     let updated    = 0;
     let skippedNoMatch = 0;
     const changes: string[] = [];
@@ -248,6 +265,13 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         // Leaderboard RPCs are computed on-demand — no further action needed.
         updatePayload.home_score = homeScore;
         updatePayload.away_score = awayScore;
+        // Log score writes explicitly so they're easy to find in Vercel logs
+        console.log(
+          `[ingest:SCORE] fixture ${dbFix.id.slice(0, 8)} | ` +
+          `api_status=${apiFix.fixture.status.short} | ` +
+          `fulltime=${homeScore}-${awayScore} | ` +
+          `writing to DB → auto_score_predictions trigger will fire`,
+        );
       }
 
       const { error: updateErr } = await db
@@ -256,7 +280,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         .eq("id", dbFix.id);
 
       if (updateErr) {
-        console.error(`[ingest] update failed for ${dbFix.id}:`, updateErr.message);
+        console.error(`[ingest:ERROR] update failed for fixture ${dbFix.id}:`, updateErr.message);
         continue;
       }
 
@@ -266,7 +290,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         : `STATUS ${dbFix.status}→${newStatus}`;
       const changeMsg = `${dbFix.id.slice(0, 8)} | ${label}`;
       changes.push(changeMsg);
-      console.log(`[ingest] ${changeMsg}`);
+      console.log(`[ingest:UPDATE] ${changeMsg}`);
     }
 
     const duration = Date.now() - startedAt;
