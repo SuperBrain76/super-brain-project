@@ -15,6 +15,9 @@ import {
   getLeagueMembers,
   getCompetition,
   getMyStats,
+  renameLeague,
+  setLeagueVisibility,
+  deleteLeague,
   type PredictionLeague,
   type LeaderboardRow,
   type LeagueMember,
@@ -265,6 +268,171 @@ function MembersList({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── Owner controls ────────────────────────────────────────────
+
+function OwnerControls({
+  league,
+  onRenamed,
+  onVisibilityChanged,
+  onDeleted,
+}: {
+  league:               PredictionLeague;
+  onRenamed:            (newName: string) => void;
+  onVisibilityChanged:  (v: "private" | "public") => void;
+  onDeleted:            () => void;
+}) {
+  const [open,        setOpen]        = useState(false);
+  const [newName,     setNewName]     = useState(league.name);
+  const [renaming,    setRenaming]    = useState(false);
+  const [renameErr,   setRenameErr]   = useState<string | null>(null);
+  const [renameOk,    setRenameOk]    = useState(false);
+  const [toggling,    setToggling]    = useState(false);
+  const [toggleErr,   setToggleErr]   = useState<string | null>(null);
+  const [confirmDel,  setConfirmDel]  = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
+  const [deleteErr,   setDeleteErr]   = useState<string | null>(null);
+
+  const handleRename = async () => {
+    if (newName.trim() === league.name) { setRenameErr(null); return; }
+    setRenaming(true); setRenameErr(null); setRenameOk(false);
+    const { error } = await renameLeague(league.id, newName);
+    setRenaming(false);
+    if (error) { setRenameErr(error); return; }
+    setRenameOk(true);
+    onRenamed(newName.trim());
+    setTimeout(() => setRenameOk(false), 2500);
+  };
+
+  const handleToggleVisibility = async () => {
+    const next = league.visibility === "private" ? "public" : "private";
+    setToggling(true); setToggleErr(null);
+    const { error } = await setLeagueVisibility(league.id, next);
+    setToggling(false);
+    if (error) { setToggleErr(error); return; }
+    onVisibilityChanged(next);
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true); setDeleteErr(null);
+    const { error } = await deleteLeague(league.id);
+    setDeleting(false);
+    if (error) { setDeleteErr(error); return; }
+    onDeleted();
+  };
+
+  return (
+    <div className="border border-cockpit-border rounded-sm overflow-hidden">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-cockpit-surface hover:bg-cockpit-card transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          <span className="text-cockpit-muted text-xs font-mono uppercase tracking-widest">Owner settings</span>
+        </div>
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="#64748b" strokeWidth="2" strokeLinecap="round"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="flex flex-col divide-y divide-cockpit-border">
+
+          {/* ── Rename ─────────────────────────────────────── */}
+          <div className="px-4 py-4 flex flex-col gap-2">
+            <p className="text-cockpit-dim text-xs font-semibold">Rename league</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => { setNewName(e.target.value); setRenameErr(null); setRenameOk(false); }}
+                onKeyDown={(e) => e.key === "Enter" && !renaming && handleRename()}
+                maxLength={40}
+                className="flex-1 bg-cockpit-bg border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+              />
+              <button
+                onClick={handleRename}
+                disabled={renaming || !newName.trim() || newName.trim() === league.name}
+                className="text-sm px-4 py-2 rounded-sm border border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              >
+                {renaming ? "Saving…" : "Save"}
+              </button>
+            </div>
+            {renameErr && <p className="text-cockpit-red text-xs">{renameErr}</p>}
+            {renameOk  && <p className="text-xs" style={{ color: "#00e676" }}>✓ Renamed</p>}
+          </div>
+
+          {/* ── Visibility toggle ───────────────────────────── */}
+          <div className="px-4 py-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-cockpit-dim text-xs font-semibold">Visibility</p>
+              <p className="text-cockpit-muted text-[10px] mt-0.5">
+                {league.visibility === "private"
+                  ? "Invite-only · not listed publicly"
+                  : "Listed on Discover · anyone can join"}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleVisibility}
+              disabled={toggling || league.isFeatured}
+              title={league.isFeatured ? "Featured leagues cannot be made private" : undefined}
+              className="shrink-0 text-xs px-3 py-1.5 rounded-sm border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                borderColor: league.visibility === "private" ? "#1e2a38" : "#00e67640",
+                color:       league.visibility === "private" ? "#a8b8cc" : "#00e676",
+                background:  league.visibility === "private" ? "transparent" : "#00e67610",
+              }}
+            >
+              {toggling ? "…" : league.visibility === "private" ? "🔒 Private" : "🌐 Public"}
+            </button>
+            {toggleErr && <p className="text-cockpit-red text-xs">{toggleErr}</p>}
+          </div>
+
+          {/* ── Delete ─────────────────────────────────────── */}
+          <div className="px-4 py-4 flex flex-col gap-2">
+            <p className="text-cockpit-dim text-xs font-semibold">Delete league</p>
+            <p className="text-cockpit-muted text-[10px]">Permanently removes the league and all member records. Cannot be undone.</p>
+            {!confirmDel ? (
+              <button
+                onClick={() => setConfirmDel(true)}
+                className="self-start text-xs px-3 py-1.5 rounded-sm border border-cockpit-red border-opacity-40 text-cockpit-red hover:border-opacity-70 transition-colors"
+              >
+                Delete league
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-cockpit-red text-xs">Are you sure? This cannot be undone.</p>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="text-xs px-3 py-1.5 rounded-sm border border-cockpit-red border-opacity-60 text-cockpit-red hover:bg-cockpit-red hover:bg-opacity-10 transition-colors disabled:opacity-40"
+                >
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  onClick={() => setConfirmDel(false)}
+                  className="text-xs px-3 py-1.5 rounded-sm border border-cockpit-border text-cockpit-muted hover:text-cockpit-dim transition-colors"
+                >
+                  Cancel
+                </button>
+                {deleteErr && <p className="text-cockpit-red text-xs w-full">{deleteErr}</p>}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
@@ -540,6 +708,16 @@ export default function LeagueDetailPage() {
             />
           </div>
         </div>
+
+        {/* ── Owner controls ──────────────────────────────── */}
+        {user?.id === league.createdBy && (
+          <OwnerControls
+            league={league}
+            onRenamed={(name) => setLeague((l) => l ? { ...l, name } : l)}
+            onVisibilityChanged={(visibility) => setLeague((l) => l ? { ...l, visibility } : l)}
+            onDeleted={() => router.replace("/predict/leagues")}
+          />
+        )}
 
         {/* Back */}
         <Link href="/predict/leagues" className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono">

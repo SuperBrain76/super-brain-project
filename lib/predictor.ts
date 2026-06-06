@@ -640,6 +640,67 @@ export async function leaveLeague(
   return { error: null };
 }
 
+// ── Owner controls ────────────────────────────────────────────
+
+/** Rename a league. Owner only — enforced by RLS (migration 015). */
+export async function renameLeague(
+  leagueId: string,
+  name: string,
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const validation = validateLeagueName(name);
+  if (!validation.valid) return { error: validation.error! };
+
+  const trimmed    = name.trim().replace(/\s+/g, " ");
+  const normalized = validation.normalizedName!;
+
+  const { error } = await supabase
+    .from("prediction_leagues")
+    .update({ name: trimmed, normalized_name: normalized })
+    .eq("id", leagueId);
+
+  if (error) {
+    if (error.code === "23505") return { error: "That name is already taken. Try another." };
+    return { error: "Could not rename league. Please try again." };
+  }
+  return { error: null };
+}
+
+/** Toggle a league between private and public. Owner only — enforced by RLS (migration 015). */
+export async function setLeagueVisibility(
+  leagueId: string,
+  visibility: "private" | "public",
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { error } = await supabase
+    .from("prediction_leagues")
+    .update({ visibility })
+    .eq("id", leagueId);
+
+  if (error) return { error: "Could not update visibility. Please try again." };
+  return { error: null };
+}
+
+/** Permanently delete a league and all its members. Owner only — enforced by RLS (migration 015). */
+export async function deleteLeague(
+  leagueId: string,
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { error } = await supabase
+    .from("prediction_leagues")
+    .delete()
+    .eq("id", leagueId);
+
+  if (error) return { error: "Could not delete league. Please try again." };
+  return { error: null };
+}
+
 export async function getLeagueMemberCount(leagueId: string): Promise<number> {
   const { count } = await supabase
     .from("prediction_league_members")
