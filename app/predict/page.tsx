@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import FixtureCard from "@/components/predictor/FixtureCard";
+import GettingStarted from "@/components/predictor/GettingStarted";
 import {
   getCompetition,
   getFixtures,
@@ -196,6 +197,16 @@ export default function PredictHub() {
           </div>
         </div>
 
+        {/* ── Getting Started onboarding panel ─────────────── */}
+        {user && (
+          <GettingStarted
+            userId={user.id}
+            predictions={myStats?.predictions ?? 0}
+            bonusAnswered={myStats?.bonusAnswered ?? 0}
+            bonusTotal={myStats?.bonusTotal ?? 0}
+          />
+        )}
+
         {/* ── Sign-in nudge ────────────────────────────────── */}
         {!user && (
           <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-cockpit-accent border-opacity-30 bg-cockpit-accent bg-opacity-5">
@@ -349,7 +360,7 @@ export default function PredictHub() {
         </div>
 
         {/* ── Tabs ─────────────────────────────────────────── */}
-        <div className="flex gap-1 bg-cockpit-surface rounded-sm p-1 border border-cockpit-border">
+        <div id="fixture-list" className="flex gap-1 bg-cockpit-surface rounded-sm p-1 border border-cockpit-border">
           {([
             { id: "all",     label: "All fixtures"                           },
             { id: "today",   label: `Today${todayCount > 0 ? ` (${todayCount})` : ""}` },
