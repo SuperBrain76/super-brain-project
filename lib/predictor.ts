@@ -261,7 +261,7 @@ export async function getFixtures(
     .from("fixtures")
     .select(FIXTURE_SELECT)
     .eq("competition_id", competitionId)
-    .order("fixture_number", { ascending: true });
+    .order("kicks_off_at", { ascending: true });
 
   if (stage) q = q.eq("stage", stage);
 
