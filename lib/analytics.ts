@@ -35,6 +35,7 @@ function t(event: string, props?: Record<string, unknown>): void {
 }
 
 export const track = {
+  // ── Cognitive tests ──────────────────────────────────────────────────────────
   homepageView:      ()                                                              => t("homepage_view"),
   testStarted:       (testName: string)                                              => t("test_started",       { test_name: testName }),
   testCompleted:     (testName: string, score: number)                               => t("test_completed",     { test_name: testName, score }),
@@ -44,6 +45,17 @@ export const track = {
   challengeAccepted: (testName: string)                                              => t("challenge_accepted", { test_name: testName }),
   retryClicked:      (testName: string)                                              => t("retry_clicked",      { test_name: testName }),
   leaderboardViewed: (testName: string)                                              => t("leaderboard_viewed", { test_name: testName }),
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   signupStarted:     ()                                                              => t("signup_started"),
   signupCompleted:   ()                                                              => t("signup_completed"),
+
+  // ── Predictor ────────────────────────────────────────────────────────────────
+  predictionSaved:         (fixtureId: string, isEdit: boolean)                     => t("prediction_saved",      { fixture_id: fixtureId, is_edit: isEdit }),
+  bonusAnswerSaved:        (questionKey: string)                                     => t("bonus_answer_saved",    { question_key: questionKey }),
+  leagueCreated:           (visibility: "private" | "public")                        => t("league_created",        { visibility }),
+  leagueJoined:            (leagueId: string)                                        => t("league_joined",         { league_id: leagueId }),
+  inviteLinkCopied:        (leagueId: string, copyType: "code" | "link")             => t("invite_link_copied",    { league_id: leagueId, copy_type: copyType }),
+  whatsappShareClicked:    (leagueId: string)                                        => t("whatsapp_share_clicked",{ league_id: leagueId }),
+  predictorLeaderboardViewed: ()                                                     => t("leaderboard_viewed",    { context: "predictor" }),
 };

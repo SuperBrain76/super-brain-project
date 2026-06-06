@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { track } from "@/lib/analytics";
 import ScoreInput from "@/components/predictor/ScoreInput";
 import {
   getFixture,
@@ -90,10 +91,12 @@ export default function FixturePredictPage() {
 
   const handleSubmit = useCallback(async () => {
     if (!fixture) return;
+    const isEdit = !!fixture.myPrediction;
     setSaving(true); setError(null);
     const { error: err } = await upsertPrediction(fixture.id, homeScore, awayScore);
     setSaving(false);
     if (err) { setError(err); return; }
+    track.predictionSaved(fixture.id, isEdit);
     setSaved(true);
     const updated = await getFixture(fixture.id);
     setFixture(updated);

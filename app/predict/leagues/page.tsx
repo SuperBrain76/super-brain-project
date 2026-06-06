@@ -14,6 +14,7 @@ import {
   type Competition,
   type PredictionLeague,
 } from "@/lib/predictor";
+import { track } from "@/lib/analytics";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -45,7 +46,7 @@ function Crumb({ label }: { label: string }) {
 }
 
 // ── Copy button ───────────────────────────────────────────────
-function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+function CopyButton({ text, label = "Copy", onCopied }: { text: string; label?: string; onCopied?: () => void }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); }
@@ -54,6 +55,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
       el.value = text; document.body.appendChild(el); el.select();
       document.execCommand("copy"); document.body.removeChild(el);
     }
+    onCopied?.();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -127,11 +129,12 @@ function LeagueCard({ league }: { league: PredictionLeague }) {
         <code className="font-mono font-bold text-sm tracking-widest" style={{ color: GREEN }}>
           {league.inviteCode}
         </code>
-        <CopyButton text={league.inviteCode} label="Copy code" />
-        <CopyButton text={inviteUrl(league.inviteCode)} label="Copy link" />
+        <CopyButton text={league.inviteCode}             label="Copy code" onCopied={() => track.inviteLinkCopied(league.id, "code")} />
+        <CopyButton text={inviteUrl(league.inviteCode)}  label="Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
         <a
           href={whatsappUrl(league)}
           target="_blank" rel="noopener noreferrer"
+          onClick={() => track.whatsappShareClicked(league.id)}
           className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full border"
           style={{ color: "#25D366", borderColor: "#25D36640", background: "#f0fdf4" }}
         >
@@ -213,6 +216,7 @@ function LeaguesContent() {
     const { error } = await joinLeague(foundLeague.id);
     setJoining(false);
     if (error) { setJoinError(error); return; }
+    track.leagueJoined(foundLeague.id);
     router.push(`/predict/leagues/${foundLeague.id}`);
   }, [foundLeague, myLeagues, router]);
 
@@ -223,6 +227,7 @@ function LeaguesContent() {
     setCreating(false);
     if (error) { setCreateError(error); return; }
     if (league) {
+      track.leagueCreated(createVisibility);
       setMyLeagues((prev) => [league, ...prev]);
       setCreateName("");
       router.push(`/predict/leagues/${league.id}?new=1`);

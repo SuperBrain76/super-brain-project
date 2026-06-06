@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { nameToFlag } from "@/lib/countries";
+import { track } from "@/lib/analytics";
 import {
   getCompetition,
   getPredictorLeaderboard,
@@ -61,6 +62,7 @@ export default function PredictorLeaderboardPage() {
       setCompetition(comp);
       const leaderboard = await getPredictorLeaderboard(comp.id);
       setRows(leaderboard);
+      track.predictorLeaderboardViewed();
       setLoading(false);
     }
     if (!authLoading) load();

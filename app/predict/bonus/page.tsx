@@ -14,6 +14,7 @@ import {
   type BonusQuestion,
   type BonusPrediction,
 } from "@/lib/predictor";
+import { track } from "@/lib/analytics";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -309,6 +310,8 @@ export default function BonusPage() {
   const handleSave = useCallback(async (questionId: string, teamId: string | null, text: string | null) => {
     const { error: err } = await upsertBonusPrediction(questionId, teamId, text);
     if (err) { alert(err); return; }
+    const q = questions.find((q) => q.id === questionId);
+    if (q) track.bonusAnswerSaved(q.questionKey);
     const newPred: BonusPrediction = {
       id: crypto.randomUUID(), userId: user?.id ?? "", questionId,
       answerTeamId: teamId, answerText: text,

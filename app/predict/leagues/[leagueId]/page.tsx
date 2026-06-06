@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { track } from "@/lib/analytics";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { nameToFlag } from "@/lib/countries";
@@ -49,7 +50,7 @@ const WHATSAPP_ICON = (
 );
 
 // ── Copy button ───────────────────────────────────────────────
-function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+function CopyButton({ text, label = "Copy", onCopied }: { text: string; label?: string; onCopied?: () => void }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try { await navigator.clipboard.writeText(text); }
@@ -58,6 +59,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
       el.value = text; document.body.appendChild(el); el.select();
       document.execCommand("copy"); document.body.removeChild(el);
     }
+    onCopied?.();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -525,6 +527,7 @@ export default function LeagueDetailPage() {
     const { error: err } = await fn(league.id);
     setJoining(false);
     if (err) { setJoinError(err); return; }
+    track.leagueJoined(league.id);
     load();
   };
 
@@ -628,9 +631,10 @@ export default function LeagueDetailPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <CopyButton text={`${SITE}/predict/leagues/${league.id}`} label="Copy league link" />
+              <CopyButton text={`${SITE}/predict/leagues/${league.id}`} label="Copy league link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
               <a href={`https://wa.me/?text=${encodeURIComponent(`Join the "${league.name}" World Cup Predictor league on SuperBrain!\n\n${SITE}/predict/leagues/${league.id}`)}`}
                 target="_blank" rel="noopener noreferrer"
+                onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"
                 style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}>
                 {WHATSAPP_ICON} WhatsApp
@@ -644,9 +648,10 @@ export default function LeagueDetailPage() {
               <code className="font-mono font-bold text-base tracking-[0.25em]" style={{ color: GREEN }}>
                 {league.inviteCode}
               </code>
-              <CopyButton text={league.inviteCode} label="Copy code" />
-              <CopyButton text={inviteUrl(league.inviteCode)} label="Copy link" />
+              <CopyButton text={league.inviteCode}            label="Copy code" onCopied={() => track.inviteLinkCopied(league.id, "code")} />
+              <CopyButton text={inviteUrl(league.inviteCode)} label="Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
               <a href={whatsappUrl(league)} target="_blank" rel="noopener noreferrer"
+                onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"
                 style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}>
                 {WHATSAPP_ICON} WhatsApp
@@ -672,10 +677,11 @@ export default function LeagueDetailPage() {
               Leagues are more fun with friends. Share your invite link or code now — they can join in seconds.
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              <CopyButton text={inviteUrl(league.inviteCode)} label="📋 Copy link" />
+              <CopyButton text={inviteUrl(league.inviteCode)} label="📋 Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
               <a
                 href={whatsappUrl(league)}
                 target="_blank" rel="noopener noreferrer"
+                onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded-full"
                 style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}
               >
