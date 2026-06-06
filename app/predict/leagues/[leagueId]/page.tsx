@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { nameToFlag } from "@/lib/countries";
@@ -471,6 +471,8 @@ function OwnerControls({ league, onRenamed, onVisibilityChanged, onDeleted }: {
 export default function LeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isNewLeague = searchParams.get("new") === "1";
   const { user, loading: authLoading } = useAuth();
 
   const [league,      setLeague]      = useState<PredictionLeague | null>(null);
@@ -652,6 +654,36 @@ export default function LeagueDetailPage() {
             </div>
             <p className="text-[10px]" style={{ color: MUTED }}>
               Only people with this code or link can join — your league stays private.
+            </p>
+          </div>
+        )}
+
+        {/* Referral nudge — shown immediately after creating a new league */}
+        {isNewLeague && (
+          <div
+            className="p-4 flex flex-col gap-3 rounded-xl"
+            style={{ background: "#eef8f0", border: `1px solid #86c99a`, borderLeft: `3px solid ${GREEN}` }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🎉</span>
+              <p className="font-bold text-sm" style={{ color: GREEN }}>League created! Invite 3 friends to get started.</p>
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: "#2e4a37" }}>
+              Leagues are more fun with friends. Share your invite link or code now — they can join in seconds.
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <CopyButton text={inviteUrl(league.inviteCode)} label="📋 Copy link" />
+              <a
+                href={whatsappUrl(league)}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded-full"
+                style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}
+              >
+                {WHATSAPP_ICON} WhatsApp
+              </a>
+            </div>
+            <p className="text-[10px]" style={{ color: "#7a8f82" }}>
+              Code: <span className="font-mono font-bold tracking-widest" style={{ color: GREEN }}>{league.inviteCode}</span>
             </p>
           </div>
         )}

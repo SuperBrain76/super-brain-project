@@ -1130,6 +1130,79 @@ export async function adminUpdateFixtureTeams(
   return { error: null };
 }
 
+// ── Public user prediction visibility ────────────────────────
+
+/**
+ * Fetch all fixtures that have already kicked off, with a target user's
+ * predictions. Returns empty if RLS does not permit reading other users'
+ * predictions — the admin should add a policy allowing reads on predictions
+ * where fixtures.kicks_off_at < now() to enable full prediction visibility.
+ */
+export async function getUserPublicPredictions(
+  userId: string,
+  competitionId: string,
+): Promise<{ fixtures: Fixture[]; error: string | null }> {
+  if (!isSupabaseConfigured) return { fixtures: [], error: null };
+  const now = new Date().toISOString();
+
+  // First: get kicked-off fixtures
+  const { data: fxData, error: fxErr } = await supabase
+    .from("fixtures")
+    .select(`
+      id, competition_id, stage, group_name, fixture_number,
+      home_score, away_score, kicks_off_at, venue, status,
+      home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name ),
+      away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name )
+    `)
+    .eq("competition_id", competitionId)
+    .lt("kicks_off_at", now)
+    .order("kicks_off_at", { ascending: false });
+
+  if (fxErr || !fxData || fxData.length === 0) return { fixtures: [], error: null };
+
+  // Second: try to get predictions for target user (requires permissive RLS)
+  const fixtureIds = (fxData as Record<string, unknown>[]).map((r) => r.id as string);
+  const { data: predData } = await supabase
+    .from("predictions")
+    .select("fixture_id, home_score, away_score, points_awarded")
+    .eq("user_id", userId)
+    .in("fixture_id", fixtureIds);
+
+  const predMap = new Map<string, Record<string, unknown>>();
+  if (predData) {
+    for (const p of predData as Record<string, unknown>[]) {
+      predMap.set(p.fixture_id as string, p);
+    }
+  }
+
+  const fixtures = (fxData as Record<string, unknown>[]).map((r) => {
+    const ht = r.home_team as Record<string, unknown> | null;
+    const at = r.away_team as Record<string, unknown> | null;
+    const pred = predMap.get(r.id as string);
+    return {
+      id:            r.id as string,
+      competitionId: r.competition_id as string,
+      stage:         r.stage as string,
+      groupName:     r.group_name as string | null,
+      fixtureNumber: r.fixture_number as number,
+      homeTeam:      ht ? rowToTeam(ht) : null,
+      awayTeam:      at ? rowToTeam(at) : null,
+      homeScore:     r.home_score as number | null,
+      awayScore:     r.away_score as number | null,
+      kicksOffAt:    r.kicks_off_at as string,
+      venue:         r.venue as string | null,
+      status:        r.status as string,
+      myPrediction:  pred ? {
+        homeScore:     pred.home_score as number,
+        awayScore:     pred.away_score as number,
+        pointsAwarded: pred.points_awarded as number | null,
+      } : null,
+    } as Fixture;
+  });
+
+  return { fixtures, error: null };
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 /** Returns true if a fixture's prediction window is still open. */

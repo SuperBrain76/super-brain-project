@@ -288,20 +288,22 @@ export default function PredictHub() {
               ))}
             </div>
 
-            {/* Completion tracker — match predictions */}
+            {/* Completion tracker — matches + bonus combined */}
             {(() => {
-              const total   = fixtures.length || 104;
-              const done    = myStats.predictions;
-              const pct     = Math.round((done / total) * 100);
-              const complete = done >= total;
+              const matchTotal  = fixtures.length || 104;
+              const bonusTotal  = myStats.bonusTotal || 7;
+              const grandTotal  = matchTotal + bonusTotal;
+              const done        = myStats.predictions + myStats.bonusAnswered;
+              const pct         = Math.round((done / grandTotal) * 100);
+              const complete    = done >= grandTotal;
               return (
                 <div className="px-4 py-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-x-2">
                     <span className="text-xs font-semibold" style={{ color: "#2e4a37" }}>
-                      {done} / {total} predicted
+                      {pct}% Complete
                     </span>
-                    <span className="text-xs font-bold" style={{ color: complete ? "#1a3a2a" : "#7a8f82" }}>
-                      {pct}%
+                    <span className="text-[10px]" style={{ color: "#7a8f82" }}>
+                      {myStats.predictions}/{matchTotal} Matches · {myStats.bonusAnswered}/{bonusTotal} Bonus
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#e8ede6" }}>
@@ -310,11 +312,6 @@ export default function PredictHub() {
                       style={{ width: `${pct}%`, background: complete ? "#b8972a" : "#1a3a2a" }}
                     />
                   </div>
-                  {myStats.bonusTotal > 0 && (
-                    <p className="text-[10px]" style={{ color: "#7a8f82" }}>
-                      Bonus: {myStats.bonusAnswered}/{myStats.bonusTotal} answered
-                    </p>
-                  )}
                 </div>
               );
             })()}

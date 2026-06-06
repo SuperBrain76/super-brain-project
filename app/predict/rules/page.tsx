@@ -330,7 +330,7 @@ export default function RulesPage() {
         {/* ── 4. Bonus Questions ───────────────────────────── */}
         <Section id="bonus" title="Bonus Questions">
           <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
-            Six tournament-wide questions worth up to <span className="font-semibold" style={{ color: TEXT1 }}>75 bonus points</span> on
+            Seven tournament-wide questions worth up to <span className="font-semibold" style={{ color: TEXT1 }}>90 bonus points</span> on
             top of your match prediction score. Submit your answers at{" "}
             <Link href="/predict/bonus" className="hover:underline" style={{ color: GREEN }}>Bonus Questions</Link>.
           </p>
@@ -342,6 +342,7 @@ export default function RulesPage() {
               {[
                 { icon: "🏆", label: "World Cup Winner",                   pts: 20 },
                 { icon: "👟", label: "Golden Boot Winner",                  pts: 15 },
+                { icon: "🥅", label: "Golden Glove Winner",                 pts: 15, note: "Best goalkeeper" },
                 { icon: "🥈", label: "Runner Up",                           pts: 10 },
                 { icon: "⚽", label: "Team Scoring Most Goals",             pts: 10 },
                 { icon: "🛡️", label: "Team Conceding Fewest Goals",         pts: 10 },
@@ -371,7 +372,7 @@ export default function RulesPage() {
                   whether an admin has manually locked a question.
                 </p>
                 <p className="text-xs mt-2" style={{ color: MUTED }}>
-                  Make all six predictions before tournament kickoff.
+                  Make all seven predictions before tournament kickoff.
                 </p>
               </div>
             </div>

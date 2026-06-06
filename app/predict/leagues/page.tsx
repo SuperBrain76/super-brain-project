@@ -225,7 +225,7 @@ function LeaguesContent() {
     if (league) {
       setMyLeagues((prev) => [league, ...prev]);
       setCreateName("");
-      router.push(`/predict/leagues/${league.id}`);
+      router.push(`/predict/leagues/${league.id}?new=1`);
     }
   }, [competition, createName, createVisibility, router]);
 

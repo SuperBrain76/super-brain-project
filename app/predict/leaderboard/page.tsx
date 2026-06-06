@@ -171,8 +171,9 @@ export default function PredictorLeaderboardPage() {
           <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}`, background: BG }}>
             <div className="w-7 shrink-0" />
             <span className="flex-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Player</span>
-            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: MUTED }}>Match</span>
-            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
+            <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: MUTED }}>%</span>
+            <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GREEN }}>⚡</span>
+            <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
             <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold" style={{ color: GREEN }}>Total</span>
           </div>
 
@@ -191,15 +192,18 @@ export default function PredictorLeaderboardPage() {
 
           {/* Rows */}
           {rows.map((row) => {
-            const isMe = !!(user && row.userId === user.id);
+            const isMe   = !!(user && row.userId === user.id);
+            const matchPct = Math.round((row.predictions / 104) * 100);
             return (
-              <div
+              <Link
                 key={`${row.rank}-${row.displayName}`}
-                className="flex items-center gap-2 px-3 py-3 transition-colors"
+                href={`/predict/user/${row.userId}`}
+                className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-[#f6f9f5]"
                 style={{
                   borderBottom:  `1px solid ${BORDER}`,
                   background:    isMe ? "#eef3ec" : undefined,
                   borderLeft:    isMe ? `3px solid ${GREEN}` : "3px solid transparent",
+                  display:       "flex",
                 }}
               >
                 <RankBadge rank={row.rank} />
@@ -220,13 +224,19 @@ export default function PredictorLeaderboardPage() {
                   )}
                 </div>
 
-                {/* Match pts */}
-                <span className="w-12 text-right text-xs tabular-nums hidden sm:block" style={{ color: TEXT2 }}>
-                  {row.matchPoints > 0 ? row.matchPoints : <span style={{ color: MUTED }}>—</span>}
+                {/* Completion % */}
+                <span className="w-10 text-right text-xs tabular-nums hidden sm:block" style={{ color: matchPct >= 50 ? TEXT2 : MUTED }}>
+                  {matchPct}%
+                </span>
+
+                {/* Exact scores ⚡ */}
+                <span className="w-10 text-right text-xs tabular-nums hidden sm:block"
+                  style={{ color: row.exactScores > 0 ? GREEN : MUTED }}>
+                  {row.exactScores > 0 ? row.exactScores : "—"}
                 </span>
 
                 {/* Bonus pts */}
-                <span className="w-12 text-right text-xs tabular-nums hidden sm:block"
+                <span className="w-10 text-right text-xs tabular-nums hidden sm:block"
                   style={{ color: row.bonusPoints > 0 ? GOLD : MUTED }}>
                   {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
                 </span>
@@ -236,7 +246,7 @@ export default function PredictorLeaderboardPage() {
                   style={{ color: row.totalPoints > 0 ? GREEN : MUTED }}>
                   {row.totalPoints}
                 </span>
-              </div>
+              </Link>
             );
           })}
         </div>

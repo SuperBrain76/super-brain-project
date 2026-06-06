@@ -163,8 +163,8 @@ function StatusBadge({
 }
 
 // ── YOUR PICK strip ──────────────────────────────────────────
-// Rendered below the teams row for any fixture with a saved prediction.
-// Impossible to miss: green background strip, tick mark, bold score.
+// Prominent green bar, always visible when a prediction is saved.
+// Shows: ✓ PREDICTED · score · Edit link / points result.
 
 function PickStrip({ fixture }: { fixture: Fixture }) {
   const pred = fixture.myPrediction;
@@ -173,61 +173,57 @@ function PickStrip({ fixture }: { fixture: Fixture }) {
   const open    = isPredictionOpen(fixture);
   const done    = fixture.status === "completed";
   const pts     = pred.pointsAwarded;
-  const isExact = pts === 3 || pts === 5;
+  const isExact = done && (pts === 5 || pts === 3);
 
-  const bg         = isExact ? "#fdf9ee" : "#f4f8f4";
-  const borderTop  = isExact ? "#f0e7c4" : "#ddf0dd";
-  const labelColor = isExact ? GOLD : GREEN;
-  const scoreColor = isExact ? GOLD : GREEN;
-  const tickBg     = isExact ? GOLD : GREEN;
+  // Background: gold tint for exact/3pt, green tint otherwise
+  const bg        = isExact ? "#fdf9ee" : "#eef8f0";
+  const topBorder = isExact ? "#e8d48a" : "#86c99a";
+  const accent    = isExact ? GOLD : GREEN;
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-1.5"
-      style={{ background: bg, borderTop: `1px solid ${borderTop}` }}
+      className="flex items-center gap-2 px-3 py-2"
+      style={{ background: bg, borderTop: `2px solid ${topBorder}` }}
     >
-      {/* Tick */}
+      {/* ✓ Tick */}
       <div
-        className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
-        style={{ background: tickBg }}
+        className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+        style={{ background: accent }}
       >
-        <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
-          <polyline points="2,5 4.5,7.5 8,3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+          <polyline points="2,5 4.5,7.5 8,3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
 
       {/* Label */}
       <span
-        className="text-[9px] font-bold uppercase tracking-widest"
-        style={{ color: labelColor }}
+        className="text-[10px] font-extrabold uppercase tracking-widest"
+        style={{ color: accent }}
       >
-        {done && isExact ? "Exact score" : done ? "Your pick" : "Your pick · Saved"}
+        {done && isExact ? "Exact Score" : done ? "Predicted" : "✓ Predicted"}
       </span>
 
-      {/* Score */}
+      {/* Score — large and bold */}
       <span
-        className="text-sm font-extrabold tabular-nums leading-none"
-        style={{ color: scoreColor, letterSpacing: "0.06em" }}
+        className="text-base font-black tabular-nums leading-none"
+        style={{ color: accent, letterSpacing: "0.04em" }}
       >
         {pred.homeScore}–{pred.awayScore}
       </span>
 
-      {/* Points result if scored */}
-      {done && pts !== null && (
+      {/* Right side: points OR edit link */}
+      {done && pts !== null ? (
         <span
           className="ml-auto text-[10px] font-bold"
           style={{ color: isExact ? GOLD : MUTED }}
         >
-          {isExact ? `+${pts} pts ★` : pts > 0 ? `+${pts} pts` : "0 pts"}
+          {pts > 0 ? `+${pts} pts` : "0 pts"}{isExact ? " ★" : ""}
         </span>
-      )}
-
-      {/* Open hint */}
-      {open && (
-        <span className="ml-auto text-[10px]" style={{ color: MUTED }}>
-          tap to edit
+      ) : open ? (
+        <span className="ml-auto text-[10px] font-semibold" style={{ color: GREEN }}>
+          Edit →
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
