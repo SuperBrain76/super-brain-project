@@ -26,7 +26,7 @@ import {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-const SITE = "https://superbrain.social";
+const SITE = "https://www.superbrain.social";
 
 function inviteUrl(code: string) {
   return `${SITE}/predict/leagues/join?code=${code}`;

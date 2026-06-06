@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description: desc,
       type:        "website",
-      url:         `https://superbrain.social/share/${params.shareId}`,
+      url:         `https://www.superbrain.social/share/${params.shareId}`,
     },
     twitter: {
       card:        "summary_large_image",

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { fetchLeagueOGByCode } from "@/lib/og";
 import JoinContent from "./_join-content";
 
-const BASE_URL = "https://superbrain.social";
+const BASE_URL = "https://www.superbrain.social";
 
 type Props = { searchParams: { code?: string } };
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { fetchLeagueOGById } from "@/lib/og";
 
-const BASE_URL = "https://superbrain.social";
+const BASE_URL = "https://www.superbrain.social";
 
 type Props = { params: { leagueId: string }; children: React.ReactNode };
 

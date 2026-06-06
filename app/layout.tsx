@@ -7,7 +7,7 @@ import PWAInstallBanner   from "@/components/PWAInstallBanner";
 import MobileBottomNav    from "@/components/MobileBottomNav";
 import PostHogProvider from "@/components/PostHogProvider";
 
-const BASE_URL = "https://superbrain.social";
+const BASE_URL = "https://www.superbrain.social";
 const TITLE    = "SuperBrain — Test Your Mind Under Pressure";
 const DESC     = "Fast, intense cognitive tests for reaction speed, memory, and decision-making. Find out where you really stand — in under 3 minutes.";
 
