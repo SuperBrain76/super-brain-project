@@ -8,79 +8,88 @@ const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "";
 
 export default function Nav() {
   const { user, loading, signOut } = useAuth();
-  const pathname  = usePathname();
-  const isAdmin   = !!user && user.email === ADMIN_EMAIL;
+  const pathname   = usePathname();
+  const isAdmin    = !!user && user.email === ADMIN_EMAIL;
+  const isPredict  = pathname.startsWith("/predict");
+
+  // On predictor pages the nav sits on a white background — swap colours accordingly
+  const headerStyle = isPredict
+    ? { background: "rgba(255,255,255,0.97)", borderBottom: "1px solid #dde3ec" }
+    : undefined;
+
+  const logoTextCls   = isPredict ? "text-slate-800 group-hover:text-green-700" : "text-white group-hover:text-cockpit-accent";
+  const logoBgCls     = isPredict ? "bg-green-600" : "bg-cockpit-accent";
+  const logoTextColor = isPredict ? "#fff" : "#080b0f";
+
+  function navLinkCls(prefix: string) {
+    const active = pathname.startsWith(prefix);
+    if (prefix === "/predict") {
+      // Predictor link always gets the football green treatment
+      return active
+        ? "px-3 py-1.5 rounded-full text-sm font-semibold transition-colors bg-green-600 text-white"
+        : "px-3 py-1.5 rounded-full text-sm font-semibold transition-colors border border-green-600 text-green-700 hover:bg-green-600 hover:text-white";
+    }
+    if (isPredict) {
+      // On predictor pages, other links render in dark-on-white
+      return active
+        ? "px-3 py-2 rounded-sm text-sm font-medium transition-colors text-slate-900 bg-slate-100"
+        : "px-3 py-2 rounded-sm text-sm font-medium transition-colors text-slate-500 hover:text-slate-800";
+    }
+    return active
+      ? "px-3 py-2 rounded-sm text-sm tracking-wide transition-colors text-cockpit-accent bg-cockpit-accent bg-opacity-10"
+      : "px-3 py-2 rounded-sm text-sm tracking-wide transition-colors text-cockpit-dim hover:text-cockpit-text";
+  }
+
+  const authLinkCls = isPredict
+    ? "text-sm border border-slate-300 px-4 py-1.5 rounded-full text-slate-600 hover:border-green-600 hover:text-green-700 transition-colors"
+    : "text-sm border border-cockpit-border px-4 py-1.5 rounded-sm text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-cockpit-border bg-cockpit-bg bg-opacity-95 backdrop-blur-sm">
+    <header
+      className="sticky top-0 z-50 backdrop-blur-sm"
+      style={headerStyle ?? { borderBottom: "1px solid var(--ps-border, #1e2a38)", background: "rgba(8,11,15,0.95)" }}
+    >
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-7 h-7 rounded-sm bg-cockpit-accent flex items-center justify-center">
-            <span className="text-cockpit-bg font-black text-xs tracking-tighter">SB</span>
+          <div className={`w-7 h-7 rounded-sm ${logoBgCls} flex items-center justify-center`}>
+            <span className="font-black text-xs tracking-tighter" style={{ color: logoTextColor }}>SB</span>
           </div>
-          <span className="font-bold tracking-widest text-sm text-white group-hover:text-cockpit-accent transition-colors">
+          <span className={`font-bold tracking-widest text-sm transition-colors ${logoTextCls}`}>
             SUPERBRAIN
           </span>
         </Link>
 
-        {/* Centre links — Tests always visible, Leaderboard md+ only */}
+        {/* Centre nav */}
         <nav className="flex items-center gap-1">
-          <Link
-            href="/tests"
-            className={`px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
-              pathname.startsWith("/tests")
-                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                : "text-cockpit-dim hover:text-cockpit-text"
-            }`}
-          >
-            Tests
+          <Link href="/tests" className={navLinkCls("/tests")}>
+            Brain Tests
           </Link>
-          <Link
-            href="/predict"
-            className={`px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
-              pathname.startsWith("/predict")
-                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                : "text-cockpit-dim hover:text-cockpit-text"
-            }`}
-          >
-            Predict
+          <Link href="/predict" className={navLinkCls("/predict")}>
+            ⚽ Predictor
           </Link>
-          <Link
-            href="/battle"
-            className={`hidden md:block px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
-              pathname.startsWith("/battle")
-                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                : "text-cockpit-dim hover:text-cockpit-text"
-            }`}
-          >
+          <Link href="/battle" className={`hidden md:block ${navLinkCls("/battle")}`}>
             Battle
           </Link>
-          <Link
-            href="/leaderboard"
-            className={`hidden md:block px-3 py-2 rounded-sm text-sm tracking-wide transition-colors ${
-              pathname.startsWith("/leaderboard")
-                ? "text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                : "text-cockpit-dim hover:text-cockpit-text"
-            }`}
-          >
+          <Link href="/leaderboard" className={`hidden md:block ${navLinkCls("/leaderboard")}`}>
             Leaderboard
           </Link>
         </nav>
 
-        {/* Auth controls */}
+        {/* Auth */}
         <div className="flex items-center gap-1">
           {user ? (
             <>
               <Link
                 href="/profile"
-                className="hidden md:block text-cockpit-dim hover:text-cockpit-text text-sm px-3 py-2 transition-colors"
+                className={`hidden md:block text-sm px-3 py-2 transition-colors ${isPredict ? "text-slate-500 hover:text-slate-800" : "text-cockpit-dim hover:text-cockpit-text"}`}
               >
                 Dashboard
               </Link>
               <Link
                 href="/settings/profile"
-                className="hidden md:block text-cockpit-muted hover:text-cockpit-dim text-sm px-3 py-2 transition-colors"
+                className={`hidden md:block text-sm px-3 py-2 transition-colors ${isPredict ? "text-slate-400 hover:text-slate-600" : "text-cockpit-muted hover:text-cockpit-dim"}`}
                 title="Profile settings"
               >
                 Settings
@@ -90,8 +99,8 @@ export default function Nav() {
                   href="/admin"
                   className={`hidden md:block text-xs px-2.5 py-1.5 rounded-sm border transition-colors ${
                     pathname.startsWith("/admin")
-                      ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
-                      : "text-amber-500/70 border-amber-500/20 hover:border-amber-500/50 hover:text-amber-400"
+                      ? "text-amber-600 border-amber-400/40 bg-amber-50"
+                      : "text-amber-600/70 border-amber-400/30 hover:border-amber-500/60 hover:text-amber-600"
                   }`}
                 >
                   Admin
@@ -100,7 +109,7 @@ export default function Nav() {
               <button
                 onClick={signOut}
                 title="Sign out"
-                className="text-cockpit-muted hover:text-cockpit-red text-sm px-3 py-2 transition-colors"
+                className={`text-sm px-3 py-2 transition-colors ${isPredict ? "text-slate-400 hover:text-red-600" : "text-cockpit-muted hover:text-cockpit-red"}`}
               >
                 <span className="hidden md:inline">Sign out</span>
                 <svg className="md:hidden" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -112,10 +121,7 @@ export default function Nav() {
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="text-sm border border-cockpit-border px-4 py-1.5 rounded-sm text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors"
-            >
+            <Link href="/login" className={authLinkCls}>
               {loading ? "…" : "Login"}
             </Link>
           )}

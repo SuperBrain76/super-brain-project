@@ -18,13 +18,14 @@ function isGameRoute(pathname: string): boolean {
   return GAME_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-const INACTIVE = "#7a8fa6";
-const ACTIVE   = "#00d4ff";
+const INACTIVE        = "#7a8fa6";
+const ACTIVE_TESTS    = "#00d4ff";  // cyan for brain tests / other sections
+const ACTIVE_PREDICT  = "#16a34a";  // green for predictor
 
 function IconTests({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-      stroke={active ? ACTIVE : INACTIVE} strokeWidth="1.8" strokeLinecap="round">
+      stroke={active ? ACTIVE_TESTS : INACTIVE} strokeWidth="1.8" strokeLinecap="round">
       <rect x="3" y="3" width="7" height="7" rx="1"/>
       <rect x="14" y="3" width="7" height="7" rx="1"/>
       <rect x="3" y="14" width="7" height="7" rx="1"/>
@@ -34,11 +35,13 @@ function IconTests({ active }: { active: boolean }) {
 }
 
 function IconPredict({ active }: { active: boolean }) {
+  // Football / soccer ball icon for the Predictor tab
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-      stroke={active ? ACTIVE : INACTIVE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      stroke={active ? ACTIVE_PREDICT : INACTIVE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10"/>
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      <path d="M12 7l2 3-1.5 3H11.5L10 10l2-3z"/>
+      <path d="M10 10l-3 1M14 10l3 1M11.5 13l-1 3M12.5 13l1 3"/>
     </svg>
   );
 }
@@ -46,7 +49,7 @@ function IconPredict({ active }: { active: boolean }) {
 function IconBattle({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-      stroke={active ? ACTIVE : INACTIVE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      stroke={active ? ACTIVE_TESTS : INACTIVE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14.5 17.5L3 6V3h3l11.5 11.5"/>
       <path d="M13 19l6-6"/>
       <path d="M2 2l20 20"/>
@@ -57,7 +60,7 @@ function IconBattle({ active }: { active: boolean }) {
 function IconLeaderboard({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-      stroke={active ? ACTIVE : INACTIVE} strokeWidth="1.8" strokeLinecap="round">
+      stroke={active ? ACTIVE_TESTS : INACTIVE} strokeWidth="1.8" strokeLinecap="round">
       <polyline points="18 20 18 10"/>
       <polyline points="12 20 12 4"/>
       <polyline points="6 20 6 14"/>
@@ -68,7 +71,7 @@ function IconLeaderboard({ active }: { active: boolean }) {
 function IconProfile({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-      stroke={active ? ACTIVE : INACTIVE} strokeWidth="1.8" strokeLinecap="round">
+      stroke={active ? ACTIVE_TESTS : INACTIVE} strokeWidth="1.8" strokeLinecap="round">
       <circle cx="12" cy="8" r="4"/>
       <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
     </svg>
@@ -81,11 +84,13 @@ export default function MobileBottomNav() {
 
   if (isGameRoute(pathname)) return null;
 
+  const isPredict = pathname.startsWith("/predict");
+
   const tabs = [
-    { href: "/tests",       label: "Tests",    Icon: IconTests,       match: "/tests"       },
-    { href: "/predict",     label: "Predict",  Icon: IconPredict,     match: "/predict"     },
-    { href: "/battle",      label: "Battle",   Icon: IconBattle,      match: "/battle"      },
-    { href: "/leaderboard", label: "Rankings", Icon: IconLeaderboard, match: "/leaderboard" },
+    { href: "/tests",       label: "Brain Tests",  Icon: IconTests,       match: "/tests"       },
+    { href: "/predict",     label: "Predictor",    Icon: IconPredict,     match: "/predict"     },
+    { href: "/battle",      label: "Battle",       Icon: IconBattle,      match: "/battle"      },
+    { href: "/leaderboard", label: "Rankings",     Icon: IconLeaderboard, match: "/leaderboard" },
     {
       href:  user ? "/profile" : "/login",
       label: user ? "Profile"  : "Sign In",
@@ -93,6 +98,10 @@ export default function MobileBottomNav() {
       match: user ? "/profile"  : "/login",
     },
   ];
+
+  // Nav bar background shifts to white on predictor routes
+  const navBg      = isPredict ? "#ffffff" : "#111827";
+  const navBorder  = isPredict ? "#dde3ec" : "#2a3a4a";
 
   return (
     <>
@@ -102,13 +111,16 @@ export default function MobileBottomNav() {
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch"
         style={{
-          background:    "#111827",
-          borderTop:     "1px solid #2a3a4a",
+          background:    navBg,
+          borderTop:     `1px solid ${navBorder}`,
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
         {tabs.map(({ href, label, Icon, match }) => {
-          const active = pathname.startsWith(match);
+          const active      = pathname.startsWith(match);
+          const isThisPredict = match === "/predict";
+          const activeColor = isThisPredict ? ACTIVE_PREDICT : ACTIVE_TESTS;
+
           return (
             <Link
               key={href}
@@ -119,13 +131,13 @@ export default function MobileBottomNav() {
               {active && (
                 <span
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
-                  style={{ background: ACTIVE }}
+                  style={{ background: activeColor }}
                 />
               )}
               <Icon active={active} />
               <span
                 className="text-[10px] font-semibold tracking-wide"
-                style={{ color: active ? ACTIVE : INACTIVE }}
+                style={{ color: active ? activeColor : INACTIVE }}
               >
                 {label}
               </span>

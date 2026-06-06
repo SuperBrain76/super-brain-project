@@ -167,6 +167,84 @@ textarea {
 /* Utility for prose body text */
 .text-body { color: var(--text-body); }
 
+/* ─────────────────────────────────────────────────────────────
+   PREDICTOR SHELL — light theme applied to all /predict routes.
+   Overrides the dark cockpit palette locally without touching
+   the brain tests or any other section.
+───────────────────────────────────────────────────────────── */
+.predict-shell {
+  --ps-bg:        #f0f4f8;
+  --ps-surface:   #ffffff;
+  --ps-card:      #ffffff;
+  --ps-border:    #dde3ec;
+  --ps-text:      #0f172a;
+  --ps-dim:       #334155;
+  --ps-muted:     #64748b;
+  --ps-green:     #16a34a;
+  --ps-gold:      #d97706;
+  --ps-blue:      #2563eb;
+  --ps-red:       #dc2626;
+
+  background-color: var(--ps-bg);
+  color: var(--ps-text);
+}
+
+/* Card / surface overrides inside predict-shell */
+.predict-shell .ps-card {
+  background: var(--ps-card);
+  border: 1px solid var(--ps-border);
+  border-radius: 8px;
+}
+.predict-shell .ps-surface {
+  background: var(--ps-surface);
+  border: 1px solid var(--ps-border);
+  border-radius: 8px;
+}
+
+/* Primary CTA — bold green */
+.predict-shell .ps-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--ps-green);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  padding: 0.75rem 1.75rem;
+  border-radius: 8px;
+  border: none;
+  min-height: 48px;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+  text-decoration: none;
+}
+.predict-shell .ps-btn-primary:hover  { filter: brightness(1.08); }
+.predict-shell .ps-btn-primary:active { transform: scale(0.98); }
+
+/* Secondary / ghost */
+.predict-shell .ps-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: var(--ps-dim);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  padding: 0.75rem 1.75rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--ps-border);
+  min-height: 48px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+}
+.predict-shell .ps-btn-secondary:hover {
+  border-color: var(--ps-green);
+  color: var(--ps-green);
+}
+
 /* Progress bar animation */
 .progress-bar-fill {
   transition: width 0.1s linear;

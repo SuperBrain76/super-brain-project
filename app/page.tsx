@@ -159,6 +159,88 @@ export default function LandingPage() {
         </div>
       </HeroSection>
 
+      {/* ── TWO-PATH SECTION ──────────────────────────────────────────────── */}
+      <section className="border-b border-cockpit-border" style={{ background: "#0a0f16" }}>
+        <div className="max-w-5xl mx-auto px-5 py-12">
+          <p className="text-center text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-8">
+            Choose your game
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            {/* ── World Cup Predictor ── */}
+            <Link
+              href="/predict"
+              className="group relative overflow-hidden rounded-sm border flex flex-col p-7 transition-all duration-200 hover:-translate-y-0.5"
+              style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 100%)", borderColor: "#16a34a40" }}
+            >
+              <div
+                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(22,163,74,0.12), transparent)" }}
+              />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-3xl">⚽</span>
+                  <span
+                    className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
+                    style={{ background: "#16a34a20", color: "#4ade80", border: "1px solid #16a34a40" }}
+                  >
+                    Live Now
+                  </span>
+                </div>
+                <h3 className="text-white text-xl font-extrabold mb-2 leading-tight">
+                  World Cup Predictor
+                </h3>
+                <p className="text-green-300 text-sm leading-relaxed mb-6 opacity-90">
+                  Predict every match · earn points · beat friends · win the Champion Watch
+                </p>
+                <span
+                  className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-sm transition-all"
+                  style={{ background: "#16a34a", color: "#fff" }}
+                >
+                  Play World Cup Predictor →
+                </span>
+              </div>
+            </Link>
+
+            {/* ── Brain Tests ── */}
+            <Link
+              href="/tests"
+              className="group relative overflow-hidden rounded-sm border flex flex-col p-7 transition-all duration-200 hover:-translate-y-0.5"
+              style={{ background: "linear-gradient(135deg, #0a1628 0%, #0f1f3a 100%)", borderColor: "#00d4ff25" }}
+            >
+              <div
+                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,212,255,0.08), transparent)" }}
+              />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-3xl">🧠</span>
+                  <span
+                    className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
+                    style={{ background: "#00d4ff10", color: "#00d4ff", border: "1px solid #00d4ff25" }}
+                  >
+                    6 Tests
+                  </span>
+                </div>
+                <h3 className="text-white text-xl font-extrabold mb-2 leading-tight">
+                  Brain Tests
+                </h3>
+                <p className="text-cockpit-dim text-sm leading-relaxed mb-6">
+                  Reaction speed · memory · focus · decision-making. Find your real cognitive edge.
+                </p>
+                <span
+                  className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-sm border transition-all"
+                  style={{ borderColor: "#00d4ff40", color: "#00d4ff", background: "transparent" }}
+                >
+                  Take Brain Tests →
+                </span>
+              </div>
+            </Link>
+
+          </div>
+        </div>
+      </section>
+
       {/* ── FEATURES ──────────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-5 py-16">
         <div className="text-center mb-10">

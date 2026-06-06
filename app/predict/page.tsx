@@ -37,11 +37,12 @@ function isToday(isoString: string): boolean {
 
 // ── Stat chip ─────────────────────────────────────────────────
 
-function StatChip({ label, value, color = "#00d4ff" }: { label: string; value: string | number; color?: string }) {
+function StatChip({ label, value, color = "#2563eb" }: { label: string; value: string | number; color?: string }) {
   return (
-    <div className="flex flex-col items-center px-4 py-2.5 bg-cockpit-card border border-cockpit-border rounded-sm min-w-[72px]">
+    <div className="flex flex-col items-center px-4 py-2.5 rounded-lg min-w-[72px]"
+      style={{ background: "#fff", border: "1px solid #dde3ec", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
       <span className="text-lg font-black number-display leading-none" style={{ color }}>{value}</span>
-      <span className="text-[10px] text-cockpit-muted uppercase tracking-widest mt-0.5">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: "#64748b" }}>{label}</span>
     </div>
   );
 }
@@ -169,33 +170,58 @@ export default function PredictHub() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="max-w-2xl mx-auto px-4 pt-5 pb-8 w-full flex flex-col gap-5">
+      <div className="max-w-2xl mx-auto px-4 pt-5 pb-12 w-full flex flex-col gap-4">
 
-        {/* ── Header ──────────────────────────────────────── */}
-        <div>
-          <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-cockpit-muted mb-1">
-            SuperBrain · Predictor
-          </p>
-          <h1 className="text-xl font-bold text-white leading-tight">
-            {competition.name}
-          </h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-sm"
-              style={{
-                background: competition.status === "active" ? "#00e67615" : "#00d4ff10",
-                color:      competition.status === "active" ? "#00e676"   : "#00d4ff",
-              }}
-            >
-              {competition.status}
-            </span>
-            {openCount > 0 && (
-              <span className="text-cockpit-muted text-xs">
-                {openCount} fixtures open for prediction
-              </span>
-            )}
+        {/* ── Hero banner ──────────────────────────────────── */}
+        <div
+          className="rounded-xl overflow-hidden relative"
+          style={{ background: "linear-gradient(135deg, #14532d 0%, #166534 60%, #15803d 100%)" }}
+        >
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse 70% 80% at 10% 50%, rgba(255,255,255,0.06), transparent)" }}
+          />
+          <div className="relative px-5 py-5 flex items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-2xl">⚽</span>
+                <span
+                  className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(255,255,255,0.15)", color: "#bbf7d0" }}
+                >
+                  {competition.status === "active" ? "Live" : competition.status} · {openCount > 0 ? `${openCount} open` : "Predictions open"}
+                </span>
+              </div>
+              <h1 className="text-white text-xl font-extrabold leading-tight">
+                {competition.name}
+              </h1>
+              <p className="text-green-200 text-xs mt-0.5 opacity-80">
+                Predict every match · earn points · win the Watch
+              </p>
+            </div>
+            <span className="text-4xl shrink-0 select-none">🏆</span>
           </div>
         </div>
+
+        {/* ── Sign-in nudge ────────────────────────────────── */}
+        {!user && (
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-4 rounded-xl border"
+            style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}
+          >
+            <div>
+              <p className="text-green-900 text-sm font-semibold">Sign in to start predicting</p>
+              <p className="text-green-700 text-xs mt-0.5">Free to play — predict every match</p>
+            </div>
+            <Link
+              href="/login"
+              className="shrink-0 text-sm font-bold px-5 py-2.5 rounded-lg transition-colors"
+              style={{ background: "#16a34a", color: "#fff", minHeight: 44 + "px", display: "flex", alignItems: "center" }}
+            >
+              Sign in →
+            </Link>
+          </div>
+        )}
 
         {/* ── Getting Started onboarding panel ─────────────── */}
         {user && (
@@ -207,103 +233,92 @@ export default function PredictHub() {
           />
         )}
 
-        {/* ── Sign-in nudge ────────────────────────────────── */}
-        {!user && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-cockpit-accent border-opacity-30 bg-cockpit-accent bg-opacity-5">
-            <p className="text-cockpit-dim text-sm">
-              Sign in to predict results and track your score.
-            </p>
-            <Link href="/login" className="btn-primary text-sm py-2 px-4 shrink-0">
-              Sign in
-            </Link>
-          </div>
-        )}
-
         {/* ── My stats ─────────────────────────────────────── */}
         {user && myStats && myStats.predictions > 0 && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <StatChip label="Pts"   value={Number(myStats.totalPoints)} color="#00d4ff" />
-              <StatChip label="Rank"  value={`#${myStats.globalRank}`}    color="#ffab00" />
-              <StatChip label="Match" value={Number(myStats.matchPoints)} color="#00e676" />
-              <StatChip label="Bonus" value={`+${myStats.bonusPoints}`}   color="#ffab00" />
-              <StatChip label="Exact" value={Number(myStats.exactScores)} color="#ff6d00" />
+              <StatChip label="Pts"   value={Number(myStats.totalPoints)} color="#16a34a" />
+              <StatChip label="Rank"  value={`#${myStats.globalRank}`}    color="#d97706" />
+              <StatChip label="Match" value={Number(myStats.matchPoints)} color="#2563eb" />
+              <StatChip label="Bonus" value={`+${myStats.bonusPoints}`}   color="#d97706" />
+              <StatChip label="Exact" value={Number(myStats.exactScores)} color="#dc2626" />
             </div>
-
-            {/* ── Completion indicators ───────────────────── */}
-            <div className="flex items-center gap-4 px-4 py-2.5 bg-cockpit-surface border border-cockpit-border rounded-sm flex-wrap">
+            <div
+              className="flex items-center gap-4 px-4 py-2.5 rounded-lg flex-wrap"
+              style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}
+            >
               <div className="flex items-center gap-2">
-                <span
-                  className="text-[10px] font-mono font-bold"
-                  style={{
-                    color: myStats.predictions >= fixtures.length && fixtures.length > 0
-                      ? "#00e676" : "#a8b8cc",
-                  }}
-                >
+                <span className="text-[11px] font-bold"
+                  style={{ color: myStats.predictions >= fixtures.length && fixtures.length > 0 ? "#16a34a" : "#64748b" }}>
                   {myStats.predictions}/{fixtures.length || 104}
                 </span>
-                <span className="text-cockpit-muted text-[10px]">match predictions</span>
+                <span className="text-[11px]" style={{ color: "#64748b" }}>match predictions</span>
               </div>
               {myStats.bonusTotal > 0 && (
                 <div className="flex items-center gap-2">
-                  <span
-                    className="text-[10px] font-mono font-bold"
-                    style={{
-                      color: myStats.bonusAnswered >= myStats.bonusTotal
-                        ? "#00e676" : "#a8b8cc",
-                    }}
-                  >
+                  <span className="text-[11px] font-bold"
+                    style={{ color: myStats.bonusAnswered >= myStats.bonusTotal ? "#16a34a" : "#64748b" }}>
                     {myStats.bonusAnswered}/{myStats.bonusTotal}
                   </span>
-                  <span className="text-cockpit-muted text-[10px]">bonus questions</span>
+                  <span className="text-[11px]" style={{ color: "#64748b" }}>bonus questions</span>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ── Sign-in nudge with completion hint (guest) ──── */}
-        {user && myStats && myStats.predictions === 0 && (
-          <div className="px-4 py-2.5 bg-cockpit-surface border border-cockpit-border rounded-sm">
-            <p className="text-cockpit-muted text-xs">
-              <span className="text-white font-semibold">0</span>/{fixtures.length || 104} match predictions
-              {myStats.bonusTotal > 0 && (
-                <> · <span className="text-white font-semibold">0</span>/{myStats.bonusTotal} bonus questions</>
-              )}
-            </p>
-          </div>
-        )}
-
-        {/* ── Quick actions ─────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* ── Large action cards ───────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Make Predictions */}
           <Link
-            href="/predict/leagues"
-            className="flex items-center gap-2.5 px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
+            href="#fixture-list"
+            onClick={() => document.getElementById("fixture-list")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex flex-col gap-2 p-4 rounded-xl border transition-all hover:shadow-md active:scale-[0.98]"
+            style={{ background: "#16a34a", borderColor: "#15803d" }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="1.8" strokeLinecap="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
+            <span className="text-2xl">⚽</span>
             <div>
-              <p className="text-white text-sm font-semibold leading-none">Create or Join a League</p>
-              <p className="text-cockpit-muted text-[10px] mt-0.5">Private, public, or featured</p>
+              <p className="text-white font-bold text-sm leading-tight">Make Predictions</p>
+              <p className="text-green-100 text-[11px] mt-0.5 opacity-90">Pick your scores</p>
             </div>
           </Link>
 
+          {/* Leagues */}
+          <Link
+            href="/predict/leagues"
+            className="flex flex-col gap-2 p-4 rounded-xl border transition-all hover:shadow-md active:scale-[0.98]"
+            style={{ background: "#1e40af", borderColor: "#1d4ed8" }}
+          >
+            <span className="text-2xl">👥</span>
+            <div>
+              <p className="text-white font-bold text-sm leading-tight">Leagues</p>
+              <p className="text-blue-100 text-[11px] mt-0.5 opacity-90">Create or join</p>
+            </div>
+          </Link>
+
+          {/* Bonus Questions */}
+          <Link
+            href="/predict/bonus"
+            className="flex flex-col gap-2 p-4 rounded-xl border transition-all hover:shadow-md active:scale-[0.98]"
+            style={{ background: "#92400e", borderColor: "#b45309" }}
+          >
+            <span className="text-2xl">🏆</span>
+            <div>
+              <p className="text-white font-bold text-sm leading-tight">Bonus Questions</p>
+              <p className="text-amber-100 text-[11px] mt-0.5 opacity-90">Up to 75 extra pts</p>
+            </div>
+          </Link>
+
+          {/* Leaderboard */}
           <Link
             href="/predict/leaderboard"
-            className="flex items-center gap-2.5 px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
+            className="flex flex-col gap-2 p-4 rounded-xl border transition-all hover:shadow-md active:scale-[0.98]"
+            style={{ background: "#4c1d95", borderColor: "#6d28d9" }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="1.8" strokeLinecap="round">
-              <polyline points="18 20 18 10"/>
-              <polyline points="12 20 12 4"/>
-              <polyline points="6 20 6 14"/>
-            </svg>
+            <span className="text-2xl">📈</span>
             <div>
-              <p className="text-white text-sm font-semibold leading-none">Leaderboard</p>
-              <p className="text-cockpit-muted text-[10px] mt-0.5">Global ranking</p>
+              <p className="text-white font-bold text-sm leading-tight">Leaderboard</p>
+              <p className="text-purple-100 text-[11px] mt-0.5 opacity-90">Global ranking</p>
             </div>
           </Link>
         </div>
@@ -311,56 +326,63 @@ export default function PredictHub() {
         {/* ── Discover public leagues ───────────────────────── */}
         <Link
           href="/predict/leagues/discover"
-          className="flex items-center gap-3 px-4 py-3.5 rounded-sm border transition-colors hover:border-opacity-60"
-          style={{ background: "#ffab0008", borderColor: "#ffab0030" }}
+          className="flex items-center gap-3 px-4 py-4 rounded-xl border transition-all hover:shadow-md"
+          style={{ background: "#fffbeb", borderColor: "#fde68a" }}
         >
-          <div
-            className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0"
-            style={{ background: "#ffab0015" }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="1.8" strokeLinecap="round">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: "#fef3c7" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-semibold leading-none">Discover Public Leagues</p>
-            <p className="text-cockpit-muted text-[10px] mt-0.5">Browse featured &amp; open leagues — no invite needed</p>
+            <p className="font-bold text-sm leading-none" style={{ color: "#78350f" }}>Discover Public Leagues</p>
+            <p className="text-xs mt-1" style={{ color: "#92400e" }}>Browse featured &amp; open leagues — no invite needed</p>
           </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffab00" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </Link>
 
-        {/* ── Bonus + Rules ─────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* ── Prize strip ──────────────────────────────────── */}
+        <div
+          className="flex items-center gap-4 px-4 py-4 rounded-xl border"
+          style={{ background: "linear-gradient(135deg, #1c1400, #2d1f00)", borderColor: "#d97706a0" }}
+        >
+          <span className="text-3xl shrink-0">⌚</span>
+          <div className="flex-1">
+            <p className="text-white font-bold text-sm leading-tight">SB Champion Watch</p>
+            <p className="text-amber-300 text-xs mt-0.5">Top the global leaderboard · win the grand prize</p>
+          </div>
           <Link
-            href="/predict/bonus"
-            className="flex items-center gap-2.5 px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
+            href="/predict/leaderboard"
+            className="shrink-0 text-xs font-bold px-3 py-2 rounded-lg"
+            style={{ background: "#d97706", color: "#fff" }}
           >
-            <span className="text-lg leading-none shrink-0">🏆</span>
-            <div>
-              <p className="text-white text-sm font-semibold leading-none">Bonus Questions</p>
-              <p className="text-cockpit-muted text-[10px] mt-0.5">Up to 75 extra pts</p>
-            </div>
-          </Link>
-          <Link
-            href="/predict/rules"
-            className="flex items-center gap-2.5 px-4 py-3 bg-cockpit-card border border-cockpit-border rounded-sm hover:border-cockpit-accent transition-colors"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8899aa" strokeWidth="1.8" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div>
-              <p className="text-cockpit-dim text-sm leading-none">Rules &amp; FAQ</p>
-              <p className="text-cockpit-muted text-[10px] mt-0.5">Scoring explained</p>
-            </div>
+            See board
           </Link>
         </div>
 
+        {/* ── Rules link ───────────────────────────────────── */}
+        <Link
+          href="/predict/rules"
+          className="flex items-center justify-center gap-2 py-2 text-sm transition-colors"
+          style={{ color: "#64748b" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Scoring rules &amp; FAQ
+        </Link>
+
         {/* ── Tabs ─────────────────────────────────────────── */}
-        <div id="fixture-list" className="flex gap-1 bg-cockpit-surface rounded-sm p-1 border border-cockpit-border">
+        <div
+          id="fixture-list"
+          className="flex gap-1 rounded-xl p-1"
+          style={{ background: "#e2e8f0" }}
+        >
           {([
             { id: "all",     label: "All fixtures"                           },
             { id: "today",   label: `Today${todayCount > 0 ? ` (${todayCount})` : ""}` },
@@ -369,10 +391,11 @@ export default function PredictHub() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className="flex-1 py-2 rounded-sm text-xs font-semibold transition-all duration-150"
+              className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-150"
               style={{
-                background: tab === t.id ? "#1e2a38" : "transparent",
-                color:      tab === t.id ? "#fff"    : "#8899aa",
+                background: tab === t.id ? "#ffffff" : "transparent",
+                color:      tab === t.id ? "#0f172a" : "#64748b",
+                boxShadow:  tab === t.id ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
               }}
             >
               {t.label}
@@ -382,16 +405,15 @@ export default function PredictHub() {
 
         {/* ── Fixture list ─────────────────────────────────── */}
         {fixtures.length === 0 ? (
-          // Fixtures loaded but DB is empty — seed hasn't been run
           <div className="py-10 px-4 text-center flex flex-col gap-2">
-            <p className="text-cockpit-dim text-sm">No fixtures in database.</p>
-            <p className="text-cockpit-muted text-xs">
-              Run <code className="font-mono text-cockpit-accent">wc2026-fixtures.sql</code> in the Supabase SQL Editor to seed all 104 fixtures.
+            <p className="text-sm" style={{ color: "#334155" }}>No fixtures in database.</p>
+            <p className="text-xs" style={{ color: "#64748b" }}>
+              Run <code className="font-mono" style={{ color: "#16a34a" }}>wc2026-fixtures.sql</code> in the Supabase SQL Editor to seed all 104 fixtures.
             </p>
           </div>
         ) : groups.size === 0 ? (
           <div className="py-10 text-center">
-            <p className="text-cockpit-muted text-sm">
+            <p className="text-sm" style={{ color: "#64748b" }}>
               {tab === "today"   ? "No fixtures today."   :
                tab === "results" ? "No results yet."      :
                "No fixtures found."}
@@ -405,12 +427,12 @@ export default function PredictHub() {
                 <div className="flex items-center gap-3 mb-2">
                   <span
                     className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: isToday(dayFixtures[0].kicksOffAt) ? "#00d4ff" : "#8899aa" }}
+                    style={{ color: isToday(dayFixtures[0].kicksOffAt) ? "#16a34a" : "#94a3b8" }}
                   >
                     {isToday(dayFixtures[0].kicksOffAt) ? "Today · " : ""}{dateLabel}
                   </span>
-                  <div className="flex-1 h-px bg-cockpit-border" />
-                  <span className="text-[10px] text-cockpit-muted font-mono">
+                  <div className="flex-1 h-px" style={{ background: "#e2e8f0" }} />
+                  <span className="text-[10px] font-mono" style={{ color: "#94a3b8" }}>
                     {dayFixtures.length} match{dayFixtures.length === 1 ? "" : "es"}
                   </span>
                 </div>
