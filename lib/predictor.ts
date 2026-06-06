@@ -651,13 +651,13 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
 export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
   if (!isSupabaseConfigured) return [];
 
-  // ── Tier 1: get_league_members RPC (migration 009) ───────────
-  // SECURITY DEFINER — bypasses user_profiles RLS so all members'
-  // display names are readable.
-  const { data: rpcData, error: rpcErr } = await supabase.rpc("get_league_members", {
+  // ── Step 1: get_league_members RPC (migration 009) ───────────
+  // SECURITY DEFINER — bypasses user_profiles RLS.
+  // If not yet deployed this call errors and we fall through.
+  const { data: rpcData } = await supabase.rpc("get_league_members", {
     p_league_id: leagueId,
   });
-  if (!rpcErr && rpcData && (rpcData as unknown[]).length > 0) {
+  if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
     return (rpcData as Record<string, unknown>[]).map((row) => ({
       userId:      row.user_id as string,
       displayName: (row.display_name as string | null) ?? "Anonymous",
@@ -667,39 +667,49 @@ export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]
     }));
   }
 
-  // ── Tier 2: direct table query ────────────────────────────────
-  // Always works (RLS: any authenticated user can read
-  // prediction_league_members). No display names from this path.
-  const { data: rows, error: rowsErr } = await supabase
+  // ── Step 2: direct table query (no .order — avoids PostgREST errors)
+  // RLS policy "authenticated read league members" allows any
+  // signed-in user to read all rows in prediction_league_members.
+  const { data: rows } = await supabase
     .from("prediction_league_members")
     .select("user_id, joined_at")
-    .eq("league_id", leagueId)
-    .order("joined_at", { ascending: true });
+    .eq("league_id", leagueId);
 
-  if (rowsErr || !rows || (rows as unknown[]).length === 0) return [];
+  if (!rows || rows.length === 0) return [];
 
-  // ── Tier 3: try leaderboard RPC for display names ─────────────
-  // Also SECURITY DEFINER — can read user_profiles for all members.
+  // Sort client-side by joined_at ascending
+  const sorted = [...rows].sort((a, b) => {
+    const ra = a as Record<string, unknown>;
+    const rb = b as Record<string, unknown>;
+    const da = ra.joined_at ? new Date(ra.joined_at as string).getTime() : 0;
+    const db = rb.joined_at ? new Date(rb.joined_at as string).getTime() : 0;
+    return da - db;
+  });
+
+  // ── Step 3: best-effort display names via leaderboard RPC ─────
   const nameMap = new Map<string, { displayName: string; country: string | null }>();
   const { data: lbData } = await supabase.rpc("get_league_leaderboard", {
     p_league_id: leagueId,
   });
-  if (lbData) {
+  if (lbData && Array.isArray(lbData)) {
     for (const r of lbData as Record<string, unknown>[]) {
-      nameMap.set(r.user_id as string, {
-        displayName: (r.display_name as string) ?? "Anonymous",
+      const uid = r.user_id as string;
+      if (uid) nameMap.set(uid, {
+        displayName: (r.display_name as string) || "Anonymous",
         country:     (r.country as string | null) ?? null,
       });
     }
   }
 
-  return (rows as Record<string, unknown>[]).map((row) => {
-    const info = nameMap.get(row.user_id as string);
+  return sorted.map((row) => {
+    const r    = row as Record<string, unknown>;
+    const uid  = r.user_id as string;
+    const info = nameMap.get(uid);
     return {
-      userId:      row.user_id as string,
+      userId:      uid,
       displayName: info?.displayName ?? "Anonymous",
       country:     info?.country ?? null,
-      joinedAt:    (row.joined_at as string | null) ?? null,
+      joinedAt:    (r.joined_at as string | null) ?? null,
       isOwner:     false,
     };
   });
