@@ -656,15 +656,18 @@ export async function renameLeague(
   const trimmed    = name.trim().replace(/\s+/g, " ");
   const normalized = validation.normalizedName!;
 
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from("prediction_leagues")
     .update({ name: trimmed, normalized_name: normalized })
-    .eq("id", leagueId);
+    .eq("id", leagueId)
+    .eq("created_by", user.id)
+    .select("id");
 
   if (error) {
     if (error.code === "23505") return { error: "That name is already taken. Try another." };
     return { error: "Could not rename league. Please try again." };
   }
+  if (!data || data.length === 0) return { error: "Permission denied — only the league owner can rename it." };
   return { error: null };
 }
 
@@ -676,12 +679,15 @@ export async function setLeagueVisibility(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "You must be signed in." };
 
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from("prediction_leagues")
     .update({ visibility })
-    .eq("id", leagueId);
+    .eq("id", leagueId)
+    .eq("created_by", user.id)
+    .select("id");
 
   if (error) return { error: "Could not update visibility. Please try again." };
+  if (!data || data.length === 0) return { error: "Permission denied — only the league owner can change visibility." };
   return { error: null };
 }
 
