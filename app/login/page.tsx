@@ -29,9 +29,11 @@ function LoginForm() {
   const [resendDone,      setResendDone]      = useState(false);
   const [busy,            setBusy]            = useState(false);
 
+  const next = searchParams.get("next") ?? "";
+
   useEffect(() => {
-    if (!loading && user) router.replace("/profile");
-  }, [user, loading, router]);
+    if (!loading && user) router.replace(next || "/profile");
+  }, [user, loading, router, next]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +50,7 @@ function LoginForm() {
         password,
         options: {
           data: { display_name: name },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
         },
       });
       setBusy(false);
@@ -61,7 +63,7 @@ function LoginForm() {
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (err) { setError(err.message); return; }
-    router.push("/profile");
+    router.push(next || "/profile");
   };
 
   const resendVerification = async () => {

@@ -26,7 +26,7 @@ import {
 const SITE = "https://superbrain.social";
 
 function inviteUrl(code: string) {
-  return `${SITE}/predict/leagues?join=${code}`;
+  return `${SITE}/predict/leagues/join?code=${code}`;
 }
 
 function whatsappUrl(league: PredictionLeague) {

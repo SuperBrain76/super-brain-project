@@ -20,7 +20,7 @@ import {
 const SITE = "https://superbrain.social";
 
 function inviteUrl(code: string) {
-  return `${SITE}/predict/leagues?join=${code}`;
+  return `${SITE}/predict/leagues/join?code=${code}`;
 }
 
 function whatsappUrl(league: PredictionLeague) {
@@ -291,7 +291,12 @@ function LeaguesContent() {
           <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 flex flex-col gap-3 text-center">
             <p className="text-white font-semibold">Sign in to create or join leagues</p>
             <p className="text-cockpit-dim text-sm">Your predictions and standings are tied to your account.</p>
-            <Link href="/login" className="btn-primary w-full flex items-center justify-center">
+            <Link
+              href={joinCode
+                ? `/login?next=${encodeURIComponent(`/predict/leagues/join?code=${joinCode}`)}`
+                : "/login"}
+              className="btn-primary w-full flex items-center justify-center"
+            >
               Sign in free →
             </Link>
           </div>
