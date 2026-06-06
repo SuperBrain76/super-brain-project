@@ -236,8 +236,9 @@ async function apiFetch(
 ): Promise<{ fixtures: ApiFootballFixture[]; quota: QuotaMeta }> {
   const res = await fetch(`${API_BASE}/${path}`, {
     headers: {
-      "x-rapidapi-key":  apiKey,
-      "x-rapidapi-host": "v3.football.api-sports.io",
+      // Direct API-Sports endpoint requires x-apisports-key.
+      // x-rapidapi-* headers are only for the RapidAPI proxy (different host).
+      "x-apisports-key": apiKey,
     },
     cache: "no-store",
   });
