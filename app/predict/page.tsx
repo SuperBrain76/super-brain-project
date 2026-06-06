@@ -55,7 +55,8 @@ export default function PredictHub() {
   const [myStats,     setMyStats]     = useState<MyStats | null>(null);
   const [fetching,    setFetching]    = useState(true);
   const [loadError,   setLoadError]   = useState<string | null>(null);
-  const [tab,         setTab]         = useState<Tab>("all");
+  const [tab,           setTab]           = useState<Tab>("all");
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -82,6 +83,24 @@ export default function PredictHub() {
     if (!user || !competition) return;
     getMyStats(competition.id).then(setMyStats);
   }, [user, competition]);
+
+  // Scroll-restore: after fixtures load, return to last predicted card
+  useEffect(() => {
+    if (fixtures.length === 0) return;
+    let id: string | null = null;
+    try { id = sessionStorage.getItem("lastPredictedFixture"); } catch { /* private mode */ }
+    if (!id) return;
+    try { sessionStorage.removeItem("lastPredictedFixture"); } catch { /* ignore */ }
+    setHighlightedId(id);
+    // Wait one frame for React to paint the list, then scroll
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`fixture-${id}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    // Fade the highlight out after 1.4s (card's CSS transition handles the visual fade)
+    const t = setTimeout(() => setHighlightedId(null), 1400);
+    return () => clearTimeout(t);
+  }, [fixtures]);
 
   // ── Filter ────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -392,6 +411,7 @@ export default function PredictHub() {
                       key={fixture.id}
                       fixture={fixture}
                       showPrediction={!!user}
+                      highlighted={fixture.id === highlightedId}
                     />
                   ))}
                 </div>
