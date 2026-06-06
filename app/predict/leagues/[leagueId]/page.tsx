@@ -25,47 +25,51 @@ import {
   type MyStats,
 } from "@/lib/predictor";
 
+// ── Design tokens ─────────────────────────────────────────────
+const GREEN  = "#1a3a2a";
+const GOLD   = "#b8972a";
+const MUTED  = "#7a8f82";
+const BORDER = "#dde5d8";
+const TEXT1  = "#0f1f17";
+const TEXT2  = "#2e4a37";
+const CARD   = "#ffffff";
+const BG     = "#f0f3ef";
+
 // ── Helpers ───────────────────────────────────────────────────
-
 const SITE = "https://www.superbrain.social";
-
-function inviteUrl(code: string) {
-  return `${SITE}/predict/leagues/join?code=${code}`;
-}
-
+function inviteUrl(code: string) { return `${SITE}/predict/leagues/join?code=${code}`; }
 function whatsappUrl(league: PredictionLeague) {
   const msg = `Join my "${league.name}" World Cup Predictor league on SuperBrain!\n\nUse code: ${league.inviteCode}\nOr join here: ${inviteUrl(league.inviteCode)}`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
+const WHATSAPP_ICON = (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  </svg>
+);
 
 // ── Copy button ───────────────────────────────────────────────
-
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
-
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
+    try { await navigator.clipboard.writeText(text); }
+    catch {
       const el = document.createElement("textarea");
-      el.value = text;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
+      el.value = text; document.body.appendChild(el); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
   return (
     <button
       onClick={copy}
-      className="text-[10px] font-mono px-2 py-1 rounded-sm border transition-all shrink-0"
+      className="text-[10px] px-2.5 py-1 rounded-full transition-all shrink-0 font-semibold"
       style={{
-        color:       copied ? "#00e676" : "#a8b8cc",
-        borderColor: copied ? "#00e67640" : "#1e2a38",
-        background:  copied ? "#00e67610" : "transparent",
+        color:       copied ? GREEN        : TEXT2,
+        borderColor: copied ? `${GREEN}40` : BORDER,
+        background:  copied ? `${GREEN}10` : BG,
+        border:      `1px solid ${copied ? `${GREEN}40` : BORDER}`,
       }}
     >
       {copied ? "✓ Copied" : label}
@@ -74,118 +78,86 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 }
 
 // ── Rank badge ────────────────────────────────────────────────
-
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) return (
-    <span className="w-7 h-7 flex items-center justify-center rounded-sm text-xs font-black"
-      style={{ color: "#ffab00", background: "#ffab0018" }}>1</span>
+    <span className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-black"
+      style={{ color: GOLD, background: `${GOLD}18` }}>1</span>
   );
   if (rank === 2) return (
-    <span className="w-7 h-7 flex items-center justify-center rounded-sm text-xs font-black"
-      style={{ color: "#a8b8cc", background: "#a8b8cc15" }}>2</span>
+    <span className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-black"
+      style={{ color: "#8899aa", background: "#8899aa15" }}>2</span>
   );
   if (rank === 3) return (
-    <span className="w-7 h-7 flex items-center justify-center rounded-sm text-xs font-black"
+    <span className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-black"
       style={{ color: "#cd7c32", background: "#cd7c3215" }}>3</span>
   );
   return (
-    <span className="w-7 h-7 flex items-center justify-center text-xs font-mono text-cockpit-muted">
+    <span className="w-7 h-7 flex items-center justify-center text-xs" style={{ color: MUTED }}>
       {rank}
     </span>
   );
 }
 
 // ── Leaderboard table ─────────────────────────────────────────
-
-function LeaderboardTable({
-  rows,
-  currentUserId,
-  ownerId,
-}: {
-  rows:          LeaderboardRow[];
-  currentUserId: string | null;
-  ownerId:       string;
+function LeaderboardTable({ rows, currentUserId, ownerId }: {
+  rows: LeaderboardRow[]; currentUserId: string | null; ownerId: string;
 }) {
   if (rows.length === 0) {
     return (
       <div className="py-8 text-center px-4">
-        <p className="text-cockpit-dim text-sm">Standings will appear after predictions are scored.</p>
-        <p className="text-cockpit-muted text-xs mt-1">Results are entered after each match.</p>
+        <p className="text-sm" style={{ color: TEXT2 }}>Standings will appear after predictions are scored.</p>
+        <p className="text-xs mt-1" style={{ color: MUTED }}>Results are entered after each match.</p>
       </div>
     );
   }
-
   return (
     <div className="flex flex-col">
       {/* Column headers */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-cockpit-border">
+      <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}`, background: BG }}>
         <div className="w-7 shrink-0" />
-        <span className="flex-1 text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Player</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden sm:block">Match</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block">Bonus</span>
-        <span className="w-12 text-right text-[10px] text-cockpit-accent uppercase tracking-widest font-mono">Total</span>
+        <span className="flex-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Player</span>
+        <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: MUTED }}>Match</span>
+        <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
+        <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold" style={{ color: GREEN }}>Total</span>
       </div>
-
       {rows.map((row) => {
-        const isMe      = row.userId === currentUserId;
-        const isOwner   = row.userId === ownerId;
+        const isMe    = row.userId === currentUserId;
+        const isOwner = row.userId === ownerId;
         return (
           <div
             key={`${row.rank}-${row.displayName}`}
-            className="flex items-center gap-2 px-3 py-3 border-b border-cockpit-border last:border-0 transition-colors"
+            className="flex items-center gap-2 px-3 py-3 transition-colors"
             style={{
-              background:   isMe ? "#00d4ff06" : undefined,
-              borderLeft:   isMe ? "2px solid #00d4ff40" : "2px solid transparent",
+              borderBottom: `1px solid ${BORDER}`,
+              background:   isMe ? "#eef3ec" : undefined,
+              borderLeft:   isMe ? `3px solid ${GREEN}` : "3px solid transparent",
             }}
           >
             <RankBadge rank={row.rank} />
-
-            {/* Player */}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
               {row.country && nameToFlag(row.country) && (
                 <span className="text-sm shrink-0">{nameToFlag(row.country)}</span>
               )}
-              <span className="text-white text-sm font-medium truncate">
-                {row.displayName}
-              </span>
+              <span className="text-sm font-medium truncate" style={{ color: TEXT1 }}>{row.displayName}</span>
               {isOwner && (
-                <span
-                  className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
-                  style={{ color: "#b8972a", background: "#b8972a15" }}
-                  title="League captain"
-                >
-                  👑 CAPTAIN
-                </span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                  style={{ color: GOLD, background: `${GOLD}15` }}>👑 CAPTAIN</span>
               )}
               {isMe && (
-                <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
-                  style={{ color: "#00d4ff", background: "#00d4ff15" }}>
-                  YOU
-                </span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                  style={{ color: GREEN, background: `${GREEN}12`, border: `1px solid ${GREEN}30` }}>YOU</span>
               )}
             </div>
-
-            {/* Match pts */}
-            <span
-              className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
-              style={{ color: row.matchPoints > 0 ? "#a8b8cc" : "#8899aa" }}
-            >
+            <span className="w-12 text-right text-xs tabular-nums hidden sm:block"
+              style={{ color: row.matchPoints > 0 ? TEXT2 : MUTED }}>
               {row.matchPoints}
             </span>
-
-            {/* Bonus pts */}
-            <span
-              className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
-              style={{ color: row.bonusPoints > 0 ? "#ffab00" : "#8899aa" }}
-            >
+            <span className="w-12 text-right text-xs tabular-nums hidden sm:block"
+              style={{ color: row.bonusPoints > 0 ? GOLD : MUTED }}>
               {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
             </span>
-
-            {/* Total pts */}
-            <span
-              className="w-12 text-right font-bold font-mono text-sm tabular-nums"
-              style={{ color: row.totalPoints > 0 ? "#00d4ff" : "#8899aa" }}
-            >
+            <span className="w-12 text-right font-bold text-sm tabular-nums"
+              style={{ color: row.totalPoints > 0 ? GREEN : MUTED }}>
               {row.totalPoints}
             </span>
           </div>
@@ -196,75 +168,59 @@ function LeaderboardTable({
 }
 
 // ── Members list ──────────────────────────────────────────────
-
-function MembersList({
-  members,
-  currentUserId,
-}: {
-  members:       LeagueMember[];
-  currentUserId: string | null;
-}) {
+function MembersList({ members, currentUserId }: { members: LeagueMember[]; currentUserId: string | null; }) {
   if (members.length === 0) {
     return (
       <div className="flex flex-col gap-2">
-        <h2 className="text-white font-semibold text-sm">Members</h2>
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-6 text-center">
-          <p className="text-cockpit-dim text-sm">No members found.</p>
+        <h2 className="font-semibold text-sm" style={{ color: TEXT1 }}>Members</h2>
+        <div className="p-6 text-center rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <p className="text-sm" style={{ color: TEXT2 }}>No members found.</p>
         </div>
       </div>
     );
   }
-
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-white font-semibold text-sm">Members</h2>
-      <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
+      <h2 className="font-semibold text-sm" style={{ color: TEXT1 }}>Members</h2>
+      <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
         {members.map((m, i) => {
           const isMe = m.userId === currentUserId;
           return (
             <div
               key={m.userId}
-              className="flex items-center gap-3 px-4 py-3 border-b border-cockpit-border last:border-0"
+              className="flex items-center gap-3 px-4 py-3"
               style={{
-                background: isMe ? "#00d4ff06" : undefined,
-                borderLeft: isMe ? "2px solid #00d4ff40" : "2px solid transparent",
+                borderBottom: `1px solid ${BORDER}`,
+                background:   isMe ? "#eef3ec" : undefined,
+                borderLeft:   isMe ? `3px solid ${GREEN}` : "3px solid transparent",
               }}
             >
-              {/* Avatar initial */}
               <div
-                className="w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold shrink-0"
-                style={{ background: isMe ? "#00d4ff20" : "#1e2a38", color: isMe ? "#00d4ff" : "#a8b8cc" }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ background: isMe ? `${GREEN}15` : BG, color: isMe ? GREEN : MUTED }}
               >
                 {m.displayName[0]?.toUpperCase() ?? "?"}
               </div>
-
-              {/* Name + badges */}
               <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
                 {m.country && nameToFlag(m.country) && (
                   <span className="text-sm shrink-0">{nameToFlag(m.country)}</span>
                 )}
-                <span className="text-white text-sm font-medium truncate">{m.displayName}</span>
+                <span className="text-sm font-medium truncate" style={{ color: TEXT1 }}>{m.displayName}</span>
                 {m.isOwner && (
-                  <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"
-                    style={{ color: "#b8972a", background: "#b8972a15" }}>👑 CAPTAIN</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ color: GOLD, background: `${GOLD}15` }}>👑 CAPTAIN</span>
                 )}
                 {isMe && (
-                  <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"
-                    style={{ color: "#00d4ff", background: "#00d4ff15" }}>YOU</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ color: GREEN, background: `${GREEN}12`, border: `1px solid ${GREEN}30` }}>YOU</span>
                 )}
               </div>
-
-              {/* Joined date */}
               {m.joinedAt && (
-                <span className="text-cockpit-muted text-[10px] font-mono shrink-0">
+                <span className="text-[10px] shrink-0" style={{ color: MUTED }}>
                   {new Date(m.joinedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                 </span>
               )}
-
-              {/* Position indicator */}
-              <span className="text-cockpit-muted text-[10px] font-mono w-5 text-right shrink-0">
-                {i + 1}
-              </span>
+              <span className="text-[10px] w-5 text-right shrink-0" style={{ color: MUTED }}>{i + 1}</span>
             </div>
           );
         })}
@@ -274,116 +230,74 @@ function MembersList({
 }
 
 // ── Leave League Modal ────────────────────────────────────────
-
-function LeaveModal({
-  league,
-  isOwner,
-  memberCount,
-  onConfirm,
-  onCancel,
-  leaving,
-  leaveError,
-}: {
-  league:      PredictionLeague;
-  isOwner:     boolean;
-  memberCount: number;
-  onConfirm:   () => void;
-  onCancel:    () => void;
-  leaving:     boolean;
-  leaveError:  string | null;
+function LeaveModal({ league, isOwner, memberCount, onConfirm, onCancel, leaving, leaveError }: {
+  league: PredictionLeague; isOwner: boolean; memberCount: number;
+  onConfirm: () => void; onCancel: () => void; leaving: boolean; leaveError: string | null;
 }) {
   const ownerBlocked = isOwner && memberCount > 1;
-
   return (
-    /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(8,11,15,0.85)" }}
+      style={{ background: "rgba(15,31,23,0.55)", backdropFilter: "blur(2px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div
-        className="w-full max-w-sm rounded-sm border flex flex-col overflow-hidden"
-        style={{ background: "#0d1117", borderColor: "#1e2a38" }}
-      >
+      <div className="w-full max-w-sm rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: "1px solid #1e2a38" }}
-        >
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <div className="flex items-center gap-2.5">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff5252" strokeWidth="2" strokeLinecap="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
+              <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
-            <span className="text-white text-sm font-semibold">Leave league</span>
+            <span className="text-sm font-semibold" style={{ color: TEXT1 }}>Leave league</span>
           </div>
-          <button onClick={onCancel} className="text-cockpit-muted hover:text-cockpit-dim transition-colors">
+          <button onClick={onCancel} style={{ color: MUTED }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
-
         {/* Body */}
         <div className="px-5 py-4 flex flex-col gap-3">
           {ownerBlocked ? (
             <>
-              <p className="text-white text-sm font-semibold">You&apos;re the owner</p>
-              <p className="text-cockpit-dim text-sm leading-relaxed">
-                You cannot leave <span className="text-white font-medium">{league.name}</span> while other members are in it.
+              <p className="text-sm font-semibold" style={{ color: TEXT1 }}>You&apos;re the captain</p>
+              <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+                You cannot leave <span className="font-medium" style={{ color: TEXT1 }}>{league.name}</span> while other members are in it.
               </p>
-              <div
-                className="rounded-sm px-3 py-2.5 flex flex-col gap-1"
-                style={{ background: "#1a2030", border: "1px solid #2a3a50" }}
-              >
-                <p className="text-cockpit-dim text-xs font-semibold">To leave, first either:</p>
-                <p className="text-cockpit-muted text-xs">· Transfer ownership to another member</p>
-                <p className="text-cockpit-muted text-xs">· Delete the league from Owner Settings</p>
+              <div className="rounded-lg px-3 py-2.5 flex flex-col gap-1" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+                <p className="text-xs font-semibold" style={{ color: TEXT2 }}>To leave, first either:</p>
+                <p className="text-xs" style={{ color: MUTED }}>· Transfer ownership to another member</p>
+                <p className="text-xs" style={{ color: MUTED }}>· Delete the league from Owner Settings</p>
               </div>
-              <button
-                onClick={onCancel}
-                className="self-stretch text-sm py-2.5 rounded-sm border border-cockpit-border text-cockpit-dim hover:text-white transition-colors"
-              >
+              <button onClick={onCancel} className="self-stretch text-sm py-2.5 rounded-lg transition-colors"
+                style={{ border: `1px solid ${BORDER}`, color: TEXT2, background: BG }}>
                 Got it
               </button>
             </>
           ) : (
             <>
-              <p className="text-cockpit-dim text-sm leading-relaxed">
+              <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
                 Are you sure you want to leave{" "}
-                <span className="text-white font-medium">{league.name}</span>?
+                <span className="font-medium" style={{ color: TEXT1 }}>{league.name}</span>?
               </p>
-              {league.visibility === "public" || league.isFeatured ? (
-                <p className="text-cockpit-muted text-xs">
-                  This is a public league — you can rejoin at any time from Discover.
-                </p>
+              {(league.visibility === "public" || league.isFeatured) ? (
+                <p className="text-xs" style={{ color: MUTED }}>This is a public league — you can rejoin at any time from Discover.</p>
               ) : (
-                <p className="text-cockpit-muted text-xs">
-                  This is a private league. You&apos;ll need the invite link or code to rejoin.
-                </p>
+                <p className="text-xs" style={{ color: MUTED }}>This is a private league. You&apos;ll need the invite link or code to rejoin.</p>
               )}
-              {leaveError && (
-                <p className="text-cockpit-red text-xs">{leaveError}</p>
-              )}
+              {leaveError && <p className="text-xs text-red-600">{leaveError}</p>}
               <div className="flex gap-2 pt-1">
                 <button
-                  onClick={onConfirm}
-                  disabled={leaving}
-                  className="flex-1 text-sm py-2.5 rounded-sm transition-colors disabled:opacity-40"
-                  style={{
-                    background:  "#ff525215",
-                    border:      "1px solid #ff525240",
-                    color:       "#ff5252",
-                  }}
+                  onClick={onConfirm} disabled={leaving}
+                  className="flex-1 text-sm py-2.5 rounded-lg transition-colors disabled:opacity-40"
+                  style={{ background: "#fef2f2", border: "1px solid #fca5a5", color: "#c0392b" }}
                 >
-                  {leaving ? "Leaving…" : "Yes, leave league"}
+                  {leaving ? "Leaving…" : "Yes, leave"}
                 </button>
-                <button
-                  onClick={onCancel}
-                  disabled={leaving}
-                  className="flex-1 text-sm py-2.5 rounded-sm border border-cockpit-border text-cockpit-dim hover:text-white transition-colors disabled:opacity-40"
-                >
+                <button onClick={onCancel} disabled={leaving}
+                  className="flex-1 text-sm py-2.5 rounded-lg transition-colors disabled:opacity-40"
+                  style={{ border: `1px solid ${BORDER}`, color: TEXT2, background: BG }}>
                   Cancel
                 </button>
               </div>
@@ -396,28 +310,20 @@ function LeaveModal({
 }
 
 // ── Owner controls ────────────────────────────────────────────
-
-function OwnerControls({
-  league,
-  onRenamed,
-  onVisibilityChanged,
-  onDeleted,
-}: {
-  league:               PredictionLeague;
-  onRenamed:            (newName: string) => void;
-  onVisibilityChanged:  (v: "private" | "public") => void;
-  onDeleted:            () => void;
+function OwnerControls({ league, onRenamed, onVisibilityChanged, onDeleted }: {
+  league: PredictionLeague; onRenamed: (n: string) => void;
+  onVisibilityChanged: (v: "private" | "public") => void; onDeleted: () => void;
 }) {
-  const [open,        setOpen]        = useState(false);
-  const [newName,     setNewName]     = useState(league.name);
-  const [renaming,    setRenaming]    = useState(false);
-  const [renameErr,   setRenameErr]   = useState<string | null>(null);
-  const [renameOk,    setRenameOk]    = useState(false);
-  const [toggling,    setToggling]    = useState(false);
-  const [toggleErr,   setToggleErr]   = useState<string | null>(null);
-  const [confirmDel,  setConfirmDel]  = useState(false);
-  const [deleting,    setDeleting]    = useState(false);
-  const [deleteErr,   setDeleteErr]   = useState<string | null>(null);
+  const [open,       setOpen]       = useState(false);
+  const [newName,    setNewName]    = useState(league.name);
+  const [renaming,   setRenaming]   = useState(false);
+  const [renameErr,  setRenameErr]  = useState<string | null>(null);
+  const [renameOk,   setRenameOk]   = useState(false);
+  const [toggling,   setToggling]   = useState(false);
+  const [toggleErr,  setToggleErr]  = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+  const [deleteErr,  setDeleteErr]  = useState<string | null>(null);
 
   const handleRename = async () => {
     if (newName.trim() === league.name) { setRenameErr(null); return; }
@@ -448,33 +354,31 @@ function OwnerControls({
   };
 
   return (
-    <div className="border border-cockpit-border rounded-sm overflow-hidden">
+    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
       {/* Collapsible header */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-cockpit-surface hover:bg-cockpit-card transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 transition-colors"
+        style={{ background: open ? CARD : BG }}
       >
         <div className="flex items-center gap-2">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
           </svg>
-          <span className="text-cockpit-muted text-xs font-mono uppercase tracking-widest">Owner settings</span>
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: MUTED }}>Owner settings</span>
         </div>
-        <svg
-          width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="#64748b" strokeWidth="2" strokeLinecap="round"
-          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-        >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
 
       {open && (
-        <div className="flex flex-col divide-y divide-cockpit-border">
+        <div className="flex flex-col" style={{ background: CARD, borderTop: `1px solid ${BORDER}` }}>
 
-          {/* ── Rename ─────────────────────────────────────── */}
-          <div className="px-4 py-4 flex flex-col gap-2">
-            <p className="text-cockpit-dim text-xs font-semibold">Rename league</p>
+          {/* Rename */}
+          <div className="px-4 py-4 flex flex-col gap-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <p className="text-xs font-semibold" style={{ color: TEXT2 }}>Rename league</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -482,25 +386,27 @@ function OwnerControls({
                 onChange={(e) => { setNewName(e.target.value); setRenameErr(null); setRenameOk(false); }}
                 onKeyDown={(e) => e.key === "Enter" && !renaming && handleRename()}
                 maxLength={40}
-                className="flex-1 bg-cockpit-bg border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+                className="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                style={{ background: BG, border: `1px solid ${BORDER}`, color: TEXT1 }}
               />
               <button
                 onClick={handleRename}
                 disabled={renaming || !newName.trim() || newName.trim() === league.name}
-                className="text-sm px-4 py-2 rounded-sm border border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                className="text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-40 shrink-0"
+                style={{ border: `1px solid ${BORDER}`, color: TEXT2, background: BG }}
               >
                 {renaming ? "Saving…" : "Save"}
               </button>
             </div>
-            {renameErr && <p className="text-cockpit-red text-xs">{renameErr}</p>}
-            {renameOk  && <p className="text-xs" style={{ color: "#00e676" }}>✓ Renamed</p>}
+            {renameErr && <p className="text-xs text-red-600">{renameErr}</p>}
+            {renameOk  && <p className="text-xs font-semibold" style={{ color: GREEN }}>✓ Renamed</p>}
           </div>
 
-          {/* ── Visibility toggle ───────────────────────────── */}
-          <div className="px-4 py-4 flex items-center justify-between gap-4">
+          {/* Visibility toggle */}
+          <div className="px-4 py-4 flex items-center justify-between gap-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
             <div>
-              <p className="text-cockpit-dim text-xs font-semibold">Visibility</p>
-              <p className="text-cockpit-muted text-[10px] mt-0.5">
+              <p className="text-xs font-semibold" style={{ color: TEXT2 }}>Visibility</p>
+              <p className="text-[10px] mt-0.5" style={{ color: MUTED }}>
                 {league.visibility === "private"
                   ? "Invite-only · not listed publicly"
                   : "Listed on Discover · anyone can join"}
@@ -510,50 +416,51 @@ function OwnerControls({
               onClick={handleToggleVisibility}
               disabled={toggling || league.isFeatured}
               title={league.isFeatured ? "Featured leagues cannot be made private" : undefined}
-              className="shrink-0 text-xs px-3 py-1.5 rounded-sm border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors disabled:opacity-40"
               style={{
-                borderColor: league.visibility === "private" ? "#1e2a38" : "#00e67640",
-                color:       league.visibility === "private" ? "#a8b8cc" : "#00e676",
-                background:  league.visibility === "private" ? "transparent" : "#00e67610",
+                border:      `1px solid ${league.visibility === "private" ? BORDER : `${GREEN}40`}`,
+                color:       league.visibility === "private" ? TEXT2 : GREEN,
+                background:  league.visibility === "private" ? BG    : `${GREEN}10`,
               }}
             >
               {toggling ? "…" : league.visibility === "private" ? "🔒 Private" : "🌐 Public"}
             </button>
-            {toggleErr && <p className="text-cockpit-red text-xs">{toggleErr}</p>}
+            {toggleErr && <p className="text-xs text-red-600">{toggleErr}</p>}
           </div>
 
-          {/* ── Delete ─────────────────────────────────────── */}
+          {/* Delete */}
           <div className="px-4 py-4 flex flex-col gap-2">
-            <p className="text-cockpit-dim text-xs font-semibold">Delete league</p>
-            <p className="text-cockpit-muted text-[10px]">Permanently removes the league and all member records. Cannot be undone.</p>
+            <p className="text-xs font-semibold" style={{ color: TEXT2 }}>Delete league</p>
+            <p className="text-[10px]" style={{ color: MUTED }}>Permanently removes the league and all member records. Cannot be undone.</p>
             {!confirmDel ? (
               <button
                 onClick={() => setConfirmDel(true)}
-                className="self-start text-xs px-3 py-1.5 rounded-sm border border-cockpit-red border-opacity-40 text-cockpit-red hover:border-opacity-70 transition-colors"
+                className="self-start text-xs px-3 py-1.5 rounded-lg transition-colors"
+                style={{ border: "1px solid #fca5a5", color: "#c0392b", background: "#fef2f2" }}
               >
                 Delete league
               </button>
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-cockpit-red text-xs">Are you sure? This cannot be undone.</p>
+                <p className="text-xs text-red-600">Are you sure? This cannot be undone.</p>
                 <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="text-xs px-3 py-1.5 rounded-sm border border-cockpit-red border-opacity-60 text-cockpit-red hover:bg-cockpit-red hover:bg-opacity-10 transition-colors disabled:opacity-40"
+                  onClick={handleDelete} disabled={deleting}
+                  className="text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                  style={{ border: "1px solid #fca5a5", color: "#c0392b", background: "#fef2f2" }}
                 >
                   {deleting ? "Deleting…" : "Yes, delete"}
                 </button>
                 <button
                   onClick={() => setConfirmDel(false)}
-                  className="text-xs px-3 py-1.5 rounded-sm border border-cockpit-border text-cockpit-muted hover:text-cockpit-dim transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                  style={{ border: `1px solid ${BORDER}`, color: TEXT2, background: BG }}
                 >
                   Cancel
                 </button>
-                {deleteErr && <p className="text-cockpit-red text-xs w-full">{deleteErr}</p>}
+                {deleteErr && <p className="text-xs text-red-600 w-full">{deleteErr}</p>}
               </div>
             )}
           </div>
-
         </div>
       )}
     </div>
@@ -561,10 +468,9 @@ function OwnerControls({
 }
 
 // ── Page ──────────────────────────────────────────────────────
-
 export default function LeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
-  const router       = useRouter();
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [league,      setLeague]      = useState<PredictionLeague | null>(null);
@@ -576,35 +482,18 @@ export default function LeagueDetailPage() {
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
 
-  // Join flow (for non-members)
-  const [joining,   setJoining]   = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
-
-  // Leave flow
+  const [joining,        setJoining]        = useState(false);
+  const [joinError,      setJoinError]      = useState<string | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaving,        setLeaving]        = useState(false);
   const [leaveError,     setLeaveError]     = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!leagueId) return;
-    setLoading(true);
-    setError(null);
-
-    const [lg, count] = await Promise.all([
-      getLeague(leagueId),
-      getLeagueMemberCount(leagueId),
-    ]);
-
-    if (!lg) {
-      setError("League not found. The link may be invalid.");
-      setLoading(false);
-      return;
-    }
-
-    setLeague(lg);
-    setMemberCount(count);
-
-    // Check membership and load leaderboard + user stats in parallel
+    setLoading(true); setError(null);
+    const [lg, count] = await Promise.all([getLeague(leagueId), getLeagueMemberCount(leagueId)]);
+    if (!lg) { setError("League not found. The link may be invalid."); setLoading(false); return; }
+    setLeague(lg); setMemberCount(count);
     if (user) {
       const member = await isLeagueMember(leagueId, user.id);
       setIsMember(member);
@@ -621,24 +510,16 @@ export default function LeagueDetailPage() {
           setMyStats(stats);
         }
       }
-    } else {
-      setIsMember(false);
-    }
-
+    } else { setIsMember(false); }
     setLoading(false);
   }, [leagueId, user]);
 
-  useEffect(() => {
-    if (!authLoading) load();
-  }, [authLoading, load]);
+  useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
 
   const handleJoin = async () => {
     if (!league || !user) return;
-    setJoining(true);
-    setJoinError(null);
-    const fn = (league.visibility === "public" || league.isFeatured)
-      ? joinPublicLeague
-      : joinLeague;
+    setJoining(true); setJoinError(null);
+    const fn = (league.visibility === "public" || league.isFeatured) ? joinPublicLeague : joinLeague;
     const { error: err } = await fn(league.id);
     setJoining(false);
     if (err) { setJoinError(err); return; }
@@ -647,48 +528,46 @@ export default function LeagueDetailPage() {
 
   const handleLeave = async () => {
     if (!league || !user) return;
-    setLeaving(true);
-    setLeaveError(null);
+    setLeaving(true); setLeaveError(null);
     const { error: err } = await leaveLeague(league.id);
     setLeaving(false);
     if (err) { setLeaveError(err); return; }
     router.replace("/predict/leagues");
   };
 
-  // ── Loading ────────────────────────────────────────────────
+  // Loading
   if (authLoading || loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-cockpit-dim text-sm animate-pulse">Loading…</p>
+        <p className="text-sm animate-pulse" style={{ color: MUTED }}>Loading…</p>
       </div>
     );
   }
 
-  // ── Error ──────────────────────────────────────────────────
+  // Error
   if (error) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
-        <p className="text-cockpit-red text-sm">{error}</p>
-        <Link href="/predict/leagues" className="text-cockpit-accent text-sm hover:underline">
-          ← Back to leagues
-        </Link>
+        <p className="text-sm text-red-600">{error}</p>
+        <Link href="/predict/leagues" className="text-sm hover:underline" style={{ color: GREEN }}>← Back to leagues</Link>
       </div>
     );
   }
 
   if (!league) return null;
 
-  // ── Not signed in ──────────────────────────────────────────
+  // Not signed in
   if (!user) {
     return (
       <div className="flex-1 flex flex-col">
         <div className="max-w-lg mx-auto px-4 pt-5 pb-10 w-full flex flex-col gap-5">
           <Breadcrumb leagueName={league.name} />
           <LeagueHeader league={league} memberCount={memberCount} />
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 text-center flex flex-col gap-3">
-            <p className="text-white font-semibold">Sign in to view this league</p>
-            <p className="text-cockpit-dim text-sm">League leaderboards are only visible to members.</p>
-            <Link href="/login" className="btn-primary w-full flex items-center justify-center">
+          <div className="p-5 text-center flex flex-col gap-3 rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="font-semibold text-sm" style={{ color: TEXT1 }}>Sign in to view this league</p>
+            <p className="text-sm" style={{ color: TEXT2 }}>League leaderboards are only visible to members.</p>
+            <Link href="/login" className="py-2.5 rounded-lg font-bold text-sm w-full flex items-center justify-center"
+              style={{ background: GREEN, color: "#fff" }}>
               Sign in →
             </Link>
           </div>
@@ -697,7 +576,7 @@ export default function LeagueDetailPage() {
     );
   }
 
-  // ── Not a member ───────────────────────────────────────────
+  // Not a member
   if (isMember === false) {
     const isOpen = league.visibility === "public" || league.isFeatured;
     return (
@@ -705,25 +584,22 @@ export default function LeagueDetailPage() {
         <div className="max-w-lg mx-auto px-4 pt-5 pb-10 w-full flex flex-col gap-5">
           <Breadcrumb leagueName={league.name} />
           <LeagueHeader league={league} memberCount={memberCount} />
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 flex flex-col gap-4">
+          <div className="p-5 flex flex-col gap-4 rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <div>
-              <p className="text-white font-semibold text-sm">You&apos;re not a member of this league</p>
-              <p className="text-cockpit-dim text-sm mt-1">
-                {isOpen
-                  ? "This is a public league — join instantly, no invite code needed."
-                  : "Join to see the leaderboard and compete with the other members."}
+              <p className="font-semibold text-sm" style={{ color: TEXT1 }}>You&apos;re not a member of this league</p>
+              <p className="text-sm mt-1" style={{ color: TEXT2 }}>
+                {isOpen ? "This is a public league — join instantly, no invite code needed."
+                        : "Join to see the leaderboard and compete with the other members."}
               </p>
             </div>
-            <button
-              onClick={handleJoin}
-              disabled={joining}
-              className="btn-primary w-full flex items-center justify-center"
-            >
+            <button onClick={handleJoin} disabled={joining}
+              className="py-2.5 rounded-lg font-bold text-sm w-full flex items-center justify-center"
+              style={{ background: GREEN, color: "#fff" }}>
               {joining ? "Joining…" : `Join "${league.name}" →`}
             </button>
-            {joinError && <p className="text-cockpit-red text-xs">{joinError}</p>}
+            {joinError && <p className="text-xs text-red-600">{joinError}</p>}
           </div>
-          <Link href="/predict/leagues" className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono">
+          <Link href="/predict/leagues" className="text-xs text-center hover:underline" style={{ color: MUTED }}>
             ← Back to leagues
           </Link>
         </div>
@@ -731,7 +607,7 @@ export default function LeagueDetailPage() {
     );
   }
 
-  // ── Member view ────────────────────────────────────────────
+  // Member view
   return (
     <div className="flex-1 flex flex-col">
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-10 w-full flex flex-col gap-5">
@@ -739,115 +615,86 @@ export default function LeagueDetailPage() {
         <Breadcrumb leagueName={league.name} />
         <LeagueHeader league={league} memberCount={memberCount} />
 
-        {/* ── Share / Invite section ───────────────────────── */}
+        {/* Share / Invite */}
         {(league.visibility === "public" || league.isFeatured) ? (
-          /* Public / Featured — no invite code */
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-4 flex flex-col gap-3">
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest">Share league</p>
+          <div className="p-4 flex flex-col gap-3 rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Share league</p>
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-cockpit-green shrink-0" />
-              <p className="text-cockpit-dim text-sm">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GREEN }} />
+              <p className="text-sm" style={{ color: TEXT2 }}>
                 {league.isFeatured ? "Featured league" : "Public league"} · Anyone can join without an invite code.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <CopyButton
-                text={`${SITE}/predict/leagues/${league.id}`}
-                label="Copy league link"
-              />
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  `Join the "${league.name}" World Cup Predictor league on SuperBrain!\n\n${SITE}/predict/leagues/${league.id}`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-sm border transition-all"
-                style={{ color: "#25D366", borderColor: "#25D36640", background: "#25D36610" }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
-                WhatsApp
+              <CopyButton text={`${SITE}/predict/leagues/${league.id}`} label="Copy league link" />
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Join the "${league.name}" World Cup Predictor league on SuperBrain!\n\n${SITE}/predict/leagues/${league.id}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"
+                style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}>
+                {WHATSAPP_ICON} WhatsApp
               </a>
             </div>
           </div>
         ) : (
-          /* Private — show invite code */
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-4 flex flex-col gap-3">
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest">Invite friends</p>
+          <div className="p-4 flex flex-col gap-3 rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Invite friends</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <code className="text-cockpit-accent font-mono font-bold text-base tracking-[0.25em]">
+              <code className="font-mono font-bold text-base tracking-[0.25em]" style={{ color: GREEN }}>
                 {league.inviteCode}
               </code>
               <CopyButton text={league.inviteCode} label="Copy code" />
               <CopyButton text={inviteUrl(league.inviteCode)} label="Copy link" />
-              <a
-                href={whatsappUrl(league)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-sm border transition-all"
-                style={{ color: "#25D366", borderColor: "#25D36640", background: "#25D36610" }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
-                WhatsApp
+              <a href={whatsappUrl(league)} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"
+                style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}>
+                {WHATSAPP_ICON} WhatsApp
               </a>
             </div>
-            <p className="text-cockpit-muted text-[10px] font-mono">
+            <p className="text-[10px]" style={{ color: MUTED }}>
               Only people with this code or link can join — your league stays private.
             </p>
           </div>
         )}
 
-        {/* ── Your completion ─────────────────────────────── */}
+        {/* Progress strip */}
         {myStats && (
-          <div className="flex items-center gap-4 px-4 py-2.5 bg-cockpit-surface border border-cockpit-border rounded-sm flex-wrap">
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest shrink-0">Your progress</p>
+          <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl flex-wrap"
+            style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="text-[10px] uppercase tracking-widest font-semibold shrink-0" style={{ color: MUTED }}>Your progress</p>
             <div className="flex items-center gap-2">
-              <span
-                className="text-[10px] font-mono font-bold"
-                style={{ color: myStats.predictions >= 104 ? "#00e676" : "#a8b8cc" }}
-              >
+              <span className="text-[10px] font-bold tabular-nums"
+                style={{ color: myStats.predictions >= 104 ? GREEN : TEXT2 }}>
                 {myStats.predictions}/104
               </span>
-              <span className="text-cockpit-muted text-[10px]">match predictions</span>
+              <span className="text-[10px]" style={{ color: MUTED }}>match predictions</span>
             </div>
             {myStats.bonusTotal > 0 && (
               <div className="flex items-center gap-2">
-                <span
-                  className="text-[10px] font-mono font-bold"
-                  style={{ color: myStats.bonusAnswered >= myStats.bonusTotal ? "#00e676" : "#a8b8cc" }}
-                >
+                <span className="text-[10px] font-bold tabular-nums"
+                  style={{ color: myStats.bonusAnswered >= myStats.bonusTotal ? GREEN : TEXT2 }}>
                   {myStats.bonusAnswered}/{myStats.bonusTotal}
                 </span>
-                <span className="text-cockpit-muted text-[10px]">bonus questions</span>
+                <span className="text-[10px]" style={{ color: MUTED }}>bonus questions</span>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Members ─────────────────────────────────────── */}
+        {/* Members */}
         <MembersList members={members} currentUserId={user?.id ?? null} />
 
-        {/* ── Standings ───────────────────────────────────── */}
+        {/* Standings */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-white font-semibold text-sm">Standings</h2>
-            <span className="text-cockpit-muted text-xs font-mono">
-              Match + Bonus = Total
-            </span>
+            <h2 className="font-semibold text-sm" style={{ color: TEXT1 }}>Standings</h2>
+            <span className="text-xs" style={{ color: MUTED }}>Match + Bonus = Total</span>
           </div>
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
-            <LeaderboardTable
-              rows={rows}
-              currentUserId={user?.id ?? null}
-              ownerId={league.createdBy}
-            />
+          <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <LeaderboardTable rows={rows} currentUserId={user?.id ?? null} ownerId={league.createdBy} />
           </div>
         </div>
 
-        {/* ── Owner controls ──────────────────────────────── */}
+        {/* Owner controls */}
         {user?.id === league.createdBy && (
           <OwnerControls
             league={league}
@@ -857,29 +704,26 @@ export default function LeagueDetailPage() {
           />
         )}
 
-        {/* ── Leave league ─────────────────────────────────── */}
+        {/* Leave */}
         {isMember && user && (
           <button
             onClick={() => { setLeaveError(null); setShowLeaveModal(true); }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-sm border transition-colors text-sm"
-            style={{ borderColor: "#ff525225", color: "#ff5252", background: "transparent" }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm transition-colors"
+            style={{ border: "1px solid #fca5a5", color: "#c0392b", background: "#fef2f2" }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
+              <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
             Leave league
           </button>
         )}
 
-        {/* Back */}
-        <Link href="/predict/leagues" className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono">
+        <Link href="/predict/leagues" className="text-xs text-center hover:underline" style={{ color: MUTED }}>
           ← Back to leagues
         </Link>
       </div>
 
-      {/* ── Leave modal (portal-style, rendered outside scroll container) */}
       {showLeaveModal && league && (
         <LeaveModal
           league={league}
@@ -896,41 +740,33 @@ export default function LeagueDetailPage() {
 }
 
 // ── Shared sub-components ──────────────────────────────────────
-
 function Breadcrumb({ leagueName }: { leagueName: string }) {
   return (
-    <div className="flex items-center gap-2 text-xs text-cockpit-muted font-mono">
-      <Link href="/predict" className="hover:text-cockpit-dim transition-colors">Predictor</Link>
+    <div className="flex items-center gap-1.5 text-xs" style={{ color: MUTED }}>
+      <Link href="/predict" className="hover:underline" style={{ color: MUTED }}>Predictor</Link>
       <span>/</span>
-      <Link href="/predict/leagues" className="hover:text-cockpit-dim transition-colors">Leagues</Link>
+      <Link href="/predict/leagues" className="hover:underline" style={{ color: MUTED }}>Leagues</Link>
       <span>/</span>
-      <span className="text-cockpit-dim truncate max-w-[140px]">{leagueName}</span>
+      <span className="truncate max-w-[140px]" style={{ color: TEXT2, fontWeight: 600 }}>{leagueName}</span>
     </div>
   );
 }
 
-function LeagueHeader({
-  league,
-  memberCount,
-}: {
-  league: PredictionLeague;
-  memberCount: number | null;
-}) {
+function LeagueHeader({ league, memberCount }: { league: PredictionLeague; memberCount: number | null; }) {
   const visibilityLabel = league.isFeatured ? "Featured" : league.visibility === "public" ? "Public" : "Private";
-  const visibilityColor = league.isFeatured ? "#ffab00" : league.visibility === "public" ? "#00e676" : "#64748b";
-
+  const visibilityColor = league.isFeatured ? GOLD : league.visibility === "public" ? GREEN : MUTED;
   return (
     <div>
       <div className="flex items-center gap-2 flex-wrap mb-1">
-        <h1 className="text-xl font-bold text-white leading-tight">{league.name}</h1>
+        <h1 className="text-xl font-extrabold leading-tight" style={{ color: TEXT1 }}>{league.name}</h1>
         <span
-          className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm border shrink-0"
-          style={{ color: visibilityColor, borderColor: `${visibilityColor}40`, background: `${visibilityColor}12` }}
+          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+          style={{ color: visibilityColor, border: `1px solid ${visibilityColor}40`, background: `${visibilityColor}12` }}
         >
           {visibilityLabel.toUpperCase()}
         </span>
       </div>
-      <p className="text-cockpit-dim text-sm">
+      <p className="text-sm" style={{ color: TEXT2 }}>
         {memberCount === null ? "…" : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
       </p>
     </div>

@@ -53,7 +53,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 const fallback = (
   <div className="flex-1 flex items-center justify-center">
-    <p className="text-cockpit-dim text-sm animate-pulse">Loading…</p>
+    <p className="text-sm animate-pulse" style={{ color: "#7a8f82" }}>Loading…</p>
   </div>
 );
 

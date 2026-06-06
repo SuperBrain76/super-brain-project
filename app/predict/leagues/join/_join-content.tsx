@@ -11,6 +11,14 @@ import {
   type PredictionLeague,
 } from "@/lib/predictor";
 
+// ── Design tokens ─────────────────────────────────────────────
+const GREEN  = "#1a3a2a";
+const MUTED  = "#7a8f82";
+const BORDER = "#dde5d8";
+const TEXT1  = "#0f1f17";
+const TEXT2  = "#2e4a37";
+const CARD   = "#ffffff";
+
 const PENDING_LEAGUE_JOIN_KEY = "pendingLeagueJoin";
 
 type Status = "idle" | "looking" | "joining" | "success" | "already-member" | "error";
@@ -24,7 +32,7 @@ export default function JoinContent({ code }: { code: string }) {
   const [errorMsg, setErrorMsg] = useState("");
   const didRun = useRef(false);
 
-  // ── Not authed — save code and redirect to login ───────────
+  // Not authed — save code and redirect to login
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -38,7 +46,7 @@ export default function JoinContent({ code }: { code: string }) {
     }
   }, [authLoading, user, code, router]);
 
-  // ── Authed — resolve code and join ─────────────────────────
+  // Authed — resolve code and join
   useEffect(() => {
     if (authLoading || !user || didRun.current) return;
     didRun.current = true;
@@ -56,7 +64,6 @@ export default function JoinContent({ code }: { code: string }) {
 
     async function doJoin() {
       setStatus("looking");
-
       const found = await getLeagueByInviteCode(joinCode);
       if (!found) {
         setStatus("error");
@@ -94,8 +101,6 @@ export default function JoinContent({ code }: { code: string }) {
     doJoin();
   }, [authLoading, user, code, router]);
 
-  // ── UI ─────────────────────────────────────────────────────
-
   const isWorking = status === "idle" || status === "looking" || status === "joining";
 
   return (
@@ -105,10 +110,11 @@ export default function JoinContent({ code }: { code: string }) {
         {/* Icon header */}
         <div className="text-center">
           <div
-            className="w-14 h-14 mx-auto rounded-sm flex items-center justify-center mb-4"
-            style={{ background: "#00d4ff10", border: "1px solid #00d4ff30" }}
+            className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center mb-4"
+            style={{ background: `${GREEN}12`, border: `1px solid ${GREEN}30` }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={GREEN}
+              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
               <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
               <path d="M4 22h16"/>
@@ -117,7 +123,7 @@ export default function JoinContent({ code }: { code: string }) {
               <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="text-xl font-bold" style={{ color: TEXT1 }}>
             {status === "success"        ? "You're in!" :
              status === "already-member" ? "Already a member" :
              status === "error"          ? "Join failed" :
@@ -126,17 +132,18 @@ export default function JoinContent({ code }: { code: string }) {
         </div>
 
         {/* Status card */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-6 text-center flex flex-col items-center gap-4">
+        <div className="p-6 text-center flex flex-col items-center gap-4 rounded-xl"
+          style={{ background: CARD, border: `1px solid ${BORDER}` }}>
 
           {isWorking && (
             <>
-              <p className="text-cockpit-dim text-sm animate-pulse">
+              <p className="text-sm animate-pulse" style={{ color: TEXT2 }}>
                 {status === "looking" ? "Looking up league…" :
                  status === "joining" ? `Joining${league ? ` "${league.name}"` : ""}…` :
                  "Loading…"}
               </p>
               {code && (
-                <p className="text-cockpit-muted text-xs font-mono tracking-widest">{code}</p>
+                <p className="text-xs font-mono tracking-widest" style={{ color: MUTED }}>{code}</p>
               )}
             </>
           )}
@@ -145,17 +152,18 @@ export default function JoinContent({ code }: { code: string }) {
             <>
               <div
                 className="w-11 h-11 rounded-full flex items-center justify-center"
-                style={{ background: "#00e67610", border: "1px solid #00e67640" }}
+                style={{ background: `${GREEN}12`, border: `1px solid ${GREEN}30` }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00e676" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={GREEN}
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </div>
               <div>
-                <p className="text-white font-semibold">
+                <p className="font-semibold" style={{ color: TEXT1 }}>
                   {status === "success" ? `Joined league: ${league.name}` : `Already in: ${league.name}`}
                 </p>
-                <p className="text-cockpit-muted text-xs mt-1">Taking you there now…</p>
+                <p className="text-xs mt-1" style={{ color: MUTED }}>Taking you there now…</p>
               </div>
             </>
           )}
@@ -164,22 +172,23 @@ export default function JoinContent({ code }: { code: string }) {
             <>
               <div
                 className="w-11 h-11 rounded-full flex items-center justify-center"
-                style={{ background: "#ff525210", border: "1px solid #ff525240" }}
+                style={{ background: "#fef2f2", border: "1px solid #fca5a5" }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff5252" strokeWidth="2.5" strokeLinecap="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0392b"
+                  strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </div>
-              <p className="text-cockpit-red text-sm leading-relaxed">{errorMsg}</p>
+              <p className="text-sm leading-relaxed text-red-600">{errorMsg}</p>
               <Link
                 href="/predict/leagues"
-                className="btn-primary w-full flex items-center justify-center text-sm"
+                className="py-2.5 px-4 rounded-lg font-bold text-sm w-full flex items-center justify-center"
+                style={{ background: GREEN, color: "#fff" }}
               >
                 Browse my leagues →
               </Link>
             </>
           )}
-
         </div>
       </div>
     </div>
