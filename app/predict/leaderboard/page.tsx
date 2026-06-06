@@ -119,10 +119,16 @@ export default function PredictorLeaderboardPage() {
             <span>/</span>
             <span className="text-cockpit-dim">Leaderboard</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Global Leaderboard</h1>
+          <h1 className="text-xl font-bold text-white">SuperBrain World Cup Championship</h1>
           <p className="text-cockpit-dim text-sm mt-1">
             {competition?.name ?? "World Cup 2026"} · Top {rows.length > 0 ? rows.length : "200"} predictors
           </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-cockpit-green shrink-0" />
+            <p className="text-cockpit-muted text-xs">
+              All players are automatically entered into the SuperBrain World Cup Championship — no league required.
+            </p>
+          </div>
         </div>
 
         {/* ── My stats strip ─────────────────────────────── */}

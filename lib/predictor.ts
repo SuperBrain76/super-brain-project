@@ -651,25 +651,25 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
 export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
   if (!isSupabaseConfigured) return [];
 
-  // ── Step 1: get_league_members RPC (migration 009) ───────────
-  // SECURITY DEFINER — bypasses user_profiles RLS.
-  // If not yet deployed this call errors and we fall through.
+  // ── Step 1: get_league_members RPC (migration 011) ───────────
+  // SECURITY DEFINER owned by postgres — guaranteed to bypass
+  // user_profiles RLS and return display_name for ALL members.
   const { data: rpcData } = await supabase.rpc("get_league_members", {
     p_league_id: leagueId,
   });
   if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
     return (rpcData as Record<string, unknown>[]).map((row) => ({
       userId:      row.user_id as string,
-      displayName: (row.display_name as string | null) ?? "Anonymous",
+      displayName: (row.display_name as string | null) || "Player",
       country:     (row.country as string | null) ?? null,
       joinedAt:    (row.joined_at as string | null) ?? null,
       isOwner:     false,
     }));
   }
 
-  // ── Step 2: direct table query (no .order — avoids PostgREST errors)
-  // RLS policy "authenticated read league members" allows any
-  // signed-in user to read all rows in prediction_league_members.
+  // ── Step 2: direct table query ────────────────────────────────
+  // Always works — RLS allows any authenticated user to read
+  // prediction_league_members. No display names from this alone.
   const { data: rows } = await supabase
     .from("prediction_league_members")
     .select("user_id, joined_at")
@@ -677,7 +677,6 @@ export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]
 
   if (!rows || rows.length === 0) return [];
 
-  // Sort client-side by joined_at ascending
   const sorted = [...rows].sort((a, b) => {
     const ra = a as Record<string, unknown>;
     const rb = b as Record<string, unknown>;
@@ -686,16 +685,34 @@ export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]
     return da - db;
   });
 
-  // ── Step 3: best-effort display names via leaderboard RPC ─────
+  // ── Step 3: build nameMap from all available name sources ─────
   const nameMap = new Map<string, { displayName: string; country: string | null }>();
+
+  // 3a. Current user's own profile — always readable (RLS: auth.uid() = id)
+  const { data: myProfile } = await supabase
+    .from("user_profiles")
+    .select("id, display_name, country")
+    .single();
+  if (myProfile) {
+    const p = myProfile as Record<string, unknown>;
+    const uid = p.id as string;
+    if (uid) nameMap.set(uid, {
+      displayName: (p.display_name as string | null) || "Player",
+      country:     (p.country as string | null) ?? null,
+    });
+  }
+
+  // 3b. League leaderboard RPC — SECURITY DEFINER, returns members
+  // with scored predictions. Pre-tournament this returns 0 rows,
+  // but works once match results are entered.
   const { data: lbData } = await supabase.rpc("get_league_leaderboard", {
     p_league_id: leagueId,
   });
   if (lbData && Array.isArray(lbData)) {
     for (const r of lbData as Record<string, unknown>[]) {
       const uid = r.user_id as string;
-      if (uid) nameMap.set(uid, {
-        displayName: (r.display_name as string) || "Anonymous",
+      if (uid && !nameMap.has(uid)) nameMap.set(uid, {
+        displayName: (r.display_name as string) || "Player",
         country:     (r.country as string | null) ?? null,
       });
     }
@@ -707,7 +724,7 @@ export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]
     const info = nameMap.get(uid);
     return {
       userId:      uid,
-      displayName: info?.displayName ?? "Anonymous",
+      displayName: info?.displayName ?? "Player",
       country:     info?.country ?? null,
       joinedAt:    (r.joined_at as string | null) ?? null,
       isOwner:     false,
@@ -801,7 +818,7 @@ export async function getPredictorLeaderboard(
   if (error || !data) return [];
   return (data as Record<string, unknown>[]).map((r) => ({
     rank:        Number(r.rank),
-    displayName: r.display_name as string,
+    displayName: (r.display_name as string | null) || "Player",
     country:     r.country as string | null,
     totalPoints: Number(r.total_points),
     matchPoints: Number(r.match_points ?? 0),
@@ -821,7 +838,7 @@ export async function getLeagueLeaderboard(
   return (data as Record<string, unknown>[]).map((r) => ({
     rank:        Number(r.rank),
     userId:      r.user_id as string,
-    displayName: r.display_name as string,
+    displayName: (r.display_name as string | null) || "Player",
     country:     r.country as string | null,
     totalPoints: Number(r.total_points),
     matchPoints: Number(r.match_points ?? 0),
