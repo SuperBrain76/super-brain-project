@@ -46,30 +46,26 @@ import {
   type QuotaMeta,
 } from "@/lib/ingestion";
 
-// ── Environment ───────────────────────────────────────────────
-
-const CRON_SECRET      = process.env.CRON_SECRET               ?? "";
-const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY          ?? "";
-const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
-const SUPABASE_SRK     = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-
-// ── Auth ──────────────────────────────────────────────────────
-
-function isAuthorized(req: NextRequest): boolean {
-  if (!CRON_SECRET) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${CRON_SECRET}`) return true;
-  // Vercel cron query-param fallback
-  if (req.nextUrl.searchParams.get("secret") === CRON_SECRET) return true;
-  return false;
-}
-
 // ── Handler ───────────────────────────────────────────────────
+// All env vars are read inside the handler (not at module level)
+// to ensure they are evaluated at request time, not build time.
 
 async function handler(req: NextRequest): Promise<NextResponse> {
 
+  // ── Environment (read at request time) ──────────────────────
+  const CRON_SECRET      = process.env.CRON_SECRET               ?? "";
+  const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY          ?? "";
+  const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
+  const SUPABASE_SRK     = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
   // ── Auth ────────────────────────────────────────────────────
-  if (!isAuthorized(req)) {
+  const cronSecret = CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const auth = req.headers.get("authorization");
+  const querySecret = req.nextUrl.searchParams.get("secret");
+  if (auth !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
