@@ -650,19 +650,59 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
 
 export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
   if (!isSupabaseConfigured) return [];
-  // Uses a SECURITY DEFINER RPC to bypass user_profiles RLS
-  // (which only allows users to read their own profile).
-  const { data, error } = await supabase.rpc("get_league_members", {
+
+  // ── Tier 1: get_league_members RPC (migration 009) ───────────
+  // SECURITY DEFINER — bypasses user_profiles RLS so all members'
+  // display names are readable.
+  const { data: rpcData, error: rpcErr } = await supabase.rpc("get_league_members", {
     p_league_id: leagueId,
   });
-  if (error || !data) return [];
-  return (data as Record<string, unknown>[]).map((row) => ({
-    userId:      row.user_id as string,
-    displayName: (row.display_name as string | null) ?? "Anonymous",
-    country:     (row.country as string | null) ?? null,
-    joinedAt:    (row.joined_at as string | null) ?? null,
-    isOwner:     false, // set by caller
-  }));
+  if (!rpcErr && rpcData && (rpcData as unknown[]).length > 0) {
+    return (rpcData as Record<string, unknown>[]).map((row) => ({
+      userId:      row.user_id as string,
+      displayName: (row.display_name as string | null) ?? "Anonymous",
+      country:     (row.country as string | null) ?? null,
+      joinedAt:    (row.joined_at as string | null) ?? null,
+      isOwner:     false,
+    }));
+  }
+
+  // ── Tier 2: direct table query ────────────────────────────────
+  // Always works (RLS: any authenticated user can read
+  // prediction_league_members). No display names from this path.
+  const { data: rows, error: rowsErr } = await supabase
+    .from("prediction_league_members")
+    .select("user_id, joined_at")
+    .eq("league_id", leagueId)
+    .order("joined_at", { ascending: true });
+
+  if (rowsErr || !rows || (rows as unknown[]).length === 0) return [];
+
+  // ── Tier 3: try leaderboard RPC for display names ─────────────
+  // Also SECURITY DEFINER — can read user_profiles for all members.
+  const nameMap = new Map<string, { displayName: string; country: string | null }>();
+  const { data: lbData } = await supabase.rpc("get_league_leaderboard", {
+    p_league_id: leagueId,
+  });
+  if (lbData) {
+    for (const r of lbData as Record<string, unknown>[]) {
+      nameMap.set(r.user_id as string, {
+        displayName: (r.display_name as string) ?? "Anonymous",
+        country:     (r.country as string | null) ?? null,
+      });
+    }
+  }
+
+  return (rows as Record<string, unknown>[]).map((row) => {
+    const info = nameMap.get(row.user_id as string);
+    return {
+      userId:      row.user_id as string,
+      displayName: info?.displayName ?? "Anonymous",
+      country:     info?.country ?? null,
+      joinedAt:    (row.joined_at as string | null) ?? null,
+      isOwner:     false,
+    };
+  });
 }
 
 export async function updateLeagueAdmin(

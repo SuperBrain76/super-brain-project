@@ -103,8 +103,9 @@ function LeaderboardTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="py-10 text-center">
-        <p className="text-cockpit-dim text-sm">No members yet.</p>
+      <div className="py-8 text-center px-4">
+        <p className="text-cockpit-dim text-sm">Standings will appear after predictions are scored.</p>
+        <p className="text-cockpit-muted text-xs mt-1">Results are entered after each match.</p>
       </div>
     );
   }
@@ -195,7 +196,16 @@ function MembersList({
   members:       LeagueMember[];
   currentUserId: string | null;
 }) {
-  if (members.length === 0) return null;
+  if (members.length === 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <h2 className="text-white font-semibold text-sm">Members</h2>
+        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-6 text-center">
+          <p className="text-cockpit-dim text-sm">No members found.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -507,7 +517,10 @@ export default function LeagueDetailPage() {
           </div>
         )}
 
-        {/* ── Leaderboard ─────────────────────────────────── */}
+        {/* ── Members ─────────────────────────────────────── */}
+        <MembersList members={members} currentUserId={user?.id ?? null} />
+
+        {/* ── Standings ───────────────────────────────────── */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold text-sm">Standings</h2>
@@ -515,7 +528,6 @@ export default function LeagueDetailPage() {
               Match + Bonus = Total
             </span>
           </div>
-
           <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
             <LeaderboardTable
               rows={rows}
@@ -523,16 +535,7 @@ export default function LeagueDetailPage() {
               ownerId={league.createdBy}
             />
           </div>
-
-          {rows.length > 0 && rows.every((r) => r.totalPoints === 0) && (
-            <p className="text-cockpit-muted text-xs text-center font-mono">
-              Points are awarded after each match result is entered.
-            </p>
-          )}
         </div>
-
-        {/* ── Members list ────────────────────────────────── */}
-        <MembersList members={members} currentUserId={user?.id ?? null} />
 
         {/* Back */}
         <Link href="/predict/leagues" className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono">
