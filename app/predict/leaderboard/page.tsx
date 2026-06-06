@@ -16,7 +16,6 @@ import {
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
 const GOLD   = "#b8972a";
-const NAVY   = "#0e1e35";
 const MUTED  = "#7a8f82";
 const BORDER = "#dde5d8";
 const TEXT1  = "#0f1f17";
@@ -122,7 +121,7 @@ export default function PredictorLeaderboardPage() {
               {[
                 { label: "Points",    value: String(Number(myStats.totalPoints)), color: GREEN },
                 { label: "Rank",      value: `#${myStats.globalRank}`,            color: GOLD  },
-                { label: "Match",     value: String(Number(myStats.matchPoints)), color: NAVY  },
+                { label: "Match",     value: String(Number(myStats.matchPoints)), color: GREEN },
                 { label: "Exact",     value: String(Number(myStats.exactScores)), color: GREEN },
                 ...(myStats.bonusPoints > 0
                   ? [{ label: "Bonus", value: `+${myStats.bonusPoints}`, color: GOLD }]

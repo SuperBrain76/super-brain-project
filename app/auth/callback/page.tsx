@@ -28,13 +28,15 @@ function CallbackHandler() {
         return;
       }
 
-      // Otherwise it was an email confirmation — check profile completion
+      // Otherwise it was an email confirmation — send to predictor.
+      // If profile is incomplete, go through /profile/complete first,
+      // which redirects to /predict on completion.
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("profile_complete")
         .single();
 
-      router.replace(profile?.profile_complete ? "/profile" : "/profile/complete");
+      router.replace(profile?.profile_complete ? "/predict" : "/profile/complete");
     }
 
     resolve();

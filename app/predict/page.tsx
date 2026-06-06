@@ -131,7 +131,7 @@ export default function PredictHub() {
   if (fetching || authLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-cockpit-dim text-sm animate-pulse">Loading predictor…</p>
+        <p className="text-sm animate-pulse" style={{ color: "#7a8f82" }}>Loading predictor…</p>
       </div>
     );
   }
@@ -140,18 +140,20 @@ export default function PredictHub() {
   if (loadError) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-12">
-        <div className="w-full max-w-md bg-cockpit-card border border-red-500 border-opacity-30 rounded-sm p-5 flex flex-col gap-3">
-          <p className="text-red-400 text-sm font-semibold">Failed to load predictor</p>
-          <p className="text-cockpit-dim text-xs font-mono leading-relaxed break-all">{loadError}</p>
-          <div className="border-t border-cockpit-border pt-3 flex flex-col gap-1">
-            <p className="text-cockpit-muted text-xs font-mono">Checklist:</p>
-            <p className="text-cockpit-muted text-xs">1. NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local</p>
-            <p className="text-cockpit-muted text-xs">2. predictor-schema.sql has been run in Supabase SQL Editor</p>
-            <p className="text-cockpit-muted text-xs">3. wc2026-fixtures.sql has been run (seeds 48 teams + 104 fixtures)</p>
+        <div className="w-full max-w-md rounded-xl p-5 flex flex-col gap-3"
+          style={{ background: "#fff", border: "1px solid #fca5a5" }}>
+          <p className="text-red-600 text-sm font-semibold">Failed to load predictor</p>
+          <p className="text-xs font-mono leading-relaxed break-all" style={{ color: "#64748b" }}>{loadError}</p>
+          <div className="pt-3 flex flex-col gap-1" style={{ borderTop: "1px solid #dde5d8" }}>
+            <p className="text-xs font-semibold" style={{ color: "#334155" }}>Checklist:</p>
+            <p className="text-xs" style={{ color: "#64748b" }}>1. NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local</p>
+            <p className="text-xs" style={{ color: "#64748b" }}>2. predictor-schema.sql has been run in Supabase SQL Editor</p>
+            <p className="text-xs" style={{ color: "#64748b" }}>3. wc2026-fixtures.sql has been run (seeds 48 teams + 104 fixtures)</p>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="btn-ghost text-sm self-start"
+            className="text-sm font-semibold py-2 px-4 rounded-lg self-start"
+            style={{ background: "#f0f3ef", border: "1px solid #dde5d8", color: "#1a3a2a" }}
           >
             Retry
           </button>
@@ -163,7 +165,7 @@ export default function PredictHub() {
   if (!competition) {
     return (
       <div className="flex-1 flex items-center justify-center px-4">
-        <p className="text-cockpit-muted text-sm">Competition not found.</p>
+        <p className="text-sm" style={{ color: "#7a8f82" }}>Competition not found.</p>
       </div>
     );
   }

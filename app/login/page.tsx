@@ -32,7 +32,7 @@ function LoginForm() {
   const next = searchParams.get("next") ?? "";
 
   useEffect(() => {
-    if (!loading && user) router.replace(next || "/profile");
+    if (!loading && user) router.replace(next || "/predict");
   }, [user, loading, router, next]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,7 +63,7 @@ function LoginForm() {
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (err) { setError(err.message); return; }
-    router.push(next || "/profile");
+    router.push(next || "/predict");
   };
 
   const resendVerification = async () => {

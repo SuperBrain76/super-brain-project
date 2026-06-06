@@ -18,7 +18,6 @@ import {
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
 const GOLD   = "#b8972a";
-const NAVY   = "#0e1e35";
 const MUTED  = "#7a8f82";
 const BORDER = "#dde5d8";
 const TEXT1  = "#0f1f17";
@@ -31,6 +30,7 @@ const BONUS_META: Record<string, { icon: string; hint: string }> = {
   winner:        { icon: "🏆", hint: "Which team will lift the trophy?" },
   runner_up:     { icon: "🥈", hint: "Which team will reach the final but lose?" },
   golden_boot:   { icon: "👟", hint: "Which player will score the most goals?" },
+  golden_glove:  { icon: "🥅", hint: "Which goalkeeper will win the Golden Glove award?" },
   most_goals:    { icon: "⚽", hint: "Which team will score the most goals overall?" },
   best_defence:  { icon: "🛡️", hint: "Which team will concede the fewest goals?" },
   surprise_team: { icon: "⭐", hint: "Highest finishing team ranked outside FIFA Top 20 before the tournament." },
@@ -351,7 +351,7 @@ export default function BonusPage() {
         <div>
           <h1 className="text-xl font-extrabold" style={{ color: TEXT1 }}>Bonus Questions</h1>
           <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
-            Earn up to <span className="font-semibold" style={{ color: GOLD }}>75 bonus points</span> by
+            Earn up to <span className="font-semibold" style={{ color: GOLD }}>90 bonus points</span> by
             predicting tournament-wide outcomes. Questions lock individually — check the status of each.
           </p>
         </div>
