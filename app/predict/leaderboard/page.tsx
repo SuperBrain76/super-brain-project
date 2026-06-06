@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { nameToFlag } from "@/lib/countries";
 import {
   getCompetition,
   getPredictorLeaderboard,
@@ -121,7 +122,7 @@ export default function PredictorLeaderboardPage() {
           </div>
           <h1 className="text-xl font-bold text-white">SuperBrain World Cup Championship</h1>
           <p className="text-cockpit-dim text-sm mt-1">
-            {competition?.name ?? "World Cup 2026"} · Top {rows.length > 0 ? rows.length : "200"} predictors
+            {competition?.name ?? "World Cup 2026"} · {rows.length} {rows.length === 1 ? "predictor" : "predictors"}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className="w-1.5 h-1.5 rounded-full bg-cockpit-green shrink-0" />
@@ -203,8 +204,8 @@ export default function PredictorLeaderboardPage() {
 
                 {/* Player */}
                 <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                  {row.country && (
-                    <span className="text-sm shrink-0">{countryFlag(row.country)}</span>
+                  {row.country && nameToFlag(row.country) && (
+                    <span className="text-sm shrink-0">{nameToFlag(row.country)}</span>
                   )}
                   <span className="text-white text-sm font-medium truncate">
                     {row.displayName}
@@ -265,11 +266,3 @@ export default function PredictorLeaderboardPage() {
   );
 }
 
-// ── Country code → emoji flag ─────────────────────────────────
-
-function countryFlag(code: string | null): string {
-  if (!code || code.length !== 2) return "";
-  return Array.from(code.toUpperCase())
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-}

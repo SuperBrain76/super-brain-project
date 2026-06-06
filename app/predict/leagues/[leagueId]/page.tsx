@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { nameToFlag } from "@/lib/countries";
 import {
   getLeague,
   isLeagueMember,
@@ -137,6 +138,9 @@ function LeaderboardTable({
 
             {/* Player */}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+              {row.country && nameToFlag(row.country) && (
+                <span className="text-sm shrink-0">{nameToFlag(row.country)}</span>
+              )}
               <span className="text-white text-sm font-medium truncate">
                 {row.displayName}
               </span>
@@ -232,10 +236,10 @@ function MembersList({
 
               {/* Name + badges */}
               <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-                <span className="text-white text-sm font-medium truncate">{m.displayName}</span>
-                {m.country && (
-                  <span className="text-cockpit-muted text-xs">{m.country}</span>
+                {m.country && nameToFlag(m.country) && (
+                  <span className="text-sm shrink-0">{nameToFlag(m.country)}</span>
                 )}
+                <span className="text-white text-sm font-medium truncate">{m.displayName}</span>
                 {m.isOwner && (
                   <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"
                     style={{ color: "#ffab00", background: "#ffab0015" }}>OWNER</span>
