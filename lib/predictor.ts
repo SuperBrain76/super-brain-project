@@ -651,25 +651,8 @@ export async function getLeagueMemberCount(leagueId: string): Promise<number> {
 export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
   if (!isSupabaseConfigured) return [];
 
-  // ── Step 1: get_league_members RPC (migration 011) ───────────
-  // SECURITY DEFINER owned by postgres — guaranteed to bypass
-  // user_profiles RLS and return display_name for ALL members.
-  const { data: rpcData } = await supabase.rpc("get_league_members", {
-    p_league_id: leagueId,
-  });
-  if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-    return (rpcData as Record<string, unknown>[]).map((row) => ({
-      userId:      row.user_id as string,
-      displayName: (row.display_name as string | null) || "Player",
-      country:     (row.country as string | null) ?? null,
-      joinedAt:    (row.joined_at as string | null) ?? null,
-      isOwner:     false,
-    }));
-  }
-
-  // ── Step 2: direct table query ────────────────────────────────
-  // Always works — RLS allows any authenticated user to read
-  // prediction_league_members. No display names from this alone.
+  // ── Step 1: get member user_ids from prediction_league_members ─
+  // Always works — RLS allows any authenticated user to read this table.
   const { data: rows } = await supabase
     .from("prediction_league_members")
     .select("user_id, joined_at")
@@ -685,35 +668,25 @@ export async function getLeagueMembers(leagueId: string): Promise<LeagueMember[]
     return da - db;
   });
 
-  // ── Step 3: build nameMap from all available name sources ─────
+  const userIds = sorted.map((r) => (r as Record<string, unknown>).user_id as string);
+
+  // ── Step 2: fetch display_name + country for all member ids ───
+  // Migration 010/011 added USING(true) SELECT policy to user_profiles,
+  // so authenticated users can read any profile row directly — no
+  // SECURITY DEFINER function needed.
   const nameMap = new Map<string, { displayName: string; country: string | null }>();
 
-  // 3a. Current user's own profile — always readable (RLS: auth.uid() = id)
-  const { data: myProfile } = await supabase
+  const { data: profiles } = await supabase
     .from("user_profiles")
     .select("id, display_name, country")
-    .single();
-  if (myProfile) {
-    const p = myProfile as Record<string, unknown>;
-    const uid = p.id as string;
-    if (uid) nameMap.set(uid, {
-      displayName: (p.display_name as string | null) || "Player",
-      country:     (p.country as string | null) ?? null,
-    });
-  }
+    .in("id", userIds);
 
-  // 3b. League leaderboard RPC — SECURITY DEFINER, returns members
-  // with scored predictions. Pre-tournament this returns 0 rows,
-  // but works once match results are entered.
-  const { data: lbData } = await supabase.rpc("get_league_leaderboard", {
-    p_league_id: leagueId,
-  });
-  if (lbData && Array.isArray(lbData)) {
-    for (const r of lbData as Record<string, unknown>[]) {
-      const uid = r.user_id as string;
-      if (uid && !nameMap.has(uid)) nameMap.set(uid, {
-        displayName: (r.display_name as string) || "Player",
-        country:     (r.country as string | null) ?? null,
+  if (profiles && Array.isArray(profiles)) {
+    for (const p of profiles as Record<string, unknown>[]) {
+      const uid = p.id as string;
+      if (uid) nameMap.set(uid, {
+        displayName: (p.display_name as string | null) || "Player",
+        country:     (p.country as string | null) ?? null,
       });
     }
   }
