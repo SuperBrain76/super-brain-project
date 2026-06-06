@@ -18,6 +18,7 @@ import {
   renameLeague,
   setLeagueVisibility,
   deleteLeague,
+  leaveLeague,
   type PredictionLeague,
   type LeaderboardRow,
   type LeagueMember,
@@ -272,6 +273,128 @@ function MembersList({
   );
 }
 
+// ── Leave League Modal ────────────────────────────────────────
+
+function LeaveModal({
+  league,
+  isOwner,
+  memberCount,
+  onConfirm,
+  onCancel,
+  leaving,
+  leaveError,
+}: {
+  league:      PredictionLeague;
+  isOwner:     boolean;
+  memberCount: number;
+  onConfirm:   () => void;
+  onCancel:    () => void;
+  leaving:     boolean;
+  leaveError:  string | null;
+}) {
+  const ownerBlocked = isOwner && memberCount > 1;
+
+  return (
+    /* Backdrop */
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: "rgba(8,11,15,0.85)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div
+        className="w-full max-w-sm rounded-sm border flex flex-col overflow-hidden"
+        style={{ background: "#0d1117", borderColor: "#1e2a38" }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: "1px solid #1e2a38" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff5252" strokeWidth="2" strokeLinecap="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span className="text-white text-sm font-semibold">Leave league</span>
+          </div>
+          <button onClick={onCancel} className="text-cockpit-muted hover:text-cockpit-dim transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 flex flex-col gap-3">
+          {ownerBlocked ? (
+            <>
+              <p className="text-white text-sm font-semibold">You&apos;re the owner</p>
+              <p className="text-cockpit-dim text-sm leading-relaxed">
+                You cannot leave <span className="text-white font-medium">{league.name}</span> while other members are in it.
+              </p>
+              <div
+                className="rounded-sm px-3 py-2.5 flex flex-col gap-1"
+                style={{ background: "#1a2030", border: "1px solid #2a3a50" }}
+              >
+                <p className="text-cockpit-dim text-xs font-semibold">To leave, first either:</p>
+                <p className="text-cockpit-muted text-xs">· Transfer ownership to another member</p>
+                <p className="text-cockpit-muted text-xs">· Delete the league from Owner Settings</p>
+              </div>
+              <button
+                onClick={onCancel}
+                className="self-stretch text-sm py-2.5 rounded-sm border border-cockpit-border text-cockpit-dim hover:text-white transition-colors"
+              >
+                Got it
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-cockpit-dim text-sm leading-relaxed">
+                Are you sure you want to leave{" "}
+                <span className="text-white font-medium">{league.name}</span>?
+              </p>
+              {league.visibility === "public" || league.isFeatured ? (
+                <p className="text-cockpit-muted text-xs">
+                  This is a public league — you can rejoin at any time from Discover.
+                </p>
+              ) : (
+                <p className="text-cockpit-muted text-xs">
+                  This is a private league. You&apos;ll need the invite link or code to rejoin.
+                </p>
+              )}
+              {leaveError && (
+                <p className="text-cockpit-red text-xs">{leaveError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={onConfirm}
+                  disabled={leaving}
+                  className="flex-1 text-sm py-2.5 rounded-sm transition-colors disabled:opacity-40"
+                  style={{
+                    background:  "#ff525215",
+                    border:      "1px solid #ff525240",
+                    color:       "#ff5252",
+                  }}
+                >
+                  {leaving ? "Leaving…" : "Yes, leave league"}
+                </button>
+                <button
+                  onClick={onCancel}
+                  disabled={leaving}
+                  className="flex-1 text-sm py-2.5 rounded-sm border border-cockpit-border text-cockpit-dim hover:text-white transition-colors disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Owner controls ────────────────────────────────────────────
 
 function OwnerControls({
@@ -457,6 +580,11 @@ export default function LeagueDetailPage() {
   const [joining,   setJoining]   = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
+  // Leave flow
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaving,        setLeaving]        = useState(false);
+  const [leaveError,     setLeaveError]     = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!leagueId) return;
     setLoading(true);
@@ -515,6 +643,16 @@ export default function LeagueDetailPage() {
     setJoining(false);
     if (err) { setJoinError(err); return; }
     load();
+  };
+
+  const handleLeave = async () => {
+    if (!league || !user) return;
+    setLeaving(true);
+    setLeaveError(null);
+    const { error: err } = await leaveLeague(league.id);
+    setLeaving(false);
+    if (err) { setLeaveError(err); return; }
+    router.replace("/predict/leagues");
   };
 
   // ── Loading ────────────────────────────────────────────────
@@ -719,11 +857,40 @@ export default function LeagueDetailPage() {
           />
         )}
 
+        {/* ── Leave league ─────────────────────────────────── */}
+        {isMember && user && (
+          <button
+            onClick={() => { setLeaveError(null); setShowLeaveModal(true); }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-sm border transition-colors text-sm"
+            style={{ borderColor: "#ff525225", color: "#ff5252", background: "transparent" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Leave league
+          </button>
+        )}
+
         {/* Back */}
         <Link href="/predict/leagues" className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono">
           ← Back to leagues
         </Link>
       </div>
+
+      {/* ── Leave modal (portal-style, rendered outside scroll container) */}
+      {showLeaveModal && league && (
+        <LeaveModal
+          league={league}
+          isOwner={user?.id === league.createdBy}
+          memberCount={memberCount ?? 0}
+          onConfirm={handleLeave}
+          onCancel={() => { setShowLeaveModal(false); setLeaveError(null); }}
+          leaving={leaving}
+          leaveError={leaveError}
+        />
+      )}
     </div>
   );
 }

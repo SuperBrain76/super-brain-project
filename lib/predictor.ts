@@ -643,6 +643,15 @@ export async function leaveLeague(
 // ── Owner controls ────────────────────────────────────────────
 
 /** Rename a league. Owner only — enforced by RLS (migration 015). */
+/** Check if the current session user is in app_admins. */
+async function isAdmin(userId: string): Promise<boolean> {
+  const { count } = await supabase
+    .from("app_admins")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+  return (count ?? 0) > 0;
+}
+
 export async function renameLeague(
   leagueId: string,
   name: string,
@@ -656,6 +665,7 @@ export async function renameLeague(
   const trimmed    = name.trim().replace(/\s+/g, " ");
   const normalized = validation.normalizedName!;
 
+  // First attempt: owner-scoped update (also enforced by RLS migration 016)
   const { error, data } = await supabase
     .from("prediction_leagues")
     .update({ name: trimmed, normalized_name: normalized })
@@ -667,11 +677,32 @@ export async function renameLeague(
     if (error.code === "23505") return { error: "That name is already taken. Try another." };
     return { error: "Could not rename league. Please try again." };
   }
-  if (!data || data.length === 0) return { error: "Permission denied — only the league owner can rename it." };
+
+  if (data && data.length > 0) return { error: null };
+
+  // 0 rows — either not the owner, or RLS blocked. Check admin.
+  const admin = await isAdmin(user.id);
+  if (!admin) return { error: "Permission denied — only the league owner can rename it." };
+
+  // Admin retry without owner filter (RLS bypassed for admins via app_admins check)
+  // Note: RLS still applies; admin must also be in the USING clause or have service-role.
+  // We update by ID only — the RLS policy will block if not owner and not service-role.
+  // For admin rename to work in production, add an admin bypass policy or use service-role key.
+  const { error: adminErr, data: adminData } = await supabase
+    .from("prediction_leagues")
+    .update({ name: trimmed, normalized_name: normalized })
+    .eq("id", leagueId)
+    .select("id");
+
+  if (adminErr) {
+    if (adminErr.code === "23505") return { error: "That name is already taken. Try another." };
+    return { error: "Could not rename league. Please try again." };
+  }
+  if (!adminData || adminData.length === 0) return { error: "Permission denied — only the league owner can rename it." };
   return { error: null };
 }
 
-/** Toggle a league between private and public. Owner only — enforced by RLS (migration 015). */
+/** Toggle a league between private and public. Owner only — enforced by RLS (migration 016). */
 export async function setLeagueVisibility(
   leagueId: string,
   visibility: "private" | "public",
@@ -687,7 +718,20 @@ export async function setLeagueVisibility(
     .select("id");
 
   if (error) return { error: "Could not update visibility. Please try again." };
-  if (!data || data.length === 0) return { error: "Permission denied — only the league owner can change visibility." };
+  if (data && data.length > 0) return { error: null };
+
+  // 0 rows — check admin
+  const admin = await isAdmin(user.id);
+  if (!admin) return { error: "Permission denied — only the league owner can change visibility." };
+
+  const { error: adminErr, data: adminData } = await supabase
+    .from("prediction_leagues")
+    .update({ visibility })
+    .eq("id", leagueId)
+    .select("id");
+
+  if (adminErr) return { error: "Could not update visibility. Please try again." };
+  if (!adminData || adminData.length === 0) return { error: "Permission denied — only the league owner can change visibility." };
   return { error: null };
 }
 
