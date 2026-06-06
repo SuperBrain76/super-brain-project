@@ -13,51 +13,39 @@ import {
   type MyStats,
 } from "@/lib/predictor";
 
-// ── Stat chip ─────────────────────────────────────────────────
-
-function StatChip({
-  label,
-  value,
-  color = "#00d4ff",
-}: {
-  label: string;
-  value: string | number;
-  color?: string;
-}) {
-  return (
-    <div className="flex flex-col items-center px-4 py-2.5 bg-cockpit-card border border-cockpit-border rounded-sm min-w-[72px]">
-      <span className="text-lg font-black number-display leading-none" style={{ color }}>
-        {value}
-      </span>
-      <span className="text-[10px] text-cockpit-muted uppercase tracking-widest mt-0.5">{label}</span>
-    </div>
-  );
-}
+// ── Design tokens ─────────────────────────────────────────────
+const GREEN  = "#1a3a2a";
+const GOLD   = "#b8972a";
+const NAVY   = "#0e1e35";
+const MUTED  = "#7a8f82";
+const BORDER = "#dde5d8";
+const TEXT1  = "#0f1f17";
+const TEXT2  = "#2e4a37";
+const CARD   = "#ffffff";
+const BG     = "#f0f3ef";
 
 // ── Rank badge ────────────────────────────────────────────────
-
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) return (
-    <span className="w-7 h-7 flex items-center justify-center rounded-sm text-xs font-black"
-      style={{ color: "#ffab00", background: "#ffab0018" }}>1</span>
+    <span className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-black"
+      style={{ color: GOLD, background: `${GOLD}18` }}>1</span>
   );
   if (rank === 2) return (
-    <span className="w-7 h-7 flex items-center justify-center rounded-sm text-xs font-black"
-      style={{ color: "#a8b8cc", background: "#a8b8cc15" }}>2</span>
+    <span className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-black"
+      style={{ color: "#8899aa", background: "#8899aa15" }}>2</span>
   );
   if (rank === 3) return (
-    <span className="w-7 h-7 flex items-center justify-center rounded-sm text-xs font-black"
+    <span className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-black"
       style={{ color: "#cd7c32", background: "#cd7c3215" }}>3</span>
   );
   return (
-    <span className="w-7 h-7 flex items-center justify-center text-xs font-mono text-cockpit-muted">
+    <span className="w-7 h-7 flex items-center justify-center text-xs" style={{ color: MUTED }}>
       {rank}
     </span>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────
-
 export default function PredictorLeaderboardPage() {
   const { user, loading: authLoading } = useAuth();
 
@@ -70,13 +58,8 @@ export default function PredictorLeaderboardPage() {
   useEffect(() => {
     async function load() {
       const { competition: comp, error: compErr } = await getCompetition("wc2026");
-      if (compErr || !comp) {
-        setError(compErr ?? "Competition not found.");
-        setLoading(false);
-        return;
-      }
+      if (compErr || !comp) { setError(compErr ?? "Competition not found."); setLoading(false); return; }
       setCompetition(comp);
-
       const leaderboard = await getPredictorLeaderboard(comp.id);
       setRows(leaderboard);
       setLoading(false);
@@ -84,27 +67,24 @@ export default function PredictorLeaderboardPage() {
     if (!authLoading) load();
   }, [authLoading]);
 
-  // Load user stats separately
   useEffect(() => {
     if (!user || !competition) return;
     getMyStats(competition.id).then(setMyStats);
   }, [user, competition]);
 
-  // ── Loading ──────────────────────────────────────────────
   if (authLoading || loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-cockpit-dim text-sm animate-pulse">Loading leaderboard…</p>
+        <p className="text-sm animate-pulse" style={{ color: MUTED }}>Loading rankings…</p>
       </div>
     );
   }
 
-  // ── Error ────────────────────────────────────────────────
   if (error) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
-        <p className="text-cockpit-red text-sm">{error}</p>
-        <Link href="/predict" className="text-cockpit-accent text-sm hover:underline">← Back</Link>
+        <p className="text-sm text-red-600">{error}</p>
+        <Link href="/predict" className="text-sm hover:underline" style={{ color: GREEN }}>← Back</Link>
       </div>
     );
   }
@@ -113,73 +93,97 @@ export default function PredictorLeaderboardPage() {
     <div className="flex-1 flex flex-col">
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-10 w-full flex flex-col gap-5">
 
-        {/* ── Header ─────────────────────────────────────── */}
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: MUTED }}>
+          <Link href="/predict" style={{ color: MUTED }} className="hover:underline">Predictor</Link>
+          <span>/</span>
+          <span style={{ color: TEXT2, fontWeight: 600 }}>Global Rankings</span>
+        </div>
+
+        {/* Header */}
         <div>
-          <div className="flex items-center gap-2 text-xs text-cockpit-muted font-mono mb-3">
-            <Link href="/predict" className="hover:text-cockpit-dim transition-colors">Predictor</Link>
-            <span>/</span>
-            <span className="text-cockpit-dim">Leaderboard</span>
-          </div>
-          <h1 className="text-xl font-bold text-white">SuperBrain World Cup Championship</h1>
-          <p className="text-cockpit-dim text-sm mt-1">
+          <h1 className="text-xl font-extrabold" style={{ color: TEXT1 }}>Global Rankings</h1>
+          <p className="text-sm mt-1" style={{ color: TEXT2 }}>
             {competition?.name ?? "World Cup 2026"} · {rows.length} {rows.length === 1 ? "predictor" : "predictors"}
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-cockpit-green shrink-0" />
-            <p className="text-cockpit-muted text-xs">
-              All players are automatically entered into the SuperBrain World Cup Championship — no league required.
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GREEN }} />
+            <p className="text-xs" style={{ color: MUTED }}>
+              All players are automatically entered — no league required.
             </p>
           </div>
         </div>
 
-        {/* ── My stats strip ─────────────────────────────── */}
+        {/* My stats strip */}
         {user && myStats && myStats.predictions > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest">Your stats</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <StatChip label="Total"  value={myStats.totalPoints}      color="#00d4ff" />
-              <StatChip label="Rank"   value={`#${myStats.globalRank}`}  color="#ffab00" />
-              <StatChip label="Match"  value={myStats.matchPoints}       color="#00e676" />
-              {myStats.bonusPoints > 0 && (
-                <StatChip label="Bonus" value={`+${myStats.bonusPoints}`} color="#ffab00" />
-              )}
-              <StatChip label="Exact"  value={myStats.exactScores}       color="#ff6d00" />
+          <div className="rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <div className="flex items-center divide-x divide-[#dde5d8]"
+              style={{ borderBottom: `1px solid ${BORDER}` }}>
+              {[
+                { label: "Points",    value: String(Number(myStats.totalPoints)), color: GREEN },
+                { label: "Rank",      value: `#${myStats.globalRank}`,            color: GOLD  },
+                { label: "Match",     value: String(Number(myStats.matchPoints)), color: NAVY  },
+                { label: "Exact",     value: String(Number(myStats.exactScores)), color: GREEN },
+                ...(myStats.bonusPoints > 0
+                  ? [{ label: "Bonus", value: `+${myStats.bonusPoints}`, color: GOLD }]
+                  : []),
+              ].map((s) => (
+                <div key={s.label} className="flex-1 flex flex-col items-center py-3 gap-0.5">
+                  <span className="font-extrabold text-lg leading-none"
+                    style={{ color: s.color, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" }}>
+                    {s.value}
+                  </span>
+                  <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: MUTED }}>
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-2">
+              <p className="text-xs" style={{ color: MUTED }}>Your stats · {myStats.predictions} / {104} predictions made</p>
             </div>
           </div>
         )}
 
-        {/* ── Sign-in nudge (guest) ───────────────────────── */}
+        {/* Sign-in nudge */}
         {!user && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-sm border border-cockpit-accent border-opacity-30 bg-cockpit-accent bg-opacity-5">
-            <p className="text-cockpit-dim text-sm">
-              Sign in to predict and appear on the leaderboard.
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border"
+            style={{ background: "#eef3ec", borderColor: `${GREEN}30` }}
+          >
+            <p className="text-sm" style={{ color: TEXT2 }}>
+              Sign in to predict and appear on the rankings.
             </p>
-            <Link href="/login" className="btn-primary text-sm py-2 px-4 shrink-0">
+            <Link
+              href="/login"
+              className="font-bold text-sm py-2 px-4 rounded-lg shrink-0"
+              style={{ background: GREEN, color: "#fff" }}
+            >
               Sign in
             </Link>
           </div>
         )}
 
-        {/* ── Leaderboard table ───────────────────────────── */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
+        {/* Leaderboard table */}
+        <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
 
           {/* Column headers */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-cockpit-border bg-cockpit-surface">
+          <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}`, background: BG }}>
             <div className="w-7 shrink-0" />
-            <span className="flex-1 text-[10px] text-cockpit-muted uppercase tracking-widest font-mono">Player</span>
-            <span className="w-12 text-right text-[10px] text-cockpit-muted uppercase tracking-widest font-mono hidden sm:block">Match</span>
-            <span className="w-12 text-right text-[10px] text-cockpit-amber uppercase tracking-widest font-mono hidden sm:block">Bonus</span>
-            <span className="w-12 text-right text-[10px] text-cockpit-accent uppercase tracking-widest font-mono">Total</span>
+            <span className="flex-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Player</span>
+            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: MUTED }}>Match</span>
+            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
+            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold" style={{ color: GREEN }}>Total</span>
           </div>
 
           {/* Empty state */}
           {rows.length === 0 && (
             <div className="py-12 text-center flex flex-col gap-2">
-              <p className="text-cockpit-dim text-sm">No results yet.</p>
-              <p className="text-cockpit-muted text-xs">
-                Points are awarded after match results are entered. Check back after the first match on June 11.
+              <p className="text-sm" style={{ color: TEXT2 }}>No results yet.</p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                Points are awarded after match results are entered. Check back after the first match.
               </p>
-              <Link href="/predict" className="text-cockpit-accent text-xs mt-2 hover:underline">
+              <Link href="/predict" className="text-xs mt-2 hover:underline" style={{ color: GREEN }}>
                 Make your predictions →
               </Link>
             </div>
@@ -188,14 +192,14 @@ export default function PredictorLeaderboardPage() {
           {/* Rows */}
           {rows.map((row) => {
             const isMe = !!(user && row.userId === user.id);
-
             return (
               <div
                 key={`${row.rank}-${row.displayName}`}
-                className="flex items-center gap-2 px-3 py-3 border-b border-cockpit-border last:border-0 hover:bg-cockpit-surface transition-colors"
+                className="flex items-center gap-2 px-3 py-3 transition-colors"
                 style={{
-                  background:   isMe ? "#00d4ff06" : undefined,
-                  borderLeft:   isMe ? "2px solid #00d4ff40" : "2px solid transparent",
+                  borderBottom:  `1px solid ${BORDER}`,
+                  background:    isMe ? "#eef3ec" : undefined,
+                  borderLeft:    isMe ? `3px solid ${GREEN}` : "3px solid transparent",
                 }}
               >
                 <RankBadge rank={row.rank} />
@@ -205,57 +209,49 @@ export default function PredictorLeaderboardPage() {
                   {row.country && nameToFlag(row.country) && (
                     <span className="text-sm shrink-0">{nameToFlag(row.country)}</span>
                   )}
-                  <span className="text-white text-sm font-medium truncate">
+                  <span className="text-sm font-medium truncate" style={{ color: TEXT1 }}>
                     {row.displayName}
                   </span>
                   {isMe && (
-                    <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
-                      style={{ color: "#00d4ff", background: "#00d4ff15" }}>
+                    <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{ color: GREEN, background: "#eef3ec", border: `1px solid ${GREEN}30` }}>
                       YOU
                     </span>
                   )}
                 </div>
 
                 {/* Match pts */}
-                <span
-                  className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
-                  style={{ color: row.matchPoints > 0 ? "#a8b8cc" : "#8899aa" }}
-                >
-                  {row.matchPoints}
+                <span className="w-12 text-right text-xs tabular-nums hidden sm:block" style={{ color: TEXT2 }}>
+                  {row.matchPoints > 0 ? row.matchPoints : <span style={{ color: MUTED }}>—</span>}
                 </span>
 
                 {/* Bonus pts */}
-                <span
-                  className="w-12 text-right text-xs font-mono tabular-nums hidden sm:block"
-                  style={{ color: row.bonusPoints > 0 ? "#ffab00" : "#8899aa" }}
-                >
+                <span className="w-12 text-right text-xs tabular-nums hidden sm:block"
+                  style={{ color: row.bonusPoints > 0 ? GOLD : MUTED }}>
                   {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
                 </span>
 
                 {/* Total pts */}
-                <span
-                  className="w-12 text-right font-bold font-mono text-sm tabular-nums"
-                  style={{ color: row.totalPoints > 0 ? "#00d4ff" : "#8899aa" }}
-                >
+                <span className="w-12 text-right font-bold text-sm tabular-nums"
+                  style={{ color: row.totalPoints > 0 ? GREEN : MUTED }}>
                   {row.totalPoints}
                 </span>
-
               </div>
             );
           })}
         </div>
 
         {/* Scoring key */}
-        <p className="text-cockpit-muted text-[10px] text-center font-mono">
+        <p className="text-[10px] text-center" style={{ color: MUTED }}>
           5 pts exact score · 3 pts correct goal diff · 2 pts correct result
         </p>
 
-        {/* CTA + back */}
+        {/* Footer links */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/predict/leagues" className="text-cockpit-accent text-xs hover:underline font-mono">
+          <Link href="/predict/leagues" className="text-xs hover:underline" style={{ color: GREEN }}>
             Create a private league →
           </Link>
-          <Link href="/predict" className="text-cockpit-muted text-xs hover:text-cockpit-dim transition-colors font-mono">
+          <Link href="/predict" className="text-xs hover:underline" style={{ color: MUTED }}>
             ← Back to predictor
           </Link>
         </div>
@@ -263,4 +259,3 @@ export default function PredictorLeaderboardPage() {
     </div>
   );
 }
-

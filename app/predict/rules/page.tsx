@@ -1,6 +1,14 @@
 import Link from "next/link";
 
-// ── Static rules page — no client-side data needed ────────────
+// ── Design tokens ─────────────────────────────────────────────
+const GREEN  = "#1a3a2a";
+const GOLD   = "#b8972a";
+const MUTED  = "#7a8f82";
+const BORDER = "#dde5d8";
+const TEXT1  = "#0f1f17";
+const TEXT2  = "#2e4a37";
+const CARD   = "#ffffff";
+const BG     = "#f0f3ef";
 
 // ── Shared primitives ─────────────────────────────────────────
 
@@ -11,7 +19,7 @@ function Section({ id, title, children }: {
 }) {
   return (
     <section id={id} className="flex flex-col gap-4 scroll-mt-6">
-      <h2 className="text-white font-bold text-base border-b border-cockpit-border pb-2">
+      <h2 className="font-bold text-base pb-2" style={{ color: TEXT1, borderBottom: `1px solid ${BORDER}` }}>
         {title}
       </h2>
       {children}
@@ -25,8 +33,13 @@ function Card({ children, accent }: {
 }) {
   return (
     <div
-      className="bg-cockpit-card border border-cockpit-border rounded-sm p-4"
-      style={accent ? { borderLeftColor: accent, borderLeftWidth: 2 } : undefined}
+      className="rounded-xl p-4"
+      style={{
+        background:      CARD,
+        border:          `1px solid ${BORDER}`,
+        borderLeftColor: accent ?? BORDER,
+        borderLeftWidth: accent ? 3 : 1,
+      }}
     >
       {children}
     </div>
@@ -43,24 +56,24 @@ function PointRow({
   accentColor: string;
 }) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-cockpit-border last:border-0">
+    <div className="flex items-start gap-3 py-3 last:border-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
       <div
-        className="shrink-0 w-10 h-10 rounded-sm flex items-center justify-center text-lg font-black number-display"
+        className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg font-black"
         style={{ color: accentColor, background: `${accentColor}15` }}
       >
         {icon}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-white font-semibold text-sm">{label}</span>
+          <span className="font-semibold text-sm" style={{ color: TEXT1 }}>{label}</span>
           <span
-            className="text-xs font-black font-mono px-2 py-0.5 rounded-sm"
-            style={{ color: accentColor, background: `${accentColor}18` }}
+            className="text-xs font-black px-2 py-0.5 rounded-full"
+            style={{ color: accentColor, background: `${accentColor}15` }}
           >
             {pts} {pts === 1 ? "pt" : "pts"}
           </span>
         </div>
-        <p className="text-cockpit-muted text-xs mt-0.5 font-mono">{example}</p>
+        <p className="text-xs mt-0.5" style={{ color: MUTED }}>{example}</p>
       </div>
     </div>
   );
@@ -68,9 +81,9 @@ function PointRow({
 
 function Faq({ q, a }: { q: string; a: React.ReactNode }) {
   return (
-    <div className="py-3 border-b border-cockpit-border last:border-0">
-      <p className="text-white text-sm font-semibold mb-1">{q}</p>
-      <p className="text-cockpit-dim text-sm leading-relaxed">{a}</p>
+    <div className="py-3 last:border-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
+      <p className="text-sm font-semibold mb-1" style={{ color: TEXT1 }}>{q}</p>
+      <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>{a}</p>
     </div>
   );
 }
@@ -94,19 +107,19 @@ export default function RulesPage() {
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-12 w-full flex flex-col gap-8">
 
         {/* ── Breadcrumb ───────────────────────────────────── */}
-        <div className="flex items-center gap-2 text-xs text-cockpit-muted font-mono">
-          <Link href="/predict" className="hover:text-cockpit-dim transition-colors">Predictor</Link>
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: MUTED }}>
+          <Link href="/predict" className="hover:underline" style={{ color: MUTED }}>Predictor</Link>
           <span>/</span>
-          <span className="text-cockpit-dim">Rules &amp; Scoring</span>
+          <span style={{ color: TEXT2, fontWeight: 600 }}>Rules &amp; Scoring</span>
         </div>
 
         {/* ── Header ───────────────────────────────────────── */}
         <div>
-          <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-cockpit-muted mb-1">
+          <p className="text-[10px] tracking-[0.25em] uppercase mb-1" style={{ color: MUTED }}>
             SuperBrain · Predictor
           </p>
-          <h1 className="text-2xl font-bold text-white leading-tight">Rules &amp; Scoring</h1>
-          <p className="text-cockpit-dim text-sm mt-2 leading-relaxed">
+          <h1 className="text-2xl font-bold leading-tight" style={{ color: TEXT1 }}>Rules &amp; Scoring</h1>
+          <p className="text-sm mt-2 leading-relaxed" style={{ color: TEXT2 }}>
             Everything you need to know about how predictions are scored, when deadlines apply,
             and how league standings work.
           </p>
@@ -118,7 +131,8 @@ export default function RulesPage() {
             <a
               key={item.href}
               href={item.href}
-              className="text-[10px] font-mono px-2.5 py-1.5 rounded-sm border border-cockpit-border text-cockpit-dim hover:border-cockpit-accent hover:text-cockpit-accent transition-colors"
+              className="text-[10px] px-2.5 py-1.5 rounded-full transition-colors hover:underline"
+              style={{ border: `1px solid ${BORDER}`, color: TEXT2, background: CARD }}
             >
               {item.label}
             </a>
@@ -127,7 +141,7 @@ export default function RulesPage() {
 
         {/* ── 1. Scoring ───────────────────────────────────── */}
         <Section id="scoring" title="How Scoring Works">
-          <p className="text-cockpit-dim text-sm leading-relaxed">
+          <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
             Each prediction is scored once the final result is entered. Points are awarded
             based on how accurately you predicted the scoreline.
           </p>
@@ -138,57 +152,55 @@ export default function RulesPage() {
               pts={5}
               label="Exact score"
               example="You predicted 2–1 · Final result: 2–1"
-              accentColor="#00e676"
+              accentColor={GREEN}
             />
             <PointRow
               icon="✓"
               pts={3}
               label="Correct goal difference"
               example="You predicted 2–0 (+2 GD) · Final result: 3–1 (+2 GD)"
-              accentColor="#00d4ff"
+              accentColor="#0e1e35"
             />
             <PointRow
               icon="~"
               pts={2}
               label="Correct result only"
               example="You predicted 1–0 (home win) · Final result: 3–1 (home win)"
-              accentColor="#ffab00"
+              accentColor={GOLD}
             />
             <PointRow
               icon="✗"
               pts={0}
               label="Wrong prediction"
               example="You predicted 2–1 (home win) · Final result: 1–1 (draw)"
-              accentColor="#ff4040"
+              accentColor="#c0392b"
             />
           </Card>
 
           {/* Example table */}
           <div className="flex flex-col gap-2">
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest">
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>
               Examples — same final result (Brazil 2–1 England)
             </p>
-            <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
-              <div className="grid grid-cols-3 px-4 py-2 border-b border-cockpit-border bg-cockpit-surface">
-                <span className="text-[10px] text-cockpit-muted font-mono uppercase tracking-widest">Your prediction</span>
-                <span className="text-[10px] text-cockpit-muted font-mono uppercase tracking-widest text-center">Result</span>
-                <span className="text-[10px] text-cockpit-muted font-mono uppercase tracking-widest text-right">Points</span>
+            <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+              <div className="grid grid-cols-3 px-4 py-2" style={{ borderBottom: `1px solid ${BORDER}`, background: BG }}>
+                <span className="text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>Your prediction</span>
+                <span className="text-[10px] uppercase tracking-widest text-center" style={{ color: MUTED }}>Result</span>
+                <span className="text-[10px] uppercase tracking-widest text-right" style={{ color: MUTED }}>Points</span>
               </div>
               {[
-                { pred: "2–1",  reason: "Exact score",          pts: 5,  color: "#00e676" },
-                { pred: "3–2",  reason: "Correct GD (+1)",      pts: 3,  color: "#00d4ff" },
-                { pred: "4–1",  reason: "Correct GD (+3)? No — GD is +1 vs +3", pts: 2, color: "#ffab00", note: true },
-                { pred: "1–0",  reason: "Home win — correct result", pts: 2, color: "#ffab00" },
-                { pred: "1–1",  reason: "Draw — wrong result",  pts: 0,  color: "#ff4040" },
-                { pred: "0–2",  reason: "Away win — wrong result", pts: 0, color: "#ff4040" },
+                { pred: "2–1",  reason: "Exact score",                       pts: 5,  color: GREEN       },
+                { pred: "3–2",  reason: "Correct GD (+1)",                   pts: 3,  color: "#0e1e35"   },
+                { pred: "4–1",  reason: "Correct GD (+3)? No — GD is +1 vs +3", pts: 2, color: GOLD     },
+                { pred: "1–0",  reason: "Home win — correct result",          pts: 2,  color: GOLD        },
+                { pred: "1–1",  reason: "Draw — wrong result",                pts: 0,  color: "#c0392b"   },
+                { pred: "0–2",  reason: "Away win — wrong result",            pts: 0,  color: "#c0392b"   },
               ].map((row) => (
-                <div key={row.pred} className="grid grid-cols-3 px-4 py-2.5 border-b border-cockpit-border last:border-0 items-center">
-                  <span className="text-white font-mono font-semibold text-sm">{row.pred}</span>
-                  <span className="text-cockpit-muted text-xs text-center">{row.reason}</span>
-                  <span
-                    className="text-right font-black font-mono"
-                    style={{ color: row.color }}
-                  >
+                <div key={row.pred} className="grid grid-cols-3 px-4 py-2.5 items-center"
+                  style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <span className="font-mono font-semibold text-sm" style={{ color: TEXT1 }}>{row.pred}</span>
+                  <span className="text-xs text-center" style={{ color: MUTED }}>{row.reason}</span>
+                  <span className="text-right font-black font-mono" style={{ color: row.color }}>
                     {row.pts} pts
                   </span>
                 </div>
@@ -196,10 +208,10 @@ export default function RulesPage() {
             </div>
           </div>
 
-          <Card accent="#1e2a38">
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">Note on extra time &amp; penalties</p>
-            <p className="text-cockpit-dim text-sm leading-relaxed">
-              Scoring is based on the <span className="text-white font-semibold">90-minute result only</span> (including
+          <Card accent={MUTED}>
+            <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>Note on extra time &amp; penalties</p>
+            <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+              Scoring is based on the <span className="font-semibold" style={{ color: TEXT1 }}>90-minute result only</span> (including
               injury time). Goals scored in extra time or determined by a penalty shootout are
               not counted when calculating your prediction score.
             </p>
@@ -208,15 +220,15 @@ export default function RulesPage() {
 
         {/* ── 2. Deadlines ─────────────────────────────────── */}
         <Section id="deadlines" title="Prediction Deadlines">
-          <Card accent="#ff3d00">
+          <Card accent="#c0392b">
             <div className="flex items-start gap-3">
               <span className="text-xl shrink-0">🔒</span>
               <div>
-                <p className="text-white font-semibold text-sm">Each match locks at kickoff — individually</p>
-                <p className="text-cockpit-dim text-sm mt-1 leading-relaxed">
+                <p className="font-semibold text-sm" style={{ color: TEXT1 }}>Each match locks at kickoff — individually</p>
+                <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
                   You can submit or edit your prediction any time before a match kicks off.
                   The moment the match starts, your prediction is locked permanently.{" "}
-                  <span className="text-white font-medium">The whole tournament does not lock at once</span> — each
+                  <span className="font-medium" style={{ color: TEXT1 }}>The whole tournament does not lock at once</span> — each
                   game has its own independent deadline.
                 </p>
               </div>
@@ -246,11 +258,12 @@ export default function RulesPage() {
                 body: "Fixture cards show a live countdown when a match is within 24 hours. Watch for the amber \"Closes Xh\" badge.",
               },
             ].map((item) => (
-              <div key={item.title} className="flex items-start gap-3 bg-cockpit-card border border-cockpit-border rounded-sm p-4">
+              <div key={item.title} className="flex items-start gap-3 p-4 rounded-xl"
+                style={{ background: CARD, border: `1px solid ${BORDER}` }}>
                 <span className="text-lg shrink-0">{item.icon}</span>
                 <div>
-                  <p className="text-white font-semibold text-sm">{item.title}</p>
-                  <p className="text-cockpit-dim text-sm mt-0.5 leading-relaxed">{item.body}</p>
+                  <p className="font-semibold text-sm" style={{ color: TEXT1 }}>{item.title}</p>
+                  <p className="text-sm mt-0.5 leading-relaxed" style={{ color: TEXT2 }}>{item.body}</p>
                 </div>
               </div>
             ))}
@@ -261,23 +274,23 @@ export default function RulesPage() {
         <Section id="leagues" title="Leagues &amp; Tie-breakers">
           <div className="flex flex-col gap-3">
             <Card>
-              <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">League standings</p>
-              <p className="text-cockpit-dim text-sm leading-relaxed">
+              <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>League standings</p>
+              <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
                 Players are ranked by their total points across all scored predictions in the competition.
                 Points accumulate as match results are entered throughout the tournament.
               </p>
             </Card>
 
             <Card>
-              <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">Points breakdown</p>
-              <p className="text-cockpit-dim text-sm leading-relaxed">
-                Total Points = <span className="text-white font-semibold">Match Points</span> + <span className="text-cockpit-amber font-semibold">Bonus Points</span>.
+              <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>Points breakdown</p>
+              <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+                Total Points = <span className="font-semibold" style={{ color: TEXT1 }}>Match Points</span> + <span className="font-semibold" style={{ color: GOLD }}>Bonus Points</span>.
                 Both are shown separately on the leaderboard so you can always see where your score comes from.
               </p>
             </Card>
 
             <Card>
-              <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-3">
+              <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: MUTED }}>
                 Tie-breaker order
               </p>
               <div className="flex flex-col gap-2">
@@ -288,16 +301,16 @@ export default function RulesPage() {
                   { n: "4", label: "Most predictions made",    detail: "More fixtures predicted" },
                   { n: "5", label: "Earliest join date",       detail: "Earlier sign-up to the league" },
                 ].map((row) => (
-                  <div key={row.n} className="flex items-center gap-3 py-2 border-b border-cockpit-border last:border-0">
+                  <div key={row.n} className="flex items-center gap-3 py-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
                     <span
-                      className="w-6 h-6 rounded-sm flex items-center justify-center text-xs font-black shrink-0"
-                      style={{ background: "#1e2a38", color: "#a8b8cc" }}
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
+                      style={{ background: `${GREEN}12`, color: GREEN }}
                     >
                       {row.n}
                     </span>
                     <div className="flex-1">
-                      <span className="text-white text-sm font-semibold">{row.label}</span>
-                      <span className="text-cockpit-muted text-xs ml-2">{row.detail}</span>
+                      <span className="text-sm font-semibold" style={{ color: TEXT1 }}>{row.label}</span>
+                      <span className="text-xs ml-2" style={{ color: MUTED }}>{row.detail}</span>
                     </div>
                   </div>
                 ))}
@@ -305,8 +318,8 @@ export default function RulesPage() {
             </Card>
 
             <Card>
-              <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">Private leagues</p>
-              <p className="text-cockpit-dim text-sm leading-relaxed">
+              <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>Private leagues</p>
+              <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
                 Leagues are private by default. Only people with your invite code or invite link can join.
                 No public league directory exists — your league is only findable by people you share the code with.
               </p>
@@ -316,15 +329,15 @@ export default function RulesPage() {
 
         {/* ── 4. Bonus Questions ───────────────────────────── */}
         <Section id="bonus" title="Bonus Questions">
-          <p className="text-cockpit-dim text-sm leading-relaxed">
-            Six tournament-wide questions worth up to <span className="text-white font-semibold">75 bonus points</span> on
+          <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+            Six tournament-wide questions worth up to <span className="font-semibold" style={{ color: TEXT1 }}>75 bonus points</span> on
             top of your match prediction score. Submit your answers at{" "}
-            <Link href="/predict/bonus" className="text-cockpit-accent hover:underline">Bonus Questions</Link>.
+            <Link href="/predict/bonus" className="hover:underline" style={{ color: GREEN }}>Bonus Questions</Link>.
           </p>
 
           {/* Scoring table */}
           <Card>
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-3">Points per question</p>
+            <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: MUTED }}>Points per question</p>
             <div className="flex flex-col">
               {[
                 { icon: "🏆", label: "World Cup Winner",                   pts: 20 },
@@ -334,10 +347,10 @@ export default function RulesPage() {
                 { icon: "🛡️", label: "Team Conceding Fewest Goals",         pts: 10 },
                 { icon: "⭐", label: "Surprise Team",                       pts: 10 },
               ].map((r) => (
-                <div key={r.label} className="flex items-center gap-3 py-2.5 border-b border-cockpit-border last:border-0">
+                <div key={r.label} className="flex items-center gap-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <span className="text-xl shrink-0 w-8 text-center">{r.icon}</span>
-                  <span className="flex-1 text-cockpit-dim text-sm">{r.label}</span>
-                  <span className="font-black font-mono text-sm" style={{ color: "#ffab00" }}>
+                  <span className="flex-1 text-sm" style={{ color: TEXT2 }}>{r.label}</span>
+                  <span className="font-black font-mono text-sm" style={{ color: GOLD }}>
                     {r.pts} pts
                   </span>
                 </div>
@@ -346,18 +359,18 @@ export default function RulesPage() {
           </Card>
 
           {/* Auto-lock */}
-          <Card accent="#ff3d00">
+          <Card accent="#c0392b">
             <div className="flex items-start gap-3">
               <span className="text-xl shrink-0">🔒</span>
               <div>
-                <p className="text-white font-semibold text-sm">Auto-lock at tournament kickoff</p>
-                <p className="text-cockpit-dim text-sm mt-1 leading-relaxed">
-                  All bonus predictions lock <span className="text-white font-semibold">automatically</span> the
+                <p className="font-semibold text-sm" style={{ color: TEXT1 }}>Auto-lock at tournament kickoff</p>
+                <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
+                  All bonus predictions lock <span className="font-semibold" style={{ color: TEXT1 }}>automatically</span> the
                   moment the first match kicks off (June 11, 2026 · 19:00 UTC). This is enforced at the
                   database level — no submission or edit is possible after that time, regardless of
                   whether an admin has manually locked a question.
                 </p>
-                <p className="text-cockpit-muted text-xs mt-2 font-mono">
+                <p className="text-xs mt-2" style={{ color: MUTED }}>
                   Make all six predictions before tournament kickoff.
                 </p>
               </div>
@@ -366,15 +379,15 @@ export default function RulesPage() {
 
           {/* Surprise Team definition */}
           <Card>
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">
+            <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>
               Surprise Team — official definition
             </p>
-            <p className="text-cockpit-dim text-sm leading-relaxed">
-              The <span className="text-white font-semibold">highest finishing team</span> that was ranked
-              outside the <span className="text-white font-semibold">FIFA Top 20</span> in the official
-              FIFA Men&apos;s World Rankings <span className="text-white font-semibold">immediately before the tournament begins</span>.
+            <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+              The <span className="font-semibold" style={{ color: TEXT1 }}>highest finishing team</span> that was ranked
+              outside the <span className="font-semibold" style={{ color: TEXT1 }}>FIFA Top 20</span> in the official
+              FIFA Men&apos;s World Rankings <span className="font-semibold" style={{ color: TEXT1 }}>immediately before the tournament begins</span>.
             </p>
-            <p className="text-cockpit-muted text-xs mt-2 font-mono">
+            <p className="text-xs mt-2" style={{ color: MUTED }}>
               Final position is determined by official FIFA tournament standings. In the event of a tie,
               the team with the lower pre-tournament FIFA ranking is selected.
             </p>
@@ -382,8 +395,8 @@ export default function RulesPage() {
 
           {/* Scoring */}
           <Card>
-            <p className="text-cockpit-muted text-[10px] font-mono uppercase tracking-widest mb-2">How answers are scored</p>
-            <p className="text-cockpit-dim text-sm leading-relaxed">
+            <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>How answers are scored</p>
+            <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
               Team questions require an exact team match. The Golden Boot question requires an exact
               player name match (case-insensitive). Points are awarded in full — there are no partial
               points for bonus questions. All scoring is automatic once the admin enters the correct answer.
@@ -437,20 +450,20 @@ export default function RulesPage() {
 
         {/* ── 6. Disclaimer ────────────────────────────────── */}
         <Section id="disclaimer" title="Disclaimer">
-          <Card accent="#64748b">
-            <p className="text-cockpit-dim text-sm leading-relaxed">
-              <span className="text-white font-semibold">All scoring is calculated automatically by the SuperBrain platform.</span>{" "}
+          <Card accent={MUTED}>
+            <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+              <span className="font-semibold" style={{ color: TEXT1 }}>All scoring is calculated automatically by the SuperBrain platform.</span>{" "}
               Point totals are determined entirely by the match results entered by platform administrators
               and the prediction you submitted before kickoff. No manual adjustments are made to individual
               user scores.
             </p>
-            <p className="text-cockpit-dim text-sm leading-relaxed mt-3">
+            <p className="text-sm leading-relaxed mt-3" style={{ color: TEXT2 }}>
               SuperBrain Predictor is a free-to-play, points-based prediction game. No money, prizes,
               or items of value are offered or implied. Results are for entertainment purposes only.
             </p>
-            <p className="text-cockpit-dim text-sm leading-relaxed mt-3">
+            <p className="text-sm leading-relaxed mt-3" style={{ color: TEXT2 }}>
               If you believe there is an error in a match result, please contact us via the{" "}
-              <Link href="/contact" className="text-cockpit-accent hover:underline">
+              <Link href="/contact" className="hover:underline" style={{ color: GREEN }}>
                 Contact page
               </Link>
               . We will investigate and rescore if a genuine error is confirmed.
@@ -461,7 +474,8 @@ export default function RulesPage() {
         {/* ── Back ─────────────────────────────────────────── */}
         <Link
           href="/predict"
-          className="text-cockpit-muted text-xs text-center hover:text-cockpit-dim transition-colors font-mono"
+          className="text-xs text-center hover:underline"
+          style={{ color: MUTED }}
         >
           ← Back to predictor
         </Link>
