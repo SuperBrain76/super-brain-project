@@ -19,9 +19,16 @@ function rowToProfile(row: Record<string, unknown>): UserProfile {
 export async function loadMyProfile(): Promise<UserProfile | null> {
   if (!isSupabaseConfigured) return null;
 
+  // Must filter by id explicitly — relying on RLS alone breaks when the
+  // "authenticated can read any profile" policy (migration 011) is active,
+  // because .single() then sees multiple rows and errors.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
   const { data, error } = await supabase
     .from("user_profiles")
     .select("*")
+    .eq("id", user.id)
     .single();
 
   if (error || !data) return null;
@@ -53,10 +60,21 @@ export async function saveProfile(
   if (fields.avatarColor     !== undefined) payload.avatar_color     = fields.avatarColor;
   if (fields.profileComplete !== undefined) payload.profile_complete = fields.profileComplete;
 
+  // Use upsert so a missing profile row is created rather than silently
+  // failing. .update() with no matching row returns no error but writes nothing.
   const { error } = await supabase
     .from("user_profiles")
-    .update(payload)
-    .eq("id", userId);
+    .upsert({ id: userId, ...payload }, { onConflict: "id" });
 
-  return { error: error?.message ?? null };
+  if (error) return { error: error.message };
+
+  // Verify the write actually landed — catches silent RLS-blocked writes
+  const { data: verify } = await supabase
+    .from("user_profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .single();
+
+  if (!verify) return { error: "Profile saved but could not be verified. Try again." };
+  return { error: null };
 }
