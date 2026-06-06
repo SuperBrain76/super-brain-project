@@ -151,10 +151,10 @@ function LeaderboardTable({
               {isOwner && (
                 <span
                   className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
-                  style={{ color: "#ffab00", background: "#ffab0015" }}
-                  title="League owner"
+                  style={{ color: "#b8972a", background: "#b8972a15" }}
+                  title="League captain"
                 >
-                  OWNER
+                  👑 CAPTAIN
                 </span>
               )}
               {isMe && (
@@ -246,7 +246,7 @@ function MembersList({
                 <span className="text-white text-sm font-medium truncate">{m.displayName}</span>
                 {m.isOwner && (
                   <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"
-                    style={{ color: "#ffab00", background: "#ffab0015" }}>OWNER</span>
+                    style={{ color: "#b8972a", background: "#b8972a15" }}>👑 CAPTAIN</span>
                 )}
                 {isMe && (
                   <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-sm"

@@ -73,7 +73,7 @@ export default function Nav() {
             Battle
           </Link>
           <Link href="/leaderboard" className={`hidden md:block ${navLinkCls("/leaderboard")}`}>
-            Leaderboard
+            Global Rankings
           </Link>
         </nav>
 

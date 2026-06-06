@@ -12,14 +12,23 @@ import {
 
 const LAST_FIXTURE_KEY = "lastPredictedFixture";
 
+// ── Design tokens (premium green/gold/navy) ───────────────────
+const GREEN  = "#1a3a2a";
+const GOLD   = "#b8972a";
+const NAVY   = "#0e1e35";
+const MUTED  = "#7a8f82";
+const BORDER = "#dde5d8";
+
 // ── Team name + flag ─────────────────────────────────────────
 
 function TeamDisplay({
   team,
   align,
+  dim,
 }: {
-  team: Fixture["homeTeam"];
+  team:  Fixture["homeTeam"];
   align: "left" | "right";
+  dim?:  boolean;
 }) {
   const name = team?.name ?? "TBD";
   const flag = team?.flagEmoji ?? "🏳";
@@ -32,9 +41,10 @@ function TeamDisplay({
     >
       <span className="text-xl shrink-0 leading-none">{flag}</span>
       <span
-        className={`text-sm font-semibold text-white leading-tight truncate ${
+        className={`text-sm font-semibold leading-tight truncate ${
           align === "right" ? "text-right" : ""
         }`}
+        style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
       >
         {name}
       </span>
@@ -48,11 +58,11 @@ function ScoreBadge({ fixture }: { fixture: Fixture }) {
   if (fixture.status === "completed" && fixture.homeScore !== null && fixture.awayScore !== null) {
     return (
       <div className="flex items-center justify-center gap-1 shrink-0 px-2">
-        <span className="text-lg font-black number-display text-white tabular-nums">
+        <span className="text-lg font-black number-display tabular-nums" style={{ color: NAVY }}>
           {fixture.homeScore}
         </span>
-        <span className="text-cockpit-border font-bold">–</span>
-        <span className="text-lg font-black number-display text-white tabular-nums">
+        <span className="font-bold" style={{ color: BORDER }}>–</span>
+        <span className="text-lg font-black number-display tabular-nums" style={{ color: NAVY }}>
           {fixture.awayScore}
         </span>
       </div>
@@ -63,8 +73,8 @@ function ScoreBadge({ fixture }: { fixture: Fixture }) {
   return (
     <div className="flex items-center justify-center shrink-0 px-2">
       <span
-        className="text-xs font-mono tracking-widest uppercase"
-        style={{ color: open ? "#00d4ff" : "#8899aa" }}
+        className="text-xs font-semibold tracking-widest uppercase"
+        style={{ color: fixture.status === "live" ? "#e53e3e" : MUTED }}
       >
         {fixture.status === "live" ? "LIVE" : "vs"}
       </span>
@@ -72,15 +82,13 @@ function ScoreBadge({ fixture }: { fixture: Fixture }) {
   );
 }
 
-// ── Fixture status badge ──────────────────────────────────────
-// Top-right of each card. Priority order:
-//   LIVE → completed (pts / missed) → locked → closing countdown → kickoff time
+// ── Status badge (top-right of card) ─────────────────────────
 
 function StatusBadge({
   fixture,
   showPrediction,
 }: {
-  fixture: Fixture;
+  fixture:        Fixture;
   showPrediction: boolean;
 }) {
   const open      = isPredictionOpen(fixture);
@@ -91,143 +99,158 @@ function StatusBadge({
   const closing   = open && msUntil < 24 * 3_600_000;
   const countdown = closing ? kickoffCountdown(fixture.kicksOffAt) : "";
 
-  // ── LIVE ──────────────────────────────────────────────────────
   if (live) {
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold font-mono tracking-widest px-1.5 py-0.5 rounded-sm"
-        style={{ color: "#00e676", background: "#00e67615" }}>
-        <span className="w-1.5 h-1.5 rounded-full bg-cockpit-green animate-pulse inline-block" />
+      <span
+        className="flex items-center gap-1 text-[10px] font-bold tracking-widest px-1.5 py-0.5 rounded-sm"
+        style={{ color: "#e53e3e", background: "#fff0f0", border: "1px solid #fca5a5" }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: "#e53e3e" }} />
         LIVE
       </span>
     );
   }
 
-  // ── COMPLETED ─────────────────────────────────────────────────
   if (done) {
     if (showPrediction && hasPred && fixture.myPrediction!.pointsAwarded !== null) {
       const pts = fixture.myPrediction!.pointsAwarded;
-      const col = pointsColor(pts);
-      const icon = pts === 5 ? "⚡" : pts === 3 ? "✓" : pts === 2 ? "~" : "✗";
+      const isExact = pts === 5 || pts === 3;
       return (
         <span
-          className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-sm shrink-0"
-          style={{ color: col, background: `${col}15` }}
+          className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm shrink-0"
+          style={{ color: isExact ? GOLD : MUTED, background: isExact ? `${GOLD}15` : "#f0f3ef" }}
         >
-          {icon} {pts} pts
+          {pts === 5 ? "⚡" : pts === 3 ? "✓" : pts === 2 ? "~" : "✗"} {pts}pts
         </span>
       );
     }
     if (showPrediction && !hasPred) {
-      return (
-        <span className="text-[10px] font-mono text-cockpit-muted shrink-0">Missed</span>
-      );
+      return <span className="text-[10px]" style={{ color: MUTED }}>Missed</span>;
     }
     return (
-      <span className="text-[10px] font-mono text-cockpit-muted shrink-0">
+      <span className="text-[10px]" style={{ color: MUTED }}>
         {formatKickoff(fixture.kicksOffAt, { date: true, time: false })}
       </span>
     );
   }
 
-  // ── LOCKED ────────────────────────────────────────────────────
   if (!open && !done && !live) {
-    return (
-      <span className="text-[10px] font-mono text-cockpit-muted shrink-0">🔒 In progress</span>
-    );
+    return <span className="text-[10px]" style={{ color: MUTED }}>🔒 Locked</span>;
   }
 
-  // ── OPEN — closing within 24h ─────────────────────────────────
   if (closing) {
     if (showPrediction && hasPred) {
       return (
-        <span className="text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded-sm"
-          style={{ color: "#ffab00", background: "#ffab0015" }}>
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"
+          style={{ color: "#d97706", background: "#fef9e7" }}>
           ✓ Closes {countdown}
         </span>
       );
     }
     return (
-      <span className="text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded-sm"
-        style={{ color: "#ffab00", background: "#ffab0015" }}>
+      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"
+        style={{ color: "#d97706", background: "#fef9e7" }}>
         ⏱ {countdown}
       </span>
     );
   }
 
-  // ── OPEN — plenty of time ─────────────────────────────────────
-  // Show kickoff time; the saved indicator lives in PredictionRow.
   return (
-    <span className="text-[10px] font-mono text-cockpit-muted shrink-0">
+    <span className="text-[10px]" style={{ color: MUTED }}>
       {formatKickoff(fixture.kicksOffAt, { time: true })}
     </span>
   );
 }
 
-// ── Prediction row ───────────────────────────────────────────
+// ── YOUR PICK strip ──────────────────────────────────────────
+// Rendered below the teams row for any fixture with a saved prediction.
+// Impossible to miss: green background strip, tick mark, bold score.
 
-function PredictionRow({ fixture }: { fixture: Fixture }) {
+function PickStrip({ fixture }: { fixture: Fixture }) {
   const pred = fixture.myPrediction;
-  const open = isPredictionOpen(fixture);
-  const done = fixture.status === "completed";
+  if (!pred) return null;
 
-  // ── No prediction ──────────────────────────────────────────
-  if (!pred) {
-    if (open) {
-      return (
-        <p className="text-cockpit-accent text-xs font-mono">
-          Tap to predict →
-        </p>
-      );
-    }
-    if (done) {
-      return (
-        <p className="text-cockpit-muted text-xs font-mono">No prediction made</p>
-      );
-    }
-    return (
-      <p className="text-cockpit-muted text-xs font-mono flex items-center gap-1">
-        <span>🔒</span>
-        <span>Prediction locked</span>
-      </p>
-    );
-  }
+  const open    = isPredictionOpen(fixture);
+  const done    = fixture.status === "completed";
+  const pts     = pred.pointsAwarded;
+  const isExact = pts === 3 || pts === 5;
 
-  // ── Has prediction ─────────────────────────────────────────
-  const pts = pred.pointsAwarded;
-  const col = pointsColor(pts);
+  const bg         = isExact ? "#fdf9ee" : "#f4f8f4";
+  const borderTop  = isExact ? "#f0e7c4" : "#ddf0dd";
+  const labelColor = isExact ? GOLD : GREEN;
+  const scoreColor = isExact ? GOLD : GREEN;
+  const tickBg     = isExact ? GOLD : GREEN;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {/* "Saved" pill — only when match still open */}
-      {open && (
-        <span
-          className="text-[10px] font-mono font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-sm shrink-0"
-          style={{ color: "#00d4ff", background: "#00d4ff18", border: "1px solid #00d4ff35" }}
-        >
-          ✓ Saved
-        </span>
-      )}
+    <div
+      className="flex items-center gap-2 px-3 py-1.5"
+      style={{ background: bg, borderTop: `1px solid ${borderTop}` }}
+    >
+      {/* Tick */}
+      <div
+        className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
+        style={{ background: tickBg }}
+      >
+        <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
+          <polyline points="2,5 4.5,7.5 8,3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
 
-      {/* Predicted score — prominent */}
+      {/* Label */}
       <span
-        className="text-sm font-bold font-mono tabular-nums shrink-0"
-        style={{ color: open ? "#00d4ff" : "#a8b8cc" }}
+        className="text-[9px] font-bold uppercase tracking-widest"
+        style={{ color: labelColor }}
+      >
+        {done && isExact ? "Exact score" : done ? "Your pick" : "Your pick · Saved"}
+      </span>
+
+      {/* Score */}
+      <span
+        className="text-sm font-extrabold tabular-nums leading-none"
+        style={{ color: scoreColor, letterSpacing: "0.06em" }}
       >
         {pred.homeScore}–{pred.awayScore}
       </span>
 
-      {/* Points result (completed) */}
-      {pts !== null && (
-        <span className="text-xs font-bold font-mono shrink-0" style={{ color: col }}>
-          {pts === 5 ? "⚡" : pts === 3 ? "✓" : pts === 2 ? "~" : "✗"} {pts} pts
+      {/* Points result if scored */}
+      {done && pts !== null && (
+        <span
+          className="ml-auto text-[10px] font-bold"
+          style={{ color: isExact ? GOLD : MUTED }}
+        >
+          {isExact ? `+${pts} pts ★` : pts > 0 ? `+${pts} pts` : "0 pts"}
         </span>
       )}
 
-      {/* Edit hint */}
+      {/* Open hint */}
       {open && (
-        <span className="text-cockpit-muted text-[10px] font-mono">· edit</span>
+        <span className="ml-auto text-[10px]" style={{ color: MUTED }}>
+          tap to edit
+        </span>
       )}
     </div>
+  );
+}
+
+// ── Fallback prediction row (no prediction, open fixture) ─────
+
+function NoPredRow({ fixture }: { fixture: Fixture }) {
+  const open = isPredictionOpen(fixture);
+  const done = fixture.status === "completed";
+
+  if (open) return (
+    <p className="text-xs font-medium" style={{ color: GREEN }}>
+      Tap to predict →
+    </p>
+  );
+  if (done) return (
+    <p className="text-xs" style={{ color: MUTED }}>No prediction made</p>
+  );
+  return (
+    <p className="text-xs flex items-center gap-1" style={{ color: MUTED }}>
+      <span>🔒</span>
+      <span>Prediction locked</span>
+    </p>
   );
 }
 
@@ -237,7 +260,7 @@ interface FixtureCardProps {
   fixture:         Fixture;
   showPrediction?: boolean;
   compact?:        boolean;
-  highlighted?:    boolean;  // brief flash on return from prediction page
+  highlighted?:    boolean;
 }
 
 export default function FixtureCard({
@@ -249,21 +272,15 @@ export default function FixtureCard({
   const open    = isPredictionOpen(fixture);
   const done    = fixture.status === "completed";
   const hasPred = !!fixture.myPrediction;
+  const isExact = hasPred && done && (fixture.myPrediction?.pointsAwarded === 3 || fixture.myPrediction?.pointsAwarded === 5);
 
-  // Left-accent stripe signals "you've predicted this"
-  const leftAccent =
-    showPrediction && hasPred && done && fixture.myPrediction?.pointsAwarded === 5
-      ? "#00e676"
-      : showPrediction && hasPred && done
-      ? "#00d4ff"
-      : showPrediction && hasPred && open
-      ? "#00d4ff"
-      : "transparent";
-
+  // Left accent + border when predicted
+  const leftBorder  = showPrediction && hasPred ? `3px solid ${GREEN}` : "3px solid transparent";
   const borderColor =
-    done && hasPred && fixture.myPrediction?.pointsAwarded === 5 ? "#00e67620" :
-    done && hasPred && (fixture.myPrediction?.pointsAwarded ?? 0) > 0 ? "#00d4ff20" :
-    open ? "#1e2a38" : "#131c27";
+    highlighted                 ? "#86b89a" :
+    showPrediction && isExact   ? `${GOLD}80` :
+    showPrediction && hasPred   ? "#86b89a" :
+    BORDER;
 
   return (
     <Link
@@ -275,37 +292,45 @@ export default function FixtureCard({
       }}
     >
       <div
-        className="bg-cockpit-card border rounded-sm px-4 py-3 flex flex-col gap-2 w-full hover:border-cockpit-accent transition-colors duration-150"
+        className="rounded-xl overflow-hidden w-full transition-all duration-150"
         style={{
-          borderColor,
-          borderLeft: `3px solid ${leftAccent}`,
-          boxShadow: highlighted ? "0 0 0 2px #00d4ff55, 0 0 12px #00d4ff20" : undefined,
-          transition: "box-shadow 0.9s ease-out, border-color 0.15s",
+          background:   "#fff",
+          border:       `1px solid ${borderColor}`,
+          borderLeft:   leftBorder,
+          boxShadow:    highlighted ? `0 0 0 2px ${GREEN}40, 0 2px 8px rgba(26,58,42,0.12)` : "0 1px 2px rgba(0,0,0,0.04)",
+          transition:   "box-shadow 0.9s ease-out, border-color 0.15s",
         }}
       >
         {/* Header row: stage label + status badge */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-cockpit-muted truncate">
+        <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-0">
+          <span className="text-[10px] uppercase tracking-widest truncate" style={{ color: MUTED }}>
             {fixture.groupName ? `Group ${fixture.groupName}` : stageLabel(fixture.stage)}
           </span>
           <StatusBadge fixture={fixture} showPrediction={showPrediction} />
         </div>
 
         {/* Teams + score */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-3 py-2">
           <TeamDisplay team={fixture.homeTeam} align="left" />
           <ScoreBadge fixture={fixture} />
-          <TeamDisplay team={fixture.awayTeam} align="right" />
+          <TeamDisplay team={fixture.awayTeam} align="right" dim />
         </div>
 
-        {/* Prediction row */}
-        {showPrediction && !compact && (
-          <PredictionRow fixture={fixture} />
+        {/* YOUR PICK strip — only when there is a prediction */}
+        {showPrediction && hasPred && !compact && (
+          <PickStrip fixture={fixture} />
+        )}
+
+        {/* No prediction fallback row */}
+        {showPrediction && !hasPred && !compact && (
+          <div className="px-3 pb-2.5">
+            <NoPredRow fixture={fixture} />
+          </div>
         )}
 
         {/* Venue */}
         {!compact && fixture.venue && (
-          <p className="text-[10px] text-cockpit-muted font-mono truncate">
+          <p className="text-[10px] px-3 pb-2" style={{ color: MUTED }}>
             {fixture.venue}
           </p>
         )}

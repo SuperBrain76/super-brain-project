@@ -212,10 +212,12 @@ export default function RulesPage() {
             <div className="flex items-start gap-3">
               <span className="text-xl shrink-0">🔒</span>
               <div>
-                <p className="text-white font-semibold text-sm">Predictions lock at kickoff</p>
+                <p className="text-white font-semibold text-sm">Each match locks at kickoff — individually</p>
                 <p className="text-cockpit-dim text-sm mt-1 leading-relaxed">
                   You can submit or edit your prediction any time before a match kicks off.
-                  The moment the match starts, your prediction is locked permanently.
+                  The moment the match starts, your prediction is locked permanently.{" "}
+                  <span className="text-white font-medium">The whole tournament does not lock at once</span> — each
+                  game has its own independent deadline.
                 </p>
               </div>
             </div>
