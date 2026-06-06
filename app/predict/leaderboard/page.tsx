@@ -187,9 +187,7 @@ export default function PredictorLeaderboardPage() {
 
           {/* Rows */}
           {rows.map((row) => {
-            const isMe = !!(user && row.displayName === (myStats ? row.displayName : null) &&
-              row.totalPoints === myStats?.totalPoints &&
-              row.rank === myStats?.globalRank);
+            const isMe = !!(user && row.userId === user.id);
 
             return (
               <div

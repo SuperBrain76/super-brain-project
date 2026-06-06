@@ -791,6 +791,7 @@ export async function getPredictorLeaderboard(
   if (error || !data) return [];
   return (data as Record<string, unknown>[]).map((r) => ({
     rank:        Number(r.rank),
+    userId:      r.user_id as string,
     displayName: (r.display_name as string | null) || "Player",
     country:     r.country as string | null,
     totalPoints: Number(r.total_points),
