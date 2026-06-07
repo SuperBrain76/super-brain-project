@@ -39,12 +39,13 @@ export default function Image() {
       {/* Headline */}
       <div
         style={{
+          display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0.25em",
           fontSize: "64px", fontWeight: 900, color: "#ffffff",
           textAlign: "center", lineHeight: 1.1, marginBottom: "24px",
           letterSpacing: "-0.02em",
         }}
       >
-        How sharp is{" "}
+        <span>How sharp is</span>
         <span style={{ color: "#00d4ff" }}>your mind?</span>
       </div>
 
@@ -69,14 +70,14 @@ export default function Image() {
       </div>
 
       {/* URL */}
-      <span
+      <div
         style={{
-          position: "absolute", bottom: "40px",
+          display: "flex", position: "absolute", bottom: "40px",
           color: "#4a5568", fontSize: "16px",
         }}
       >
         superbrain.social
-      </span>
+      </div>
     </div>,
     size,
   );

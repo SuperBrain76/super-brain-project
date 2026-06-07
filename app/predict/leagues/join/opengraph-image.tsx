@@ -1,12 +1,8 @@
 import { ImageResponse } from "next/og";
 
 /**
- * Static fallback OG image for league join links when no league code is
- * provided or the code is invalid. Shown as the social card for:
- *   /predict/leagues/join  (no ?code param)
- *
- * When a valid code resolves to a league, the join page's generateMetadata
- * points to the dynamic /predict/leagues/[leagueId]/opengraph-image instead.
+ * Static fallback OG image for league join links — no emoji, SVG only.
+ * Satori (used by next/og) cannot render emoji glyphs from system-ui font.
  */
 
 export const runtime     = "edge";
@@ -29,7 +25,7 @@ export default function Image() {
       }}
     >
       {/* Gold top border */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #b8972a, #e8c44a, #b8972a)" }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #b8972a, #e8c44a, #b8972a)", display: "flex" }} />
 
       {/* Subtle diagonal texture */}
       <div
@@ -37,6 +33,7 @@ export default function Image() {
           position:   "absolute",
           inset:      0,
           background: "repeating-linear-gradient(135deg, transparent, transparent 40px, #ffffff03 40px, #ffffff03 41px)",
+          display:    "flex",
         }}
       />
 
@@ -50,10 +47,11 @@ export default function Image() {
           width:      800,
           height:     500,
           background: "radial-gradient(ellipse at 50% 0%, #b8972a18 0%, transparent 65%)",
+          display:    "flex",
         }}
       />
 
-      {/* ── Top bar ───────────────────────────────────────────── */}
+      {/* ── Top bar ─────────────────────────────────────────── */}
       <div
         style={{
           display:        "flex",
@@ -83,7 +81,7 @@ export default function Image() {
           </span>
         </div>
 
-        {/* World Cup badge */}
+        {/* World Cup badge — SVG ball instead of emoji */}
         <div
           style={{
             display:      "flex",
@@ -95,14 +93,21 @@ export default function Image() {
             padding:      "10px 20px",
           }}
         >
-          <span style={{ fontSize: 20 }}>⚽</span>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="9" stroke="#b8972a" strokeWidth="1.5" fill="none"/>
+            <polygon points="10,3 12.5,6.5 10,8.5 7.5,6.5" fill="#b8972a" opacity="0.8"/>
+            <polygon points="15.5,7 17,10.5 14,11.5 12.5,8.5" fill="#b8972a" opacity="0.8"/>
+            <polygon points="14,14.5 11,16 10,13 12.5,11.5" fill="#b8972a" opacity="0.8"/>
+            <polygon points="8,13 7,16 4,14.5 5.5,11.5" fill="#b8972a" opacity="0.8"/>
+            <polygon points="3,10.5 4.5,7 7.5,8.5 6,11.5" fill="#b8972a" opacity="0.8"/>
+          </svg>
           <span style={{ color: "#b8972a", fontSize: 14, fontWeight: 700, letterSpacing: "0.14em" }}>
             WORLD CUP 2026
           </span>
         </div>
       </div>
 
-      {/* ── Centre content ────────────────────────────────────── */}
+      {/* ── Centre content ───────────────────────────────────── */}
       <div
         style={{
           flex:           1,
@@ -115,8 +120,11 @@ export default function Image() {
           gap:            0,
         }}
       >
-        {/* Trophy */}
-        <span style={{ fontSize: 80, marginBottom: 28, lineHeight: 1 }}>🏆</span>
+        {/* Trophy SVG — hero size */}
+        <svg width="72" height="76" viewBox="0 0 28 30" fill="none" style={{ marginBottom: 28 }}>
+          <path d="M4 2h20M4 2C4 2 2 2 2 6c0 5 4 8 7 9M24 2c0 0 2 0 2 4c0 5-4 8-7 9M9 15c0 4 2 7 5 8m5-8c0 4-2 7-5 8m0 0v4m0 0H9m5 0h5" stroke="#e8c44a" strokeWidth="2" strokeLinecap="round"/>
+          <rect x="8" y="27" width="12" height="2.5" rx="1" fill="#e8c44a"/>
+        </svg>
 
         {/* Headline */}
         <p
@@ -141,7 +149,6 @@ export default function Image() {
             fontWeight:    500,
             textAlign:     "center",
             marginBottom:  40,
-            letterSpacing: "0.01em",
           }}
         >
           World Cup 2026 Predictions
@@ -156,16 +163,16 @@ export default function Image() {
             background:   "linear-gradient(135deg, #b8972a22, #b8972a10)",
             border:       "1px solid #b8972a55",
             borderRadius: 8,
-            padding:      "16px 40px",
+            padding:      "16px 44px",
           }}
         >
           <span style={{ color: "#e8c44a", fontSize: 22, fontWeight: 700, letterSpacing: "0.02em" }}>
-            Predict the World Cup · Free to play
+            Predict the World Cup  |  Free to play
           </span>
         </div>
       </div>
 
-      {/* ── Bottom bar ────────────────────────────────────────── */}
+      {/* ── Bottom bar ───────────────────────────────────────── */}
       <div
         style={{
           display:        "flex",
@@ -179,12 +186,12 @@ export default function Image() {
           superbrain.social
         </span>
         <span style={{ color: "#3d6650", fontSize: 14 }}>
-          Free · No experience needed
+          Free  |  No experience needed
         </span>
       </div>
 
       {/* Gold bottom border */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #b8972a60, transparent)" }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #b8972a60, transparent)", display: "flex" }} />
     </div>,
     size,
   );

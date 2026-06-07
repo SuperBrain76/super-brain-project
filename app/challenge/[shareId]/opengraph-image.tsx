@@ -97,9 +97,9 @@ export default async function Image({ params }: { params: { shareId: string } })
       </div>
 
       {/* URL */}
-      <span style={{ position: "absolute", bottom: "36px", color: "#4a5568", fontSize: "15px" }}>
+      <div style={{ display: "flex", position: "absolute", bottom: "36px", color: "#4a5568", fontSize: "15px" }}>
         superbrain.social
-      </span>
+      </div>
     </div>,
     size,
   );
