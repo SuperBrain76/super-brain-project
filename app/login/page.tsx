@@ -113,30 +113,30 @@ function LoginForm() {
           </div>
 
           {/* Steps */}
-          <div className=”w-full rounded-xl p-5 text-left flex flex-col gap-3”
-            style={{ background: “#ffffff”, border: “1px solid #dde5d8” }}>
+          <div className="w-full rounded-xl p-5 text-left flex flex-col gap-3"
+            style={{ background: "#ffffff", border: "1px solid #dde5d8" }}>
             {[
-              “Open the email from SuperBrain”,
-              'Click “Confirm your email”',
-              “You'll be signed in automatically”,
+              "Open the email from SuperBrain",
+              'Click "Confirm your email"',
+              "You'll be signed in automatically",
             ].map((step, i) => (
-              <div key={i} className=”flex items-start gap-3”>
-                <span className=”w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black”
-                  style={{ background: “#1a3a2a”, color: “#ffffff” }}>
+              <div key={i} className="flex items-start gap-3">
+                <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black"
+                  style={{ background: "#1a3a2a", color: "#ffffff" }}>
                   {i + 1}
                 </span>
-                <p className=”text-sm” style={{ color: “#2e4a37” }}>{step}</p>
+                <p className="text-sm" style={{ color: "#2e4a37" }}>{step}</p>
               </div>
             ))}
           </div>
 
           {/* Spam notice */}
-          <div className=”w-full rounded-xl px-4 py-3 flex items-start gap-3 text-left”
-            style={{ background: “#fffbeb”, border: “1px solid #f59e0b40” }}>
-            <span className=”text-base shrink-0 mt-0.5”>📬</span>
-            <p className=”text-xs leading-relaxed” style={{ color: “#92400e” }}>
-              <span className=”font-semibold”>Can&apos;t find the email?</span>{“ “}
-              Check your <span className=”font-semibold”>Spam</span>, <span className=”font-semibold”>Junk</span>, or <span className=”font-semibold”>Promotions</span> folder — it sometimes lands there.
+          <div className="w-full rounded-xl px-4 py-3 flex items-start gap-3 text-left"
+            style={{ background: "#fffbeb", border: "1px solid #f59e0b40" }}>
+            <span className="text-base shrink-0 mt-0.5">📬</span>
+            <p className="text-xs leading-relaxed" style={{ color: "#92400e" }}>
+              <span className="font-semibold">Can&apos;t find the email?</span>{" "}
+              Check your <span className="font-semibold">Spam</span>, <span className="font-semibold">Junk</span>, or <span className="font-semibold">Promotions</span> folder — it sometimes lands there.
             </p>
           </div>
 
