@@ -1,18 +1,20 @@
 import { ImageResponse } from "next/og";
-import { fetchLeagueOGById } from "@/lib/og";
+
+/**
+ * Static fallback OG image for league join links when no league code is
+ * provided or the code is invalid. Shown as the social card for:
+ *   /predict/leagues/join  (no ?code param)
+ *
+ * When a valid code resolves to a league, the join page's generateMetadata
+ * points to the dynamic /predict/leagues/[leagueId]/opengraph-image instead.
+ */
 
 export const runtime     = "edge";
 export const size        = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const alt         = "Join a World Cup 2026 Prediction League — SuperBrain";
 
-export default async function Image({ params }: { params: { leagueId: string } }) {
-  const league = await fetchLeagueOGById(params.leagueId);
-  const name   = league?.name        ?? "World Cup League";
-  const count  = league?.memberCount ?? 0;
-
-  // Responsive font size for league name
-  const nameFontSize = name.length > 28 ? 60 : name.length > 20 ? 72 : name.length > 14 ? 84 : 96;
-
+export default function Image() {
   return new ImageResponse(
     <div
       style={{
@@ -29,7 +31,7 @@ export default async function Image({ params }: { params: { leagueId: string } }
       {/* Gold top border */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #b8972a, #e8c44a, #b8972a)" }} />
 
-      {/* Subtle texture — diagonal lines */}
+      {/* Subtle diagonal texture */}
       <div
         style={{
           position:   "absolute",
@@ -38,7 +40,7 @@ export default async function Image({ params }: { params: { leagueId: string } }
         }}
       />
 
-      {/* Gold radial glow — top-centre */}
+      {/* Gold radial glow */}
       <div
         style={{
           position:   "absolute",
@@ -81,7 +83,7 @@ export default async function Image({ params }: { params: { leagueId: string } }
           </span>
         </div>
 
-        {/* World Cup 2026 badge */}
+        {/* World Cup badge */}
         <div
           style={{
             display:      "flex",
@@ -110,75 +112,55 @@ export default async function Image({ params }: { params: { leagueId: string } }
           justifyContent: "center",
           padding:        "0 80px",
           position:       "relative",
+          gap:            0,
         }}
       >
-        {/* "JOIN MY LEAGUE" label */}
-        <div
-          style={{
-            display:      "flex",
-            alignItems:   "center",
-            gap:          10,
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ width: 32, height: 1, background: "#b8972a60" }} />
-          <span style={{ color: "#b8972a", fontSize: 16, fontWeight: 700, letterSpacing: "0.2em" }}>
-            JOIN MY LEAGUE
-          </span>
-          <div style={{ width: 32, height: 1, background: "#b8972a60" }} />
-        </div>
+        {/* Trophy */}
+        <span style={{ fontSize: 80, marginBottom: 28, lineHeight: 1 }}>🏆</span>
 
-        {/* League name */}
+        {/* Headline */}
         <p
           style={{
             color:         "#ffffff",
-            fontSize:      nameFontSize,
+            fontSize:      72,
             fontWeight:    900,
-            lineHeight:    1.08,
+            lineHeight:    1.05,
             textAlign:     "center",
-            marginBottom:  32,
+            marginBottom:  16,
             letterSpacing: "-0.02em",
           }}
         >
-          {name}
+          Join My League
         </p>
 
-        {/* Member count chip — only if available */}
-        {count > 0 && (
-          <div
-            style={{
-              display:      "flex",
-              alignItems:   "center",
-              gap:          8,
-              background:   "#ffffff0a",
-              border:       "1px solid #ffffff18",
-              borderRadius: 20,
-              padding:      "8px 20px",
-              marginBottom: 36,
-            }}
-          >
-            <span style={{ color: "#7a9e8a", fontSize: 16 }}>
-              👥 {count} {count === 1 ? "predictor" : "predictors"} competing
-            </span>
-          </div>
-        )}
+        {/* Sub-label */}
+        <p
+          style={{
+            color:         "#7a9e8a",
+            fontSize:      24,
+            fontWeight:    500,
+            textAlign:     "center",
+            marginBottom:  40,
+            letterSpacing: "0.01em",
+          }}
+        >
+          World Cup 2026 Predictions
+        </p>
 
-        {/* Trophy + CTA */}
+        {/* CTA chip */}
         <div
           style={{
             display:      "flex",
             alignItems:   "center",
-            gap:          14,
+            gap:          12,
             background:   "linear-gradient(135deg, #b8972a22, #b8972a10)",
             border:       "1px solid #b8972a55",
             borderRadius: 8,
             padding:      "16px 40px",
-            marginTop:    count > 0 ? 0 : 36,
           }}
         >
-          <span style={{ fontSize: 28 }}>🏆</span>
           <span style={{ color: "#e8c44a", fontSize: 22, fontWeight: 700, letterSpacing: "0.02em" }}>
-            Predict the World Cup
+            Predict the World Cup · Free to play
           </span>
         </div>
       </div>
@@ -197,7 +179,7 @@ export default async function Image({ params }: { params: { leagueId: string } }
           superbrain.social
         </span>
         <span style={{ color: "#3d6650", fontSize: 14 }}>
-          Free to play · Predict every match
+          Free · No experience needed
         </span>
       </div>
 
