@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { fetchLeagueOGById } from "@/lib/og";
 
-const BASE_URL = "https://superbrain.social";
+const BASE_URL    = "https://superbrain.social";
+// Static fallback — served directly from /public/og/, no edge rendering.
+// Used for ALL league shares until the dynamic ImageResponse route is confirmed
+// working end-to-end by Facebook Debugger.
+const STATIC_IMAGE = `${BASE_URL}/og/world-cup-league.jpg`;
+const STATIC_ALT   = "Join a World Cup 2026 Prediction League — SuperBrain";
 
 type Props = { params: { leagueId: string }; children: React.ReactNode };
 
@@ -9,18 +14,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const league = await fetchLeagueOGById(params.leagueId);
 
   if (!league) {
-    const fallbackImage = `${BASE_URL}/predict/leagues/join/opengraph-image`;
     return {
       title:       "Prediction League — SuperBrain",
       description: "Predict every World Cup 2026 match, compete with friends and climb the leaderboard. Free to play.",
       openGraph: {
         title:       "Prediction League — SuperBrain",
         description: "Predict every World Cup 2026 match, compete with friends and climb the leaderboard. Free to play.",
-        images:      [{ url: fallbackImage, width: 1200, height: 630, alt: "World Cup 2026 Prediction League — SuperBrain" }],
+        images:      [{ url: STATIC_IMAGE, width: 1200, height: 630, alt: STATIC_ALT }],
       },
       twitter: {
         card:   "summary_large_image",
-        images: [fallbackImage],
+        images: [STATIC_IMAGE],
       },
     };
   }
@@ -31,8 +35,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `Predict every World Cup 2026 match and compete with ${memberCount} others in ${name}. Free to play.`
     : `Predict every World Cup 2026 match and compete in ${name}. Free to play.`;
 
-  const ogImageUrl = `${BASE_URL}/predict/leagues/${params.leagueId}/opengraph-image`;
-
   return {
     title,
     description: desc,
@@ -41,13 +43,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: desc,
       type:        "website",
       url:         `${BASE_URL}/predict/leagues/${params.leagueId}`,
-      images:      [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
+      images:      [{ url: STATIC_IMAGE, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card:        "summary_large_image",
       title,
       description: desc,
-      images:      [ogImageUrl],
+      images:      [STATIC_IMAGE],
     },
   };
 }
