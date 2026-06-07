@@ -87,57 +87,74 @@ function LoginForm() {
   // ── "Check your email" screen ────────────────────────────
   if (awaitingVerify) {
     return (
-      <div className="min-h-screen hud-grid flex items-center justify-center px-5 py-16">
-        <div className="w-full max-w-sm text-center flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-full bg-cockpit-accent bg-opacity-10 border border-cockpit-accent border-opacity-30 flex items-center justify-center">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="1.5">
+      <div className="min-h-screen flex items-center justify-center px-5 py-16"
+        style={{ background: "#f0f3ef" }}>
+        <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
+
+          {/* Icon */}
+          <div className="w-16 h-16 rounded-full flex items-center justify-center"
+            style={{ background: "#eef8f0", border: "1px solid #86c99a" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
             </svg>
           </div>
 
+          {/* Heading */}
           <div>
-            <h2 className="text-xl font-bold text-white mb-2">Verify your email</h2>
-            <p className="text-cockpit-dim text-sm leading-relaxed">
+            <h2 className="text-xl font-extrabold mb-2" style={{ color: "#0f1f17" }}>
+              Check your email
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: "#2e4a37" }}>
               We&apos;ve sent a confirmation link to{" "}
-              <span className="text-cockpit-text font-mono">{email}</span>.
+              <span className="font-semibold" style={{ color: "#0f1f17" }}>{email}</span>.
               Click it to activate your account.
             </p>
           </div>
 
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 w-full text-left space-y-2">
-            <p className="text-cockpit-dim text-xs">
-              <span className="text-cockpit-accent">1.</span> Open the email from SuperBrain
-            </p>
-            <p className="text-cockpit-dim text-xs">
-              <span className="text-cockpit-accent">2.</span> Click &ldquo;Confirm your email&rdquo;
-            </p>
-            <p className="text-cockpit-dim text-xs">
-              <span className="text-cockpit-accent">3.</span> You&apos;ll be signed in automatically
-            </p>
+          {/* Steps */}
+          <div className="w-full rounded-xl p-5 text-left flex flex-col gap-3"
+            style={{ background: "#ffffff", border: "1px solid #dde5d8" }}>
+            {[
+              "Open the email from SuperBrain",
+              'Click “Confirm your email”',
+              "You'll be signed in automatically",
+            ].map((step, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black"
+                  style={{ background: "#1a3a2a", color: "#ffffff" }}>
+                  {i + 1}
+                </span>
+                <p className="text-sm" style={{ color: "#2e4a37" }}>{step}</p>
+              </div>
+            ))}
           </div>
 
-          <div className="flex flex-col items-center gap-2">
+          {/* Resend + sign in */}
+          <div className="flex flex-col items-center gap-3">
             {resendDone ? (
-              <p className="text-cockpit-green text-sm">
+              <p className="text-sm font-semibold" style={{ color: "#1a3a2a" }}>
                 ✓ New link sent — check your inbox
               </p>
             ) : (
               <button
                 onClick={resendVerification}
                 disabled={resendBusy}
-                className="text-cockpit-accent text-sm hover:underline"
+                className="text-sm font-semibold hover:underline"
+                style={{ color: "#1a3a2a" }}
               >
                 {resendBusy ? "Sending…" : "Resend verification email"}
               </button>
             )}
             <button
               onClick={() => { setAwaitingVerify(false); setMode("signin"); }}
-              className="text-cockpit-muted text-xs hover:text-cockpit-dim transition-colors"
+              className="text-xs hover:underline"
+              style={{ color: "#7a8f82" }}
             >
               Already verified? Sign in →
             </button>
           </div>
+
         </div>
       </div>
     );

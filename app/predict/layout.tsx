@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import EmailVerificationBanner from "@/components/predictor/EmailVerificationBanner";
 
 /**
  * Predictor shell layout.
@@ -8,6 +9,7 @@ import type { ReactNode } from "react";
 export default function PredictLayout({ children }: { children: ReactNode }) {
   return (
     <div className="predict-shell flex-1 flex flex-col min-h-full">
+      <EmailVerificationBanner />
       {children}
     </div>
   );

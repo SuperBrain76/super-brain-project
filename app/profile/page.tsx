@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { loadMyResults } from "@/lib/results";
 import { loadMyProfile } from "@/lib/profile";
 import { getRankingColor } from "@/lib/scoring";
@@ -26,9 +27,10 @@ export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
 
-  const [profile,  setProfile]  = useState<UserProfile | null>(null);
-  const [results,  setResults]  = useState<SavedResult[]>([]);
-  const [fetching, setFetching] = useState(true);
+  const [profile,    setProfile]    = useState<UserProfile | null>(null);
+  const [results,    setResults]    = useState<SavedResult[]>([]);
+  const [fetching,   setFetching]   = useState(true);
+  const [isVerified, setIsVerified] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -41,6 +43,11 @@ export default function DashboardPage() {
       setResults(r);
       setFetching(false);
     });
+    if (isSupabaseConfigured) {
+      supabase.auth.getUser().then(({ data }) => {
+        setIsVerified(!!data.user?.email_confirmed_at);
+      });
+    }
   }, [user]);
 
   if (loading || !user) {
@@ -83,6 +90,12 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-white">{displayName}</h1>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-cockpit-muted text-xs">{user.email}</span>
+              {isVerified === true  && (
+                <span className="text-xs font-semibold text-cockpit-green" title="Email verified">✅ Verified</span>
+              )}
+              {isVerified === false && (
+                <span className="text-xs font-semibold text-cockpit-amber" title="Email not yet verified">⚠️ Not Verified</span>
+              )}
               {profile?.country && (
                 <>
                   <span className="text-cockpit-border text-xs">·</span>
