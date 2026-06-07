@@ -50,7 +50,7 @@ function LoginForm() {
         password,
         options: {
           data: { display_name: name },
-          emailRedirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
         },
       });
       setBusy(false);
