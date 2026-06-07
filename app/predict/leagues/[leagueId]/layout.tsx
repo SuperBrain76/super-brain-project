@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { fetchLeagueOGById } from "@/lib/og";
 
-const BASE_URL    = "https://superbrain.social";
+// www. is the canonical domain — superbrain.social 307-redirects to www.
+// Crawlers (Facebook/LinkedIn/WhatsApp) do not follow 307s for og:image URLs.
+const BASE_URL    = "https://www.superbrain.social";
 // Static fallback — served directly from /public/og/, no edge rendering.
 // Used for ALL league shares until the dynamic ImageResponse route is confirmed
 // working end-to-end by Facebook Debugger.

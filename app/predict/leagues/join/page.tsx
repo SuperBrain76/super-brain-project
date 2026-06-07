@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { fetchLeagueOGByCode } from "@/lib/og";
 import JoinContent from "./_join-content";
 
-const BASE_URL     = "https://superbrain.social";
+// www. is the canonical domain — superbrain.social 307-redirects to www.
+// Crawlers (Facebook/LinkedIn/WhatsApp) do not follow 307s for og:image URLs.
+const BASE_URL     = "https://www.superbrain.social";
 // Static image served from /public/og/ — no edge rendering, guaranteed delivery.
 const STATIC_IMAGE = `${BASE_URL}/og/world-cup-league.jpg`;
 const STATIC_ALT   = "Join a World Cup 2026 Prediction League — SuperBrain";
