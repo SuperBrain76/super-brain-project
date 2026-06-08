@@ -63,18 +63,36 @@ export default function Nav() {
 
         {/* Centre nav */}
         <nav className="flex items-center gap-1">
-          <Link href="/tests" className={navLinkCls("/tests")}>
-            Brain Tests
-          </Link>
-          <Link href="/predict" className={navLinkCls("/predict")}>
-            ⚽ Predictor
-          </Link>
-          <Link href="/battle" className={`hidden md:block ${navLinkCls("/battle")}`}>
-            Battle
-          </Link>
-          <Link href="/leaderboard" className={`hidden md:block ${navLinkCls("/leaderboard")}`}>
-            Global Rankings
-          </Link>
+          {isPredict ? (
+            // ── Predictor-focused nav — hides Brain Tests / Battle ─────
+            <>
+              <Link href="/predict" className={navLinkCls("/predict")}>
+                World Cup 2026
+              </Link>
+              <Link href="/predict/leagues" className={`hidden sm:block ${navLinkCls("/predict/leagues")}`}>
+                My Leagues
+              </Link>
+              <Link href="/predict/leaderboard" className={`hidden md:block ${navLinkCls("/predict/leaderboard")}`}>
+                Rankings
+              </Link>
+            </>
+          ) : (
+            // ── Default nav (Brain Tests, Battle, etc.) ────────────────
+            <>
+              <Link href="/tests" className={navLinkCls("/tests")}>
+                Brain Tests
+              </Link>
+              <Link href="/predict" className={navLinkCls("/predict")}>
+                ⚽ Predictor
+              </Link>
+              <Link href="/battle" className={`hidden md:block ${navLinkCls("/battle")}`}>
+                Battle
+              </Link>
+              <Link href="/leaderboard" className={`hidden md:block ${navLinkCls("/leaderboard")}`}>
+                Global Rankings
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Auth */}
@@ -82,18 +100,20 @@ export default function Nav() {
           {user ? (
             <>
               <Link
-                href="/profile"
+                href={isPredict ? "/profile" : "/profile"}
                 className={`hidden md:block text-sm px-3 py-2 transition-colors ${isPredict ? "text-slate-500 hover:text-slate-800" : "text-cockpit-dim hover:text-cockpit-text"}`}
               >
-                Dashboard
+                Profile
               </Link>
-              <Link
-                href="/settings/profile"
-                className={`hidden md:block text-sm px-3 py-2 transition-colors ${isPredict ? "text-slate-400 hover:text-slate-600" : "text-cockpit-muted hover:text-cockpit-dim"}`}
-                title="Profile settings"
-              >
-                Settings
-              </Link>
+              {!isPredict && (
+                <Link
+                  href="/settings/profile"
+                  className="hidden md:block text-sm px-3 py-2 transition-colors text-cockpit-muted hover:text-cockpit-dim"
+                  title="Profile settings"
+                >
+                  Settings
+                </Link>
+              )}
               {isAdmin && (
                 <Link
                   href="/admin"

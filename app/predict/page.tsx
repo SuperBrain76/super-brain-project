@@ -130,8 +130,17 @@ export default function PredictHub() {
 
   if (fetching || authLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm animate-pulse" style={{ color: "#7a8f82" }}>Loading predictor…</p>
+      <div className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-12 flex flex-col gap-4">
+        {/* Skeleton: stat strip */}
+        <div className="flex gap-3">
+          {[1,2,3,4].map((i) => (
+            <div key={i} className="h-14 flex-1 rounded-lg animate-pulse" style={{ background: "#dde5d8" }} />
+          ))}
+        </div>
+        {/* Skeleton: fixture cards */}
+        {[1,2,3].map((i) => (
+          <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: "#dde5d8" }} />
+        ))}
       </div>
     );
   }

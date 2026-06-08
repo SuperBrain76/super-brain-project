@@ -75,8 +75,11 @@ export default function PredictorLeaderboardPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm animate-pulse" style={{ color: MUTED }}>Loading rankings…</p>
+      <div className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-12 flex flex-col gap-3">
+        <div className="h-8 w-40 rounded animate-pulse" style={{ background: "#dde5d8" }} />
+        {[1,2,3,4,5,6,7,8].map((i) => (
+          <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: "#dde5d8" }} />
+        ))}
       </div>
     );
   }

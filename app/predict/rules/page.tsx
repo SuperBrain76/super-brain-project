@@ -295,11 +295,12 @@ export default function RulesPage() {
               </p>
               <div className="flex flex-col gap-2">
                 {[
-                  { n: "1", label: "Total points",             detail: "Match points + Bonus points combined" },
-                  { n: "2", label: "Most exact match scores",  detail: "More ⚡ 5-point predictions" },
-                  { n: "3", label: "Most bonus questions correct", detail: "More bonus questions answered correctly" },
-                  { n: "4", label: "Most predictions made",    detail: "More fixtures predicted" },
-                  { n: "5", label: "Earliest join date",       detail: "Earlier sign-up to the league" },
+                  { n: "1", label: "Most exact scores",             detail: "More ⚡ 5-point predictions" },
+                  { n: "2", label: "Most correct goal differences",  detail: "More 3-point predictions (correct GD)" },
+                  { n: "3", label: "Most correct results",           detail: "More 2-point predictions (correct outcome)" },
+                  { n: "4", label: "Most bonus points",              detail: "Higher bonus question score" },
+                  { n: "5", label: "Most predictions completed",     detail: "More fixtures predicted" },
+                  { n: "6", label: "Prize shared",                   detail: "Or decided by a final tie-break question" },
                 ].map((row) => (
                   <div key={row.n} className="flex items-center gap-3 py-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
                     <span
@@ -445,6 +446,10 @@ export default function RulesPage() {
             <Faq
               q="Is there a limit on how many people can join a league?"
               a="No hard limit is currently enforced. A configurable cap may be introduced in future."
+            />
+            <Faq
+              q="How are ties broken on the leaderboard?"
+              a="If two or more players have the same total points, the tie is broken in this order: (1) most exact scores, (2) most correct goal differences, (3) most correct results, (4) most bonus points, (5) most predictions completed. If still tied, the prize is shared or settled by a final tie-break question. Sign-up date is not used."
             />
           </Card>
         </Section>

@@ -1,6 +1,11 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { validateLeagueName } from "./leagueName";
 
+// ── Competition cache ─────────────────────────────────────────
+// getCompetition("wc2026") is called on every /predict page load.
+// Cache the result in memory so only the first call hits Supabase.
+const _competitionCache = new Map<string, { competition: Competition | null; error: string | null }>();
+
 // ── Types ─────────────────────────────────────────────────────
 
 export interface Competition {
@@ -207,6 +212,11 @@ export async function getCompetition(
     return { competition: null, error: "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local." };
   }
 
+  // Return cached result if available — competition data is static for the duration of a session
+  if (_competitionCache.has(slug)) {
+    return _competitionCache.get(slug)!;
+  }
+
   const { data, error } = await supabase
     .from("competitions")
     .select("*")
@@ -219,7 +229,9 @@ export async function getCompetition(
   if (!data) {
     return { competition: null, error: `No competition found with slug "${slug}". Run the wc2026 seed SQL.` };
   }
-  return { competition: rowToCompetition(data as Record<string, unknown>), error: null };
+  const result = { competition: rowToCompetition(data as Record<string, unknown>), error: null };
+  _competitionCache.set(slug, result);
+  return result;
 }
 
 export async function listCompetitions(): Promise<Competition[]> {

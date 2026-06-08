@@ -86,18 +86,33 @@ export default function MobileBottomNav() {
 
   const isPredict = pathname.startsWith("/predict");
 
-  const tabs = [
-    { href: "/tests",       label: "Brain Tests",  Icon: IconTests,       match: "/tests"       },
-    { href: "/predict",     label: "Predictor",    Icon: IconPredict,     match: "/predict"     },
-    { href: "/battle",      label: "Battle",       Icon: IconBattle,      match: "/battle"      },
-    { href: "/leaderboard", label: "Rankings",     Icon: IconLeaderboard, match: "/leaderboard" },
+  // When inside /predict, show predictor-focused tabs; hide Brain Tests / Battle
+  const predictorTabs = [
+    { href: "/predict",             label: "Fixtures", Icon: IconPredict,     match: "/predict"             },
+    { href: "/predict/leagues",     label: "Leagues",  Icon: IconBattle,      match: "/predict/leagues"     },
+    { href: "/predict/leaderboard", label: "Rankings", Icon: IconLeaderboard, match: "/predict/leaderboard" },
     {
       href:  user ? "/profile" : "/login",
       label: user ? "Profile"  : "Sign In",
       Icon:  IconProfile,
-      match: user ? "/profile"  : "/login",
+      match: user ? "/profile" : "/login",
     },
   ];
+
+  const defaultTabs = [
+    { href: "/tests",       label: "Brain Tests", Icon: IconTests,       match: "/tests"       },
+    { href: "/predict",     label: "Predictor",   Icon: IconPredict,     match: "/predict"     },
+    { href: "/battle",      label: "Battle",      Icon: IconBattle,      match: "/battle"      },
+    { href: "/leaderboard", label: "Rankings",    Icon: IconLeaderboard, match: "/leaderboard" },
+    {
+      href:  user ? "/profile" : "/login",
+      label: user ? "Profile"  : "Sign In",
+      Icon:  IconProfile,
+      match: user ? "/profile" : "/login",
+    },
+  ];
+
+  const tabs = isPredict ? predictorTabs : defaultTabs;
 
   // Nav bar background shifts to white on predictor routes
   const navBg      = isPredict ? "#ffffff" : "#111827";
@@ -117,8 +132,11 @@ export default function MobileBottomNav() {
         }}
       >
         {tabs.map(({ href, label, Icon, match }) => {
-          const active      = pathname.startsWith(match);
-          const isThisPredict = match === "/predict";
+          // For the predictor Fixtures tab, only activate on exact /predict (not sub-routes)
+          const active = (isPredict && match === "/predict")
+            ? pathname === "/predict"
+            : pathname.startsWith(match);
+          const isThisPredict = match === "/predict" || match === "/predict/leagues" || match === "/predict/leaderboard";
           const activeColor = isThisPredict ? ACTIVE_PREDICT : ACTIVE_TESTS;
 
           return (
