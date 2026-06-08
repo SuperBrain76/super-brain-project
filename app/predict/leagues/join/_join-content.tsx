@@ -238,6 +238,9 @@ export default function JoinContent({ code }: { code: string }) {
             </div>
           </div>
 
+          {/* Grand Prize — shown before sign-in to motivate conversion */}
+          <GrandPrizeJoinCard />
+
           {/* ── Sign-in card ── */}
           <div className="rounded-xl p-5 flex flex-col gap-4"
             style={{ background: "#ffffff", border: `1px solid ${BORDER}` }}>
@@ -292,9 +295,6 @@ export default function JoinContent({ code }: { code: string }) {
               Free to play · No spam · Unsubscribe anytime
             </p>
           </div>
-
-          {/* Grand Prize */}
-          <GrandPrizeJoinCard />
 
           {/* WhatsApp channel */}
           <WhatsAppChannelCard />

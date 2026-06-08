@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import CountdownTimer from "@/components/CountdownTimer";
 import HomepageAnalytics from "@/components/HomepageAnalytics";
 import HeroSection from "@/components/HeroSection";
@@ -344,81 +345,89 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRIZE SECTION ─────────────────────────────────────────────────── */}
-      <section
-        className="border-y border-cockpit-border"
-        style={{ background: "linear-gradient(135deg, #0d1117 0%, #111820 50%, #0d1117 100%)" }}
-      >
-        <div className="max-w-5xl mx-auto px-5 py-16">
+      {/* ── GRAND PRIZE SECTION ───────────────────────────────────────────── */}
+      <section className="border-y border-cockpit-border" style={{ background: "#ffffff" }}>
+        <div className="max-w-5xl mx-auto px-5 py-14 sm:py-16">
           <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
 
-            {/* Watch visual */}
-            <div className="w-full md:w-72 shrink-0 flex justify-center">
-              <div className="relative">
+            {/* Watch image */}
+            <div className="w-full md:w-80 shrink-0 flex justify-center order-1 md:order-2">
+              <div className="relative w-64 h-64 sm:w-80 sm:h-80">
                 <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: "radial-gradient(ellipse 100% 100% at 50% 50%, rgba(255,171,0,0.12) 0%, transparent 70%)",
-                    transform: "scale(1.6)",
-                  }}
+                  className="absolute inset-0 rounded-full blur-3xl opacity-25 pointer-events-none"
+                  style={{ background: "radial-gradient(ellipse at center, #b8972a, transparent 70%)" }}
                 />
-                <div
-                  className="relative w-52 h-52 rounded-full border-2 flex flex-col items-center justify-center text-center"
-                  style={{
-                    borderColor: "#ffab0050",
-                    background: "radial-gradient(ellipse at center, #1a1400 0%, #0d1117 70%)",
-                    boxShadow: "0 0 60px rgba(255,171,0,0.15), 0 0 120px rgba(255,171,0,0.05), inset 0 0 40px rgba(255,171,0,0.05)",
-                  }}
-                >
-                  <div className="text-4xl mb-2">⌚</div>
-                  <div
-                    className="text-xs font-mono tracking-widest uppercase font-bold"
-                    style={{ color: "#ffab00" }}
-                  >
-                    1st Place
-                  </div>
-                  <div className="text-cockpit-muted text-xs mt-1 tracking-wide">Prize</div>
-                </div>
+                <Image
+                  src="/watch-prize.png"
+                  alt="Grand Prize: Custom Champion Watch — assembled in Sweden, Swiss movement"
+                  fill
+                  className="relative object-contain drop-shadow-2xl"
+                  priority
+                />
               </div>
             </div>
 
-            {/* Text */}
-            <div className="flex-1 text-center md:text-left">
-              <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-3">
-                SB Champion Watch
-              </p>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight mb-4">
-                Win the{" "}
-                <span style={{ color: "#ffab00", textShadow: "0 0 40px rgba(255,171,0,0.4)" }}>
-                  Grand Prize
+            {/* Copy */}
+            <div className="flex-1 order-2 md:order-1 text-center md:text-left flex flex-col gap-5">
+              <div className="flex items-center gap-2 justify-center md:justify-start">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b8972a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                  <path d="M4 22h16"/>
+                  <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                  <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                </svg>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#b8972a" }}>
+                  Grand Prize · SuperBrain World Cup 2026
                 </span>
-              </h2>
-              <p className="text-cockpit-dim text-sm sm:text-base leading-relaxed mb-3 max-w-md">
-                Top the global leaderboard when the final whistle blows and you walk away with the{" "}
-                <span className="text-white font-semibold">SuperBrain Champion Watch</span> — a premium
-                timepiece for the sharpest predictor.
-              </p>
-              <p className="text-cockpit-muted text-xs leading-relaxed mb-8 max-w-md">
-                Every correct score prediction, every bonus question nailed — it all adds up.
-                One winner. One watch. Be the one.
-              </p>
+              </div>
 
-              <div className="flex flex-col sm:flex-row items-center md:items-start gap-3">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight" style={{ color: "#0f1f17" }}>
+                  Win the Custom<br />
+                  <span style={{ color: "#b8972a" }}>Champion Watch</span>
+                </h2>
+                <p className="text-sm sm:text-base mt-3 leading-relaxed" style={{ color: "#2e4a37" }}>
+                  Awarded to the overall SuperBrain World Cup Prediction 2026 Champion.
+                  One winner. One watch. Your name engraved on it forever.
+                </p>
+              </div>
+
+              <ul className="flex flex-col gap-2 items-center md:items-start">
+                {[
+                  "Custom-built luxury watch",
+                  "Assembled in Sweden",
+                  "Swiss movement",
+                  "Personalized winner engraving",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2.5">
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: "rgba(184,151,42,0.15)", border: "1px solid rgba(184,151,42,0.35)" }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+                        <polyline points="2,5 4.5,7.5 8,3" stroke="#b8972a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                    <span className="text-sm" style={{ color: "#2e4a37" }}>{item}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-col sm:flex-row items-center md:items-start gap-3 pt-1">
                 <Link href="/predict" className="w-full sm:w-auto">
                   <button
-                    className="w-full sm:w-auto font-semibold px-10 py-4 rounded-sm text-sm tracking-widest uppercase transition-all duration-150 border min-h-[44px]"
-                    style={{
-                      background: "linear-gradient(135deg, #ffab00, #ff8c00)",
-                      borderColor: "#ffab0060",
-                      color: "#080b0f",
-                      boxShadow: "0 0 30px rgba(255,171,0,0.25)",
-                    }}
+                    className="w-full sm:w-auto font-bold px-8 py-3.5 rounded-lg text-sm transition-all active:scale-[0.98]"
+                    style={{ background: "#1a3a2a", color: "#ffffff" }}
                   >
-                    Compete for the Watch →
+                    Start Predicting →
                   </button>
                 </Link>
                 <Link href="/predict/prize" className="w-full sm:w-auto">
-                  <button className="btn-ghost w-full sm:w-auto text-sm px-8 py-4">
+                  <button
+                    className="w-full sm:w-auto font-semibold px-8 py-3.5 rounded-lg text-sm transition-all active:scale-[0.98]"
+                    style={{ background: "rgba(184,151,42,0.1)", color: "#b8972a", border: "1px solid rgba(184,151,42,0.3)" }}
+                  >
                     Prize Details →
                   </button>
                 </Link>

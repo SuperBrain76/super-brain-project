@@ -95,18 +95,31 @@ export const track = {
   // ── Grand Prize ───────────────────────────────────────────────────────────────
 
   /** Fired when a prize placement enters the viewport */
-  grandPrizeViewed: (surface: "homepage_section" | "join_card" | "fixtures_banner" | "leaderboard_banner" | "rules_section" | "prize_page") =>
+  grandPrizeViewed: (surface: "homepage_section" | "join_card" | "fixtures_banner" | "leaderboard_banner" | "rules_section" | "prize_page" | "predict_hub" | "bonus_page") =>
     t("grand_prize_viewed", { surface, device: _device() }),
 
   /** Fired when user clicks any prize element (non-CTA, e.g. banner link) */
-  grandPrizeClicked: (surface: "fixtures_banner" | "leaderboard_banner" | "footer") =>
+  grandPrizeClicked: (surface: "fixtures_banner" | "leaderboard_banner" | "footer" | "predict_hub" | "homepage") =>
     t("grand_prize_clicked", { surface, device: _device() }),
 
   /** Fired when user navigates to /predict/prize or clicks a "prize details" link */
-  grandPrizeDetailsViewed: (source: "homepage_section" | "join_card" | "rules_section" | "direct") =>
+  grandPrizeDetailsViewed: (source: "homepage_section" | "join_card" | "rules_section" | "direct" | "predict_hub" | "leaderboard" | "bonus_page") =>
     t("grand_prize_details_viewed", { source, device: _device() }),
 
   /** Fired when user clicks a "Start Predicting" CTA that originated from a prize placement */
   grandPrizeCTAClicked: (surface: "homepage_section" | "prize_page") =>
     t("grand_prize_cta_clicked", { surface, device: _device() }),
+
+  // ── Grand Prize card-level events (for impression + click tracking) ───────────
+  /** Fired on mount for any prize card/banner component */
+  grandPrizeCardViewed: (surface: string) =>
+    t("grand_prize_card_viewed", { surface, device: _device() }),
+
+  /** Fired when user clicks a prize card or banner */
+  grandPrizeCardClicked: (surface: string) =>
+    t("grand_prize_card_clicked", { surface, device: _device() }),
+
+  /** Fired when /predict/prize page mounts */
+  prizePageViewed: () =>
+    t("prize_page_viewed", { device: _device() }),
 };

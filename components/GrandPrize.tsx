@@ -55,6 +55,7 @@ function TrophyIcon({ size = 16, color = GOLD }: { size?: number; color?: string
 export function GrandPrizeHomepageSection() {
   useEffect(() => {
     track.grandPrizeViewed("homepage_section");
+    track.grandPrizeCardViewed("homepage_section");
   }, []);
 
   return (
@@ -175,6 +176,7 @@ export function GrandPrizeHomepageSection() {
 export function GrandPrizeJoinCard() {
   useEffect(() => {
     track.grandPrizeViewed("join_card");
+    track.grandPrizeCardViewed("join_page");
   }, []);
 
   return (
@@ -281,47 +283,44 @@ export function GrandPrizeBanner() {
 export function GrandPrizeLeaderboardBanner({ participantCount }: { participantCount?: number }) {
   useEffect(() => {
     track.grandPrizeViewed("leaderboard_banner");
+    track.grandPrizeCardViewed("leaderboard");
   }, []);
 
   return (
     <Link
       href="/predict/prize"
-      onClick={() => track.grandPrizeClicked("leaderboard_banner")}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:opacity-90 active:scale-[0.99]"
+      onClick={() => { track.grandPrizeClicked("leaderboard_banner"); track.grandPrizeCardClicked("leaderboard"); }}
+      className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all hover:opacity-90 active:scale-[0.99]"
       style={{
         background:  "#fff",
-        border:      `1px solid ${GOLD}40`,
+        border:      `1px solid ${GOLD}45`,
         borderLeft:  `3px solid ${GOLD}`,
+        textDecoration: "none",
       }}
     >
-      {/* Watch thumbnail */}
-      <div className="relative w-10 h-10 shrink-0">
-        <Image src="/watch-prize.png" alt="Grand Prize Watch" fill className="object-contain" />
+      {/* Watch thumbnail — slightly larger for visibility */}
+      <div className="relative w-12 h-12 shrink-0">
+        <Image src="/watch-prize.png" alt="Grand Prize: Custom Champion Watch" fill className="object-contain" />
       </div>
 
       {/* Copy */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold leading-tight" style={{ color: TEXT1 }}>
-          Overall Winner Receives the Custom Champion Watch
+        <p className="text-xs font-extrabold leading-tight" style={{ color: TEXT1 }}>
+          🏆 Overall Winner: Custom Champion Watch
         </p>
-        {participantCount !== undefined && participantCount > 0 && (
-          <p className="text-[10px] mt-0.5" style={{ color: MUTED }}>
-            {participantCount} predictor{participantCount === 1 ? "" : "s"} competing · top the global leaderboard to win
-          </p>
-        )}
-        {(!participantCount || participantCount === 0) && (
-          <p className="text-[10px] mt-0.5" style={{ color: MUTED }}>
-            Top the global leaderboard when the final whistle blows
-          </p>
-        )}
+        <p className="text-[10px] mt-0.5 leading-relaxed" style={{ color: MUTED }}>
+          {participantCount && participantCount > 0
+            ? `${participantCount} predictor${participantCount === 1 ? "" : "s"} competing — top this leaderboard to win`
+            : "Top this leaderboard when the final whistle blows to win"}
+        </p>
       </div>
 
-      <div className="flex items-center gap-1 shrink-0">
-        <span className="text-[10px] font-semibold hidden sm:inline" style={{ color: GOLD }}>Prize details</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </div>
+      <span
+        className="text-[10px] font-bold px-3 py-1.5 rounded-lg shrink-0 whitespace-nowrap"
+        style={{ background: GOLD, color: "#fff" }}
+      >
+        Prize Details
+      </span>
     </Link>
   );
 }

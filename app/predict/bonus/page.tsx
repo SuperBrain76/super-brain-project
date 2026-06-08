@@ -14,6 +14,7 @@ import {
   type BonusQuestion,
   type BonusPrediction,
 } from "@/lib/predictor";
+import Image from "next/image";
 import { track } from "@/lib/analytics";
 
 // ── Design tokens ─────────────────────────────────────────────
@@ -290,6 +291,8 @@ export default function BonusPage() {
   const teamsMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
   const predMap  = useMemo(() => new Map(predictions.map((p) => [p.questionId, p])), [predictions]);
 
+  useEffect(() => { track.grandPrizeCardViewed("bonus_page"); }, []);
+
   useEffect(() => {
     async function load() {
       const { competition: comp, error: compErr } = await getCompetition("wc2026");
@@ -358,6 +361,25 @@ export default function BonusPage() {
             predicting tournament-wide outcomes. Questions lock individually — check the status of each.
           </p>
         </div>
+
+        {/* Subtle prize nudge */}
+        <Link
+          href="/predict/prize"
+          onClick={() => { track.grandPrizeCardClicked("bonus_page"); track.grandPrizeDetailsViewed("bonus_page"); }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:opacity-90 active:scale-[0.99]"
+          style={{ background: `rgba(184,151,42,0.07)`, border: `1px solid rgba(184,151,42,0.25)`, textDecoration: "none" }}
+        >
+          <div className="relative w-8 h-8 shrink-0">
+            <Image src="/watch-prize.png" alt="Grand Prize" fill className="object-contain" />
+          </div>
+          <p className="text-xs flex-1" style={{ color: TEXT2 }}>
+            <span className="font-semibold" style={{ color: TEXT1 }}>Bonus points can help you win the Custom Champion Watch.</span>{" "}
+            Nail these questions and leap the leaderboard.
+          </p>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b8972a" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
 
         {/* Stats strip */}
         {user && (

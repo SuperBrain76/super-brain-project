@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { track } from "@/lib/analytics";
@@ -65,6 +66,9 @@ export default function PredictHub() {
   const [tab,           setTab]           = useState<Tab>("all");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [showWaBanner,  setShowWaBanner]  = useState(false);
+
+  // Track prize card impression on page load
+  useEffect(() => { track.grandPrizeCardViewed("predict_hub"); }, []);
 
   useEffect(() => {
     async function load() {
@@ -531,54 +535,48 @@ export default function PredictHub() {
           </svg>
         </Link>
 
-        {/* ── Prize banner ─────────────────────────────────── */}
-        <div
-          className="flex items-stretch rounded-xl border overflow-hidden relative"
-          style={{ background: "#fff", borderColor: "rgba(184,151,42,0.3)" }}
+        {/* ── Prize card ───────────────────────────────────── */}
+        <Link
+          href="/predict/prize"
+          onClick={() => { track.grandPrizeCardClicked("predict_hub"); track.grandPrizeDetailsViewed("predict_hub"); }}
+          className="flex items-center gap-0 rounded-xl border overflow-hidden relative transition-all active:scale-[0.99]"
+          style={{ background: "#fff", borderColor: "rgba(184,151,42,0.4)", textDecoration: "none" }}
         >
           {/* Gold top accent */}
-          <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, #b8972a 40%, transparent)" }} />
+          <div className="absolute top-0 left-0 right-0 h-0.5 z-10" style={{ background: "linear-gradient(90deg, #b8972a 60%, transparent)" }} />
 
-          {/* Watch illustration panel */}
+          {/* Watch image panel */}
           <div
-            className="w-20 shrink-0 flex items-center justify-center"
-            style={{ background: "linear-gradient(160deg, #1a3a2a 0%, #0e1e35 100%)" }}
+            className="w-24 h-24 shrink-0 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, #f5f0e8 0%, #efe8d5 100%)" }}
           >
-            <svg width="48" height="48" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="19" y="2" width="16" height="10" rx="3" fill="#8a7020"/>
-              <rect x="19" y="42" width="16" height="10" rx="3" fill="#8a7020"/>
-              <rect x="10" y="11" width="34" height="32" rx="7" fill="#c9a84c"/>
-              <rect x="13" y="14" width="28" height="26" rx="5" fill="#1a3a2a"/>
-              <circle cx="27" cy="27" r="10" fill="#0e1e35"/>
-              <rect x="26.5" y="18" width="1" height="2.5" rx="0.5" fill="#b8972a"/>
-              <rect x="26.5" y="33.5" width="1" height="2.5" rx="0.5" fill="#b8972a"/>
-              <rect x="18" y="26.5" width="2.5" height="1" rx="0.5" fill="#b8972a"/>
-              <rect x="33.5" y="26.5" width="2.5" height="1" rx="0.5" fill="#b8972a"/>
-              <line x1="27" y1="27" x2="27" y2="21.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="27" y1="27" x2="31" y2="24" stroke="#fff" strokeWidth="1" strokeLinecap="round"/>
-              <circle cx="27" cy="27" r="1.2" fill="#b8972a"/>
-              <rect x="43" y="25.5" width="3" height="3" rx="1" fill="#c9a84c"/>
-              <circle cx="14" cy="15" r="1" fill="#9a7a22"/><circle cx="40" cy="15" r="1" fill="#9a7a22"/>
-              <circle cx="14" cy="39" r="1" fill="#9a7a22"/><circle cx="40" cy="39" r="1" fill="#9a7a22"/>
-            </svg>
+            <Image
+              src="/watch-prize.png"
+              alt="Grand Prize Watch"
+              fill
+              className="object-contain p-1.5"
+            />
           </div>
 
           {/* Text body */}
-          <div className="flex-1 px-4 py-3 flex flex-col justify-center gap-1">
+          <div className="flex-1 px-4 py-3 flex flex-col gap-1 min-w-0">
             <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#b8972a" }}>Grand Prize</span>
-            <p className="font-extrabold text-sm leading-tight" style={{ color: "#0f1f17" }}>SB Championship Watch</p>
+            <p className="font-extrabold text-sm leading-tight" style={{ color: "#0f1f17" }}>Custom Champion Watch</p>
             <p className="text-[11px] leading-snug" style={{ color: "#7a8f82" }}>
-              Top the global leaderboard when the final whistle blows.
+              Top the global leaderboard to win the engraved champion watch.
             </p>
-            <Link
-              href="/predict/leaderboard"
-              className="self-start mt-1 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg"
-              style={{ background: "#1a3a2a", color: "#fff" }}
-            >
-              View Rankings
-            </Link>
           </div>
-        </div>
+
+          {/* CTA arrow */}
+          <div className="px-4 flex items-center shrink-0">
+            <span
+              className="text-[10px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap"
+              style={{ background: "#b8972a", color: "#fff" }}
+            >
+              View Prize
+            </span>
+          </div>
+        </Link>
 
         {/* ── Rules link + lock notice ──────────────────────── */}
         <div className="flex flex-col items-center gap-1">

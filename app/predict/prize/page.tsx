@@ -53,6 +53,7 @@ export default function PrizePage() {
 
   useEffect(() => {
     track.grandPrizeDetailsViewed("direct");
+    track.prizePageViewed();
   }, []);
 
   return (
@@ -156,17 +157,17 @@ export default function PrizePage() {
 
         {/* ── Countdown ──────────────────────────────────── */}
         <div
-          className="rounded-xl px-5 py-4 flex flex-col gap-2"
-          style={{ background: "#fff", border: `1px solid ${BORDER}` }}
+          className="rounded-xl px-5 py-5 flex flex-col gap-3"
+          style={{ background: GREEN, border: `1px solid ${GREEN}` }}
         >
-          <p className="text-xs font-bold uppercase tracking-widest text-center" style={{ color: MUTED }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-center" style={{ color: "rgba(255,255,255,0.55)" }}>
             Tournament starts in
           </p>
           <div className="flex justify-center">
             <CountdownTimer />
           </div>
-          <p className="text-[10px] text-center" style={{ color: MUTED }}>
-            Predictions lock at kickoff for each match — start now
+          <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.45)" }}>
+            Predictions lock at kickoff for each match — start predicting now
           </p>
         </div>
 
