@@ -2,6 +2,7 @@ import Link from "next/link";
 import CountdownTimer from "@/components/CountdownTimer";
 import HomepageAnalytics from "@/components/HomepageAnalytics";
 import HeroSection from "@/components/HeroSection";
+import { WhatsAppHeroCard } from "@/components/WhatsAppChannelCard";
 
 const FEATURES = [
   {
@@ -142,8 +143,13 @@ export default function LandingPage() {
             </Link>
           </div>
 
+          {/* WhatsApp Channel */}
+          <div className="mt-4 max-w-xs mx-auto w-full">
+            <WhatsAppHeroCard />
+          </div>
+
           {/* Stats strip */}
-          <div className="mt-14 flex flex-wrap justify-center gap-8 sm:gap-12">
+          <div className="mt-10 flex flex-wrap justify-center gap-8 sm:gap-12">
             {[
               { v: "104", l: "Matches" },
               { v: "48",  l: "Teams" },

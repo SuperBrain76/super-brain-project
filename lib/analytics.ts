@@ -87,4 +87,8 @@ export const track = {
   /** Fired when the user has predicted every open group-stage match */
   allGroupMatchesPredicted: (totalPredicted: number) =>
     t("all_group_matches_predicted", { total_predicted: totalPredicted, device: _device() }),
+
+  /** Fired when any WhatsApp channel CTA is clicked — surface identifies which one */
+  whatsappChannelClicked: (surface: "card" | "homepage_hero" | "first_prediction_banner") =>
+    t("whatsapp_channel_clicked", { surface, device: _device() }),
 };

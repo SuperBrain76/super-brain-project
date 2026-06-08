@@ -7,6 +7,7 @@ import { track } from "@/lib/analytics";
 import FixtureCard from "@/components/predictor/FixtureCard";
 import InlinePredictCard from "@/components/predictor/InlinePredictCard";
 import PredictionProgress, { GroupBadge } from "@/components/predictor/PredictionProgress";
+import { WhatsAppFirstPredictionBanner } from "@/components/WhatsAppChannelCard";
 import GettingStarted from "@/components/predictor/GettingStarted";
 import {
   getCompetition,
@@ -63,6 +64,7 @@ export default function PredictHub() {
   const [loadError,   setLoadError]   = useState<string | null>(null);
   const [tab,           setTab]           = useState<Tab>("all");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [showWaBanner,  setShowWaBanner]  = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -187,7 +189,14 @@ export default function PredictHub() {
     });
 
     // Fire analytics events
-    if (wasNew) track.firstPredictionSaved(fixtureId);
+    if (wasNew) {
+      track.firstPredictionSaved(fixtureId);
+      // Show WhatsApp channel banner once per session on first ever save
+      try {
+        const dismissed = sessionStorage.getItem("waBannerDismissed");
+        if (!dismissed) setShowWaBanner(true);
+      } catch { /* private mode */ }
+    }
     track.predictionSaved(fixtureId, !wasNew);
 
     // Increment predictions count in myStats if this was a new prediction
@@ -589,6 +598,16 @@ export default function PredictHub() {
             🔒 Each match locks at kickoff — the tournament does not lock all at once.
           </p>
         </div>
+
+        {/* ── WhatsApp first-prediction banner ─────────────── */}
+        {showWaBanner && (
+          <WhatsAppFirstPredictionBanner
+            onDismiss={() => {
+              setShowWaBanner(false);
+              try { sessionStorage.setItem("waBannerDismissed", "1"); } catch { /* ignore */ }
+            }}
+          />
+        )}
 
         {/* ── Prediction progress bar ──────────────────────── */}
         {user && openTotal > 0 && (
