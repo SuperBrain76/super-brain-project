@@ -13,6 +13,7 @@ import {
   type LeaderboardRow,
   type MyStats,
 } from "@/lib/predictor";
+import { GrandPrizeLeaderboardBanner } from "@/components/GrandPrize";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -167,6 +168,9 @@ export default function PredictorLeaderboardPage() {
             </Link>
           </div>
         )}
+
+        {/* Grand Prize banner */}
+        <GrandPrizeLeaderboardBanner participantCount={rows.length} />
 
         {/* Leaderboard table */}
         <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>

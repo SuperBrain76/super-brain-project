@@ -417,9 +417,9 @@ export default function LandingPage() {
                     Compete for the Watch →
                   </button>
                 </Link>
-                <Link href="/predict/leaderboard" className="w-full sm:w-auto">
+                <Link href="/predict/prize" className="w-full sm:w-auto">
                   <button className="btn-ghost w-full sm:w-auto text-sm px-8 py-4">
-                    See Leaderboard
+                    Prize Details →
                   </button>
                 </Link>
               </div>

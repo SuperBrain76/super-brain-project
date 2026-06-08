@@ -91,4 +91,22 @@ export const track = {
   /** Fired when any WhatsApp channel CTA is clicked — surface identifies which one */
   whatsappChannelClicked: (surface: "card" | "homepage_hero" | "first_prediction_banner") =>
     t("whatsapp_channel_clicked", { surface, device: _device() }),
+
+  // ── Grand Prize ───────────────────────────────────────────────────────────────
+
+  /** Fired when a prize placement enters the viewport */
+  grandPrizeViewed: (surface: "homepage_section" | "join_card" | "fixtures_banner" | "leaderboard_banner" | "rules_section" | "prize_page") =>
+    t("grand_prize_viewed", { surface, device: _device() }),
+
+  /** Fired when user clicks any prize element (non-CTA, e.g. banner link) */
+  grandPrizeClicked: (surface: "fixtures_banner" | "leaderboard_banner" | "footer") =>
+    t("grand_prize_clicked", { surface, device: _device() }),
+
+  /** Fired when user navigates to /predict/prize or clicks a "prize details" link */
+  grandPrizeDetailsViewed: (source: "homepage_section" | "join_card" | "rules_section" | "direct") =>
+    t("grand_prize_details_viewed", { source, device: _device() }),
+
+  /** Fired when user clicks a "Start Predicting" CTA that originated from a prize placement */
+  grandPrizeCTAClicked: (surface: "homepage_section" | "prize_page") =>
+    t("grand_prize_cta_clicked", { surface, device: _device() }),
 };

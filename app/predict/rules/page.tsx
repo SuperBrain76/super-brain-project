@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GrandPrizeRulesSection } from "@/components/GrandPrize";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -95,6 +96,7 @@ const TOC = [
   { href: "#deadlines",  label: "Deadlines" },
   { href: "#leagues",    label: "Leagues & Tie-breakers" },
   { href: "#bonus",      label: "Bonus Questions" },
+  { href: "#prize",      label: "Grand Prize" },
   { href: "#faq",        label: "FAQ" },
   { href: "#disclaimer", label: "Disclaimer" },
 ];
@@ -454,6 +456,11 @@ export default function RulesPage() {
           </Card>
         </Section>
 
+        {/* ── 5b. Grand Prize ──────────────────────────────── */}
+        <div id="prize">
+          <GrandPrizeRulesSection />
+        </div>
+
         {/* ── 6. Disclaimer ────────────────────────────────── */}
         <Section id="disclaimer" title="Disclaimer">
           <Card accent={MUTED}>
@@ -464,8 +471,13 @@ export default function RulesPage() {
               user scores.
             </p>
             <p className="text-sm leading-relaxed mt-3" style={{ color: TEXT2 }}>
-              SuperBrain Predictor is a free-to-play, points-based prediction game. No money, prizes,
-              or items of value are offered or implied. Results are for entertainment purposes only.
+              SuperBrain Predictor is a free-to-play, points-based prediction game. The Grand Prize
+              (Custom Champion Watch) is awarded to the overall global leaderboard winner at the conclusion
+              of the 2026 FIFA World Cup. See the{" "}
+              <Link href="/predict/prize" className="hover:underline" style={{ color: GREEN }}>
+                Grand Prize page
+              </Link>{" "}
+              for full prize details.
             </p>
             <p className="text-sm leading-relaxed mt-3" style={{ color: TEXT2 }}>
               If you believe there is an error in a match result, please contact us via the{" "}

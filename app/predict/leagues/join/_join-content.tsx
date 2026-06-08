@@ -15,6 +15,7 @@ import {
 import { signInWithGoogle } from "@/lib/googleAuth";
 import { track } from "@/lib/analytics";
 import { WhatsAppChannelCard } from "@/components/WhatsAppChannelCard";
+import { GrandPrizeJoinCard } from "@/components/GrandPrize";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -292,6 +293,9 @@ export default function JoinContent({ code }: { code: string }) {
             </p>
           </div>
 
+          {/* Grand Prize */}
+          <GrandPrizeJoinCard />
+
           {/* WhatsApp channel */}
           <WhatsAppChannelCard />
 
@@ -327,6 +331,11 @@ export default function JoinContent({ code }: { code: string }) {
              "Joining league…"}
           </h1>
         </div>
+
+        {/* Grand Prize — show on success */}
+        {(status === "success" || status === "already-member") && (
+          <GrandPrizeJoinCard />
+        )}
 
         {/* WhatsApp channel — show on success */}
         {(status === "success" || status === "already-member") && (

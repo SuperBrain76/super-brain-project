@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GrandPrizeFooterMention } from "@/components/GrandPrize";
 
 export default function Footer() {
   return (
@@ -28,7 +29,11 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-cockpit-border flex items-center justify-between">
+        <div className="mt-6 pt-6 border-t border-cockpit-border">
+          <GrandPrizeFooterMention />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
           <p className="text-cockpit-muted text-xs">© 2026 SuperBrain. All rights reserved.</p>
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-cockpit-green animate-pulse" />
