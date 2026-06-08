@@ -6,6 +6,19 @@ import { validateLeagueName } from "./leagueName";
 // Cache the result in memory so only the first call hits Supabase.
 const _competitionCache = new Map<string, { competition: Competition | null; error: string | null }>();
 
+// ── Fixtures cache ────────────────────────────────────────────
+// getFixtures() fetches all 104 fixtures + RLS-filtered predictions.
+// On a cold 4G mobile connection this is the single most expensive
+// query. Cache it client-side with a 60 second TTL.
+// Key: `${competitionId}:${stage ?? "all"}` — stage is almost always
+// undefined (full list) so effectively one entry per competition.
+const _fixturesTTL = 60_000; // 60 s
+const _fixturesCache = new Map<string, {
+  fixtures: unknown[];   // raw pre-map Fixture objects (typed below after Fixture is declared)
+  error:    string | null;
+  at:       number;      // Date.now() when cached
+}>();
+
 // ── Types ─────────────────────────────────────────────────────
 
 export interface Competition {
@@ -84,16 +97,18 @@ export interface LeagueMember {
 }
 
 export interface LeaderboardRow {
-  rank:         number;
-  displayName:  string;
-  country:      string | null;
-  totalPoints:  number;
-  matchPoints:  number;   // match predictions only
-  bonusPoints:  number;   // bonus questions only
-  predictions:  number;
-  exactScores:  number;
-  userId?:      string;   // only in league leaderboard
-  isMe?:        boolean;  // set client-side
+  rank:           number;
+  displayName:    string;
+  country:        string | null;
+  totalPoints:    number;
+  matchPoints:    number;   // match predictions only
+  bonusPoints:    number;   // bonus questions only
+  predictions:    number;
+  exactScores:    number;
+  correctGd:      number;   // 3-pt correct goal-difference predictions (tie-break col)
+  correctResults: number;   // 2-pt correct result predictions (tie-break col)
+  userId?:        string;   // only in league leaderboard
+  isMe?:          boolean;  // set client-side
 }
 
 export interface MyStats {
@@ -269,6 +284,18 @@ export async function getFixtures(
     return { fixtures: [], error: "Supabase is not configured." };
   }
 
+  // ── Client-side cache (60 s TTL) ──────────────────────────
+  // Predictions are RLS-filtered per user, so a 60 s stale window is
+  // acceptable and dramatically cuts cold-load time on mobile.
+  const cacheKey = `${competitionId}:${stage ?? "all"}`;
+  const cached   = _fixturesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < _fixturesTTL) {
+    return {
+      fixtures: (cached.fixtures as Record<string, unknown>[]).map(rowToFixture),
+      error:    cached.error,
+    };
+  }
+
   let q = supabase
     .from("fixtures")
     .select(FIXTURE_SELECT)
@@ -286,10 +313,23 @@ export async function getFixtures(
     return { fixtures: [], error: null }; // genuinely empty — seed hasn't been run or wrong comp ID
   }
 
+  // Store raw rows (pre-map) so the cache is auth-agnostic;
+  // rowToFixture is pure and applied on read.
+  _fixturesCache.set(cacheKey, { fixtures: data, error: null, at: Date.now() });
+
   return {
     fixtures: (data as Record<string, unknown>[]).map(rowToFixture),
     error: null,
   };
+}
+
+/**
+ * Invalidate the fixtures cache for a competition.
+ * Call this after a prediction is saved so the next getFixtures
+ * call fetches fresh data (e.g. on a hard-refresh or tab switch).
+ */
+export function invalidateFixturesCache(competitionId: string, stage?: string): void {
+  _fixturesCache.delete(`${competitionId}:${stage ?? "all"}`);
 }
 
 export async function getFixture(fixtureId: string): Promise<Fixture | null> {
@@ -584,6 +624,36 @@ export async function getLeagueByInviteCode(
 
   if (error || !data) return null;
   return mapLeagueRow(data as unknown as Record<string, unknown>);
+}
+
+export interface LeagueSummary {
+  memberCount:  number;
+  leaderName:   string | null;
+  leaderPoints: number | null;
+  totalPredictions: number;
+}
+
+/**
+ * Lightweight summary for the invite/join page social proof strip.
+ * Runs member count + leaderboard fetch in parallel.
+ * Does NOT require authentication — member count is public, leaderboard
+ * may return empty for private leagues with no public rows.
+ */
+export async function getLeagueSummary(leagueId: string): Promise<LeagueSummary> {
+  const [memberCount, leaderboard] = await Promise.all([
+    getLeagueMemberCount(leagueId),
+    getLeagueLeaderboard(leagueId).catch(() => []),
+  ]);
+
+  const leader = leaderboard[0] ?? null;
+  const totalPredictions = leaderboard.reduce((sum, r) => sum + r.predictions, 0);
+
+  return {
+    memberCount,
+    leaderName:   leader?.displayName ?? null,
+    leaderPoints: leader?.totalPoints ?? null,
+    totalPredictions,
+  };
 }
 
 export async function joinLeague(
@@ -913,15 +983,17 @@ export async function getPredictorLeaderboard(
   });
   if (error || !data) return [];
   return (data as Record<string, unknown>[]).map((r) => ({
-    rank:        Number(r.rank),
-    userId:      r.user_id as string,
-    displayName: (r.display_name as string | null) || "Player",
-    country:     r.country as string | null,
-    totalPoints: Number(r.total_points),
-    matchPoints: Number(r.match_points ?? 0),
-    bonusPoints: Number(r.bonus_points ?? 0),
-    predictions: Number(r.predictions),
-    exactScores: Number(r.exact_scores),
+    rank:           Number(r.rank),
+    userId:         r.user_id as string,
+    displayName:    (r.display_name as string | null) || "Player",
+    country:        r.country as string | null,
+    totalPoints:    Number(r.total_points),
+    matchPoints:    Number(r.match_points ?? 0),
+    bonusPoints:    Number(r.bonus_points ?? 0),
+    predictions:    Number(r.predictions),
+    exactScores:    Number(r.exact_scores),
+    correctGd:      Number(r.correct_gd ?? 0),
+    correctResults: Number(r.correct_results ?? 0),
   }));
 }
 
@@ -933,15 +1005,17 @@ export async function getLeagueLeaderboard(
   });
   if (error || !data) return [];
   return (data as Record<string, unknown>[]).map((r) => ({
-    rank:        Number(r.rank),
-    userId:      r.user_id as string,
-    displayName: (r.display_name as string | null) || "Player",
-    country:     r.country as string | null,
-    totalPoints: Number(r.total_points),
-    matchPoints: Number(r.match_points ?? 0),
-    bonusPoints: Number(r.bonus_points ?? 0),
-    predictions: Number(r.predictions),
-    exactScores: Number(r.exact_scores),
+    rank:           Number(r.rank),
+    userId:         r.user_id as string,
+    displayName:    (r.display_name as string | null) || "Player",
+    country:        r.country as string | null,
+    totalPoints:    Number(r.total_points),
+    matchPoints:    Number(r.match_points ?? 0),
+    bonusPoints:    Number(r.bonus_points ?? 0),
+    predictions:    Number(r.predictions),
+    exactScores:    Number(r.exact_scores),
+    correctGd:      Number(r.correct_gd ?? 0),
+    correctResults: Number(r.correct_results ?? 0),
   }));
 }
 

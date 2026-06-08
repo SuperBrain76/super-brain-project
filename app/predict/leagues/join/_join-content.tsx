@@ -8,9 +8,12 @@ import {
   getLeagueByInviteCode,
   joinLeague,
   joinPublicLeague,
+  getLeagueSummary,
   type PredictionLeague,
+  type LeagueSummary,
 } from "@/lib/predictor";
 import { signInWithGoogle } from "@/lib/googleAuth";
+import { track } from "@/lib/analytics";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -42,9 +45,29 @@ export default function JoinContent({ code }: { code: string }) {
 
   const [status,      setStatus]      = useState<Status>("idle");
   const [league,      setLeague]      = useState<PredictionLeague | null>(null);
+  const [summary,     setSummary]     = useState<LeagueSummary | null>(null);
   const [errorMsg,    setErrorMsg]    = useState("");
   const [googleBusy,  setGoogleBusy]  = useState(false);
   const didRun = useRef(false);
+
+  // Pre-fetch league name + social proof stats as soon as code is known.
+  // Also fires invite_page_viewed with the real leagueId once resolved.
+  useEffect(() => {
+    if (!code) {
+      track.invitePageViewed(null, "unknown");
+      return;
+    }
+    async function fetchPreview() {
+      const found = await getLeagueByInviteCode(code);
+      if (!found) { track.invitePageViewed(null, "link"); return; }
+      setLeague(found);
+      track.invitePageViewed(found.id, "link");
+      const s = await getLeagueSummary(found.id);
+      setSummary(s);
+    }
+    fetchPreview();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   // Not authed — save code to localStorage for after sign-in
   // (We now show an inline sign-in card instead of hard-redirecting)
@@ -112,7 +135,7 @@ export default function JoinContent({ code }: { code: string }) {
 
   const isWorking = status === "idle" || status === "looking" || status === "joining";
 
-  // ── Not signed in — show inline Google sign-in card ──────────
+  // ── Not signed in — show social proof + inline Google sign-in ──
   if (!authLoading && !user) {
     const dest = code
       ? `/predict/leagues/join?code=${encodeURIComponent(code)}`
@@ -120,40 +143,104 @@ export default function JoinContent({ code }: { code: string }) {
 
     const handleGoogle = async () => {
       setGoogleBusy(true);
+      track.googleLoginClicked("join_page");
       const err = await signInWithGoogle(dest);
       if (err) setGoogleBusy(false);
-      // On success browser navigates away
     };
 
     return (
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-sm flex flex-col gap-5">
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-sm flex flex-col gap-4">
 
-          {/* Header */}
-          <div className="text-center">
-            <div className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center mb-4"
-              style={{ background: `${GREEN}12`, border: `1px solid ${GREEN}30` }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={GREEN}
-                strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                <path d="M4 22h16"/>
-                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
-              </svg>
+          {/* ── League identity header ── */}
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ background: GREEN, position: "relative" }}
+          >
+            {/* Subtle gold radial glow */}
+            <div className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse 60% 100% at 90% 50%, rgba(184,151,42,0.10), transparent)" }} />
+            <div className="relative px-5 py-5 flex flex-col gap-3">
+              {/* Trophy + league name */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(184,151,42,0.15)", border: "1px solid rgba(184,151,42,0.3)" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b8972a"
+                    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                    <path d="M4 22h16"/>
+                    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5"
+                    style={{ color: "rgba(255,255,255,0.45)" }}>
+                    You&apos;ve been invited to
+                  </p>
+                  <h1 className="font-extrabold text-lg leading-tight text-white truncate">
+                    {league?.name ?? (code ? `League ${code}` : "a league")}
+                  </h1>
+                </div>
+              </div>
+
+              {/* Social proof stats strip */}
+              {summary && (summary.memberCount > 0 || summary.leaderName) && (
+                <div
+                  className="grid grid-cols-3 gap-0 rounded-lg overflow-hidden"
+                  style={{ border: "1px solid rgba(255,255,255,0.10)" }}
+                >
+                  {[
+                    {
+                      value: String(summary.memberCount),
+                      label: summary.memberCount === 1 ? "Member" : "Members",
+                    },
+                    {
+                      value: String(summary.totalPredictions),
+                      label: "Predictions",
+                    },
+                    {
+                      value: summary.leaderPoints !== null ? `${summary.leaderPoints}` : "—",
+                      label: "Leader pts",
+                    },
+                  ].map((s, i) => (
+                    <div
+                      key={s.label}
+                      className="flex flex-col items-center py-2.5 px-1"
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        borderRight: i < 2 ? "1px solid rgba(255,255,255,0.10)" : undefined,
+                      }}
+                    >
+                      <span className="text-base font-black tabular-nums leading-none text-white">{s.value}</span>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider mt-0.5"
+                        style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {s.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Leader name */}
+              {summary?.leaderName && (
+                <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  🏆 Currently led by <span className="font-semibold text-white">{summary.leaderName}</span>
+                  {summary.leaderPoints !== null && (
+                    <span> with {summary.leaderPoints} pts</span>
+                  )}
+                </p>
+              )}
             </div>
-            <h1 className="text-xl font-bold mb-1" style={{ color: TEXT1 }}>You&apos;ve been invited!</h1>
-            {code && (
-              <p className="text-xs font-mono tracking-widest" style={{ color: MUTED }}>Code: {code}</p>
-            )}
           </div>
 
-          {/* Sign-in card */}
-          <div className="rounded-xl p-6 flex flex-col gap-4"
+          {/* ── Sign-in card ── */}
+          <div className="rounded-xl p-5 flex flex-col gap-4"
             style={{ background: "#ffffff", border: `1px solid ${BORDER}` }}>
-            <p className="text-sm text-center" style={{ color: TEXT2 }}>
-              Sign in to join the league and start predicting.
+            <p className="text-sm font-semibold text-center" style={{ color: TEXT1 }}>
+              Sign in to join and start predicting
             </p>
 
             {/* Google button */}
@@ -167,6 +254,7 @@ export default function JoinContent({ code }: { code: string }) {
                 color:      "#3c4043",
                 boxShadow:  "0 1px 3px rgba(0,0,0,0.08)",
                 opacity:    googleBusy ? 0.7 : 1,
+                touchAction: "manipulation",
               }}
             >
               {googleBusy ? (
@@ -197,6 +285,10 @@ export default function JoinContent({ code }: { code: string }) {
             >
               Sign in with Email
             </Link>
+
+            <p className="text-[10px] text-center" style={{ color: MUTED }}>
+              Free to play · No spam · Unsubscribe anytime
+            </p>
           </div>
 
         </div>

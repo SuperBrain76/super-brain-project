@@ -34,6 +34,14 @@ function t(event: string, props?: Record<string, unknown>): void {
   posthog.capture(event, props);
 }
 
+// ── Device helper ─────────────────────────────────────────────
+// Simple mobile/desktop discriminator. Coarse but sufficient for
+// PostHog segmentation — no external library needed.
+function _device(): "mobile" | "desktop" {
+  if (typeof navigator === "undefined") return "desktop";
+  return navigator.maxTouchPoints > 0 ? "mobile" : "desktop";
+}
+
 export const track = {
   // ── Cognitive tests ──────────────────────────────────────────────────────────
   homepageView:      ()                                                              => t("homepage_view"),
@@ -51,11 +59,32 @@ export const track = {
   signupCompleted:   ()                                                              => t("signup_completed"),
 
   // ── Predictor ────────────────────────────────────────────────────────────────
-  predictionSaved:         (fixtureId: string, isEdit: boolean)                     => t("prediction_saved",      { fixture_id: fixtureId, is_edit: isEdit }),
-  bonusAnswerSaved:        (questionKey: string)                                     => t("bonus_answer_saved",    { question_key: questionKey }),
-  leagueCreated:           (visibility: "private" | "public")                        => t("league_created",        { visibility }),
-  leagueJoined:            (leagueId: string)                                        => t("league_joined",         { league_id: leagueId }),
-  inviteLinkCopied:        (leagueId: string, copyType: "code" | "link")             => t("invite_link_copied",    { league_id: leagueId, copy_type: copyType }),
-  whatsappShareClicked:    (leagueId: string)                                        => t("whatsapp_share_clicked",{ league_id: leagueId }),
-  predictorLeaderboardViewed: ()                                                     => t("leaderboard_viewed",    { context: "predictor" }),
+  predictionSaved:         (fixtureId: string, isEdit: boolean)                     => t("prediction_saved",          { fixture_id: fixtureId, is_edit: isEdit, device: _device() }),
+  bonusAnswerSaved:        (questionKey: string)                                     => t("bonus_answer_saved",        { question_key: questionKey }),
+  leagueCreated:           (visibility: "private" | "public")                        => t("league_created",            { visibility }),
+  leagueJoined:            (leagueId: string)                                        => t("league_joined",             { league_id: leagueId }),
+  inviteLinkCopied:        (leagueId: string, copyType: "code" | "link")             => t("invite_link_copied",        { league_id: leagueId, copy_type: copyType }),
+  whatsappShareClicked:    (leagueId: string)                                        => t("whatsapp_share_clicked",    { league_id: leagueId }),
+  predictorLeaderboardViewed: ()                                                     => t("leaderboard_viewed",        { context: "predictor" }),
+
+  // ── Growth / funnel events ────────────────────────────────────────────────────
+  // Funnel A:  invite_page_viewed → league_joined → first_prediction_saved
+  // Funnel B:  signup_completed → first_prediction_saved
+  // Funnel C:  first_prediction_saved → all_group_matches_predicted
+
+  /** Fired once when the /predict/leagues/join page mounts (regardless of auth) */
+  invitePageViewed: (leagueId: string | null, source: "link" | "code" | "unknown") =>
+    t("invite_page_viewed", { league_id: leagueId, source, device: _device() }),
+
+  /** Fired when the user clicks "Continue with Google" on any sign-in surface */
+  googleLoginClicked: (surface: "login_page" | "join_page") =>
+    t("google_login_clicked", { surface, device: _device() }),
+
+  /** Fired the very first time a user saves a prediction (myPrediction was null before) */
+  firstPredictionSaved: (fixtureId: string) =>
+    t("first_prediction_saved", { fixture_id: fixtureId, device: _device() }),
+
+  /** Fired when the user has predicted every open group-stage match */
+  allGroupMatchesPredicted: (totalPredicted: number) =>
+    t("all_group_matches_predicted", { total_predicted: totalPredicted, device: _device() }),
 };

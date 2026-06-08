@@ -94,6 +94,7 @@ function LoginForm() {
       return;
     }
     setError(""); setSuccess(""); setGoogleBusy(true);
+    track.googleLoginClicked("login_page");
     const err = await signInWithGoogle(next || undefined);
     if (err) { setError(err); setGoogleBusy(false); }
     // On success the browser navigates away — no state reset needed

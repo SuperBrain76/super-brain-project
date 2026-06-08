@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { track } from "@/lib/analytics";
 import FixtureCard from "@/components/predictor/FixtureCard";
+import InlinePredictCard from "@/components/predictor/InlinePredictCard";
+import PredictionProgress, { GroupBadge } from "@/components/predictor/PredictionProgress";
 import GettingStarted from "@/components/predictor/GettingStarted";
 import {
   getCompetition,
   getFixtures,
   getMyStats,
+  isPredictionOpen,
   type Fixture,
   type Competition,
   type MyStats,
@@ -122,6 +126,76 @@ export default function PredictHub() {
     }
     return map;
   }, [filtered]);
+
+  // ── Prediction progress (open fixtures only) ──────────────
+  // Derived from already-fetched fixtures — zero extra DB calls.
+  const { openTotal, openPredicted } = useMemo(() => {
+    const open = fixtures.filter(
+      (f) => f.status === "scheduled" && new Date(f.kicksOffAt) > new Date()
+    );
+    return {
+      openTotal:     open.length,
+      openPredicted: open.filter((f) => !!f.myPrediction).length,
+    };
+  }, [fixtures]);
+
+  // ── Per-date group progress (for GroupBadge on headers) ───
+  const groupProgress = useMemo(() => {
+    const map = new Map<string, { predicted: number; total: number }>();
+    for (const [dateKey, dayFixtures] of Array.from(groups.entries())) {
+      const open = dayFixtures.filter(
+        (f) => f.status === "scheduled" && new Date(f.kicksOffAt) > new Date()
+      );
+      if (open.length === 0) continue; // skip past/completed date groups
+      map.set(dateKey, {
+        total:     open.length,
+        predicted: open.filter((f) => !!f.myPrediction).length,
+      });
+    }
+    return map;
+  }, [groups]);
+
+  // ── Inline prediction save handler ───────────────────────
+  // Updates the fixture's myPrediction in local state so PickStrip renders
+  // immediately without a refetch, and increments the stats counter.
+  const handlePredictionSaved = useCallback((fixtureId: string, home: number, away: number) => {
+    const wasNew = !fixtures.find((f) => f.id === fixtureId)?.myPrediction;
+
+    setFixtures((prev) => {
+      const updated = prev.map((f) =>
+        f.id !== fixtureId ? f : {
+          ...f,
+          myPrediction: {
+            homeScore:     home,
+            awayScore:     away,
+            pointsAwarded: null,
+          },
+        }
+      );
+
+      // Check if all open fixtures are now predicted (for milestone event)
+      const openFixtures  = updated.filter(
+        (f) => f.status === "scheduled" && new Date(f.kicksOffAt) > new Date()
+      );
+      const nowAllDone = openFixtures.length > 0 &&
+        openFixtures.every((f) => f.id === fixtureId || !!f.myPrediction);
+      if (nowAllDone) {
+        track.allGroupMatchesPredicted(openFixtures.length);
+      }
+
+      return updated;
+    });
+
+    // Fire analytics events
+    if (wasNew) track.firstPredictionSaved(fixtureId);
+    track.predictionSaved(fixtureId, !wasNew);
+
+    // Increment predictions count in myStats if this was a new prediction
+    setMyStats((prev) => {
+      if (!prev) return prev;
+      return wasNew ? { ...prev, predictions: prev.predictions + 1 } : prev;
+    });
+  }, [fixtures]);
 
   const todayCount = fixtures.filter((f) => isToday(f.kicksOffAt)).length;
   const openCount  = fixtures.filter((f) => {
@@ -516,6 +590,14 @@ export default function PredictHub() {
           </p>
         </div>
 
+        {/* ── Prediction progress bar ──────────────────────── */}
+        {user && openTotal > 0 && (
+          <PredictionProgress
+            predicted={openPredicted}
+            total={openTotal}
+          />
+        )}
+
         {/* ── Tabs ─────────────────────────────────────────── */}
         <div
           id="fixture-list"
@@ -565,11 +647,18 @@ export default function PredictHub() {
                 {/* Date header */}
                 <div className="flex items-center gap-3 mb-2">
                   <span
-                    className="text-xs font-bold uppercase tracking-widest"
+                    className="text-xs font-bold uppercase tracking-widest shrink-0"
                     style={{ color: isToday(dayFixtures[0].kicksOffAt) ? "#16a34a" : "#94a3b8" }}
                   >
                     {isToday(dayFixtures[0].kicksOffAt) ? "Today · " : ""}{dateLabel}
                   </span>
+                  {/* Group progress badge — only for logged-in users on future date groups */}
+                  {user && groupProgress.has(dateLabel) && (
+                    <GroupBadge
+                      predicted={groupProgress.get(dateLabel)!.predicted}
+                      total={groupProgress.get(dateLabel)!.total}
+                    />
+                  )}
                   <div className="flex-1 h-px" style={{ background: "#e2e8f0" }} />
                   <span className="text-[10px] font-mono" style={{ color: "#94a3b8" }}>
                     {dayFixtures.length} match{dayFixtures.length === 1 ? "" : "es"}
@@ -578,14 +667,29 @@ export default function PredictHub() {
 
                 {/* Fixtures */}
                 <div className="flex flex-col gap-2">
-                  {dayFixtures.map((fixture) => (
-                    <FixtureCard
-                      key={fixture.id}
-                      fixture={fixture}
-                      showPrediction={!!user}
-                      highlighted={fixture.id === highlightedId}
-                    />
-                  ))}
+                  {dayFixtures.map((fixture) => {
+                    const open = isPredictionOpen(fixture);
+                    // Open fixtures: inline steppers (or sign-in nudge if not authed)
+                    if (open) {
+                      return (
+                        <InlinePredictCard
+                          key={fixture.id}
+                          fixture={fixture}
+                          showPrediction={!!user}
+                          highlighted={fixture.id === highlightedId}
+                          onSaved={handlePredictionSaved}
+                        />
+                      );
+                    }
+                    return (
+                      <FixtureCard
+                        key={fixture.id}
+                        fixture={fixture}
+                        showPrediction={!!user}
+                        highlighted={fixture.id === highlightedId}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ))}
