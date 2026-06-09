@@ -27,11 +27,20 @@ export const metadata: Metadata = {
     title:       TITLE,
     description: DESC,
     url:         BASE_URL,
+    images: [
+      {
+        url:    `${BASE_URL}/opengraph-image`,
+        width:  1200,
+        height: 630,
+        alt:    TITLE,
+      },
+    ],
   },
   twitter: {
     card:        "summary_large_image",
     title:       TITLE,
     description: DESC,
+    images:      [`${BASE_URL}/opengraph-image`],
   },
   icons: {
     icon:  [

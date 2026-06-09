@@ -1,5 +1,38 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import EmailVerificationBanner from "@/components/predictor/EmailVerificationBanner";
+
+const BASE_URL   = "https://www.superbrain.social";
+const PRED_TITLE = "SuperBrain World Cup 2026 Predictor";
+const PRED_DESC  = "Predict every World Cup match, create private leagues, compete with friends and win the Custom Champion Watch.";
+const PRED_URL   = `${BASE_URL}/predict`;
+const OG_IMAGE   = `${BASE_URL}/predict/opengraph-image`;
+
+export const metadata: Metadata = {
+  title:       PRED_TITLE,
+  description: PRED_DESC,
+  openGraph: {
+    type:        "website",
+    siteName:    "SuperBrain",
+    title:       PRED_TITLE,
+    description: PRED_DESC,
+    url:         PRED_URL,
+    images: [
+      {
+        url:    OG_IMAGE,
+        width:  1200,
+        height: 630,
+        alt:    "SuperBrain World Cup 2026 Predictor — Predict every match. Compete for the Custom Champion Watch.",
+      },
+    ],
+  },
+  twitter: {
+    card:        "summary_large_image",
+    title:       PRED_TITLE,
+    description: PRED_DESC,
+    images:      [OG_IMAGE],
+  },
+};
 
 /**
  * Predictor shell layout.
