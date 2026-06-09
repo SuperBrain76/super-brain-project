@@ -9,6 +9,8 @@ import {
   kickoffCountdown,
   stageLabel,
 } from "@/lib/predictor";
+import { getKnockoutSeeds } from "@/lib/knockoutSeeds";
+import SeedPill from "./SeedPill";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -24,22 +26,44 @@ function TeamDisplay({
   team,
   align,
   dim,
+  seedLabel,
 }: {
-  team:  Fixture["homeTeam"];
-  align: "left" | "right";
-  dim?:  boolean;
+  team:       Fixture["homeTeam"];
+  align:      "left" | "right";
+  dim?:       boolean;
+  seedLabel?: string | null;
 }) {
-  const name = team?.name ?? "TBD";
-  const flag = team?.flagEmoji ?? "🏳";
+  const name = team?.name ?? null;
+  const flag = team?.flagEmoji ?? null;
+
   return (
     <div className={`flex items-center gap-1.5 flex-1 min-w-0 ${align === "right" ? "flex-row-reverse" : ""}`}>
-      <span className="text-xl shrink-0 leading-none">{flag}</span>
-      <span
-        className={`text-sm font-semibold leading-tight truncate ${align === "right" ? "text-right" : ""}`}
-        style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
-      >
-        {name}
-      </span>
+      {/* Flag or placeholder */}
+      {flag ? (
+        <span className="text-xl shrink-0 leading-none">{flag}</span>
+      ) : (
+        <span className="text-lg shrink-0 leading-none opacity-30" aria-hidden="true">🛡</span>
+      )}
+
+      <div className={`flex flex-col min-w-0 gap-0.5 ${align === "right" ? "items-end" : ""}`}>
+        {name ? (
+          <>
+            <span
+              className={`text-sm font-semibold leading-tight truncate ${align === "right" ? "text-right" : ""}`}
+              style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
+            >
+              {name}
+            </span>
+            {seedLabel && <SeedPill label={seedLabel} />}
+          </>
+        ) : seedLabel ? (
+          <span className="text-sm font-semibold leading-tight" style={{ color: "#7a5e14", fontWeight: 600 }}>
+            {seedLabel}
+          </span>
+        ) : (
+          <span className="text-sm" style={{ color: MUTED }}>TBD</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -310,27 +334,32 @@ export default function InlinePredictCard({
       </div>
 
       {/* Teams row */}
-      <div className="flex items-center gap-2 px-3 pt-2 pb-2">
-        <TeamDisplay team={fixture.homeTeam} align="left" />
+      {(() => {
+        const seeds = getKnockoutSeeds(fixture.fixtureNumber);
+        return (
+          <div className="flex items-center gap-2 px-3 pt-2 pb-2">
+            <TeamDisplay team={fixture.homeTeam} align="left" seedLabel={seeds?.home} />
 
-        {/* Centre: score (completed) or "vs" (not open) */}
-        {done && fixture.homeScore !== null ? (
-          <div className="flex items-center justify-center gap-1 shrink-0 px-2">
-            <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.homeScore}</span>
-            <span className="font-bold" style={{ color: BORDER }}>–</span>
-            <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.awayScore}</span>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center shrink-0 px-2">
-            <span className="text-xs font-semibold tracking-widest uppercase"
-              style={{ color: fixture.status === "live" ? "#e53e3e" : MUTED }}>
-              {fixture.status === "live" ? "LIVE" : "vs"}
-            </span>
-          </div>
-        )}
+            {/* Centre: score (completed) or "vs" (not open) */}
+            {done && fixture.homeScore !== null ? (
+              <div className="flex items-center justify-center gap-1 shrink-0 px-2">
+                <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.homeScore}</span>
+                <span className="font-bold" style={{ color: BORDER }}>–</span>
+                <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.awayScore}</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center shrink-0 px-2">
+                <span className="text-xs font-semibold tracking-widest uppercase"
+                  style={{ color: fixture.status === "live" ? "#e53e3e" : MUTED }}>
+                  {fixture.status === "live" ? "LIVE" : "vs"}
+                </span>
+              </div>
+            )}
 
-        <TeamDisplay team={fixture.awayTeam} align="right" dim />
-      </div>
+            <TeamDisplay team={fixture.awayTeam} align="right" dim seedLabel={seeds?.away} />
+          </div>
+        );
+      })()}
 
       {/* ── Prediction zone ─────────────────────────────── */}
       {showPrediction && (() => {
@@ -383,24 +412,33 @@ export default function InlinePredictCard({
             style={{ borderTop: `1px solid ${BORDER}` }}
           >
             {/* Stepper row */}
-            <div className="flex items-center justify-between gap-2">
-              {/* Home team name */}
-              <span className="text-xs font-semibold truncate flex-1 min-w-0" style={{ color: "#0f1f17" }}>
-                {fixture.homeTeam?.name ?? "Home"}
-              </span>
+            {(() => {
+              const seeds = getKnockoutSeeds(fixture.fixtureNumber);
+              const homeLabel = fixture.homeTeam?.name ?? seeds?.home ?? "Home";
+              const awayLabel = fixture.awayTeam?.name ?? seeds?.away ?? "Away";
+              return (
+                <div className="flex items-center justify-between gap-2">
+                  {/* Home team name */}
+                  <span className="text-xs font-semibold truncate flex-1 min-w-0"
+                    style={{ color: fixture.homeTeam ? "#0f1f17" : "#7a5e14" }}>
+                    {homeLabel}
+                  </span>
 
-              {/* Steppers + vs separator */}
-              <div className="flex items-center gap-2 shrink-0">
-                <ScoreStepper value={homeScore} onChange={setHomeScore} disabled={saving} />
-                <span className="text-xs font-bold" style={{ color: MUTED }}>–</span>
-                <ScoreStepper value={awayScore} onChange={setAwayScore} disabled={saving} />
-              </div>
+                  {/* Steppers + vs separator */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <ScoreStepper value={homeScore} onChange={setHomeScore} disabled={saving} />
+                    <span className="text-xs font-bold" style={{ color: MUTED }}>–</span>
+                    <ScoreStepper value={awayScore} onChange={setAwayScore} disabled={saving} />
+                  </div>
 
-              {/* Away team name */}
-              <span className="text-xs font-semibold truncate flex-1 min-w-0 text-right" style={{ color: MUTED }}>
-                {fixture.awayTeam?.name ?? "Away"}
-              </span>
-            </div>
+                  {/* Away team name */}
+                  <span className="text-xs font-semibold truncate flex-1 min-w-0 text-right"
+                    style={{ color: fixture.awayTeam ? MUTED : "#7a5e14" }}>
+                    {awayLabel}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Error message */}
             {error && (
