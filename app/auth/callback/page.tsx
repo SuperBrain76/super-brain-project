@@ -9,41 +9,97 @@ function CallbackHandler() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    const next = searchParams.get("next"); // e.g. "/predict/leagues/join?code=ABC" or "/reset-password"
+    // ── Parse all possible auth params from the URL ──────────────────────────
+    //
+    // Supabase sends TWO different URL formats depending on the auth type:
+    //
+    //   EMAIL CONFIRMATION (OTP / magic-link):
+    //     /auth/callback?token_hash=<hash>&type=signup[&next=<path>]
+    //     Must be handled with: supabase.auth.verifyOtp({ token_hash, type })
+    //
+    //   OAUTH (Google, GitHub, etc.) — PKCE code flow:
+    //     /auth/callback?code=<auth_code>[&next=<path>]
+    //     Must be handled with: supabase.auth.exchangeCodeForSession(code)
+    //
+    // The original code only handled ?code=, so email confirmation links
+    // (which use ?token_hash=) fell through to the else branch, where
+    // getSession() returned null and the user was bounced to /login
+    // without their email ever being confirmed. That is the bug.
+    //
+    const tokenHash = searchParams.get("token_hash");
+    const type      = searchParams.get("type");   // "signup" | "email" | "recovery" | "invite"
+    const code      = searchParams.get("code");
+    const next      = searchParams.get("next");   // optional post-auth destination
 
     async function resolve() {
-      // ── 1. Exchange code for session (PKCE — works for both email confirm AND OAuth) ──
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) { router.replace("/login?error=confirmation_failed"); return; }
-      } else {
-        // Implicit flow fallback — session from URL hash
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) { router.replace("/login"); return; }
+      // ── Path A: Email OTP / confirmation link ──────────────────────────────
+      // token_hash + type are set by Supabase in every email-based link:
+      //   - Sign-up confirmation (type="signup")
+      //   - Magic-link login    (type="magiclink")
+      //   - Email change        (type="email_change")
+      //   - Password reset      (type="recovery")
+      //   - Team invite         (type="invite")
+      if (tokenHash && type) {
+        console.log("[auth/callback] email OTP path — type:", type);
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: type as Parameters<typeof supabase.auth.verifyOtp>[0]["type"],
+        });
+        if (error) {
+          console.error("[auth/callback] verifyOtp error:", error.message);
+          router.replace("/login?error=confirmation_failed");
+          return;
+        }
+        // verifyOtp succeeds → email is now confirmed, user has an active session
+        console.log("[auth/callback] verifyOtp success — email confirmed");
       }
 
-      // ── 2. If a specific destination was requested, go there immediately ──
+      // ── Path B: OAuth PKCE code exchange (Google, etc.) ───────────────────
+      else if (code) {
+        console.log("[auth/callback] OAuth PKCE path — exchanging code");
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error("[auth/callback] exchangeCodeForSession error:", error.message);
+          router.replace("/login?error=confirmation_failed");
+          return;
+        }
+        console.log("[auth/callback] exchangeCodeForSession success");
+      }
+
+      // ── Path C: Implicit flow fallback (no code, no token_hash) ──────────
+      // Older Supabase projects / implicit-flow tokens arrive as URL hash
+      // fragments (#access_token=...). The Supabase client processes the hash
+      // automatically; we just check that a session was established.
+      else {
+        console.log("[auth/callback] implicit/hash path — checking session");
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          console.warn("[auth/callback] no session found — redirecting to /login");
+          router.replace("/login");
+          return;
+        }
+      }
+
+      // ── Redirect after auth ───────────────────────────────────────────────
+
+      // If a specific destination was requested, honour it immediately.
       // This covers: password reset, league invite, any ?next= destination.
-      // Also covers Google OAuth users — they land here with ?next= preserved.
       if (next) {
         router.replace(next);
         return;
       }
 
-      // ── 3. No ?next= — determine where to send the user ──────────────────
-      // Check whether this is a Google/OAuth user or email user.
+      // No ?next= — determine where to send the user based on provider.
       const { data: { user } } = await supabase.auth.getUser();
       const isOAuthUser = user?.app_metadata?.provider !== "email";
 
-      // OAuth users (Google etc.) skip the profile-complete gate — they are
-      // already authenticated without email verification. Send straight to /predict.
+      // Google / OAuth users are fully authenticated without email verification.
       if (isOAuthUser) {
         router.replace("/predict");
         return;
       }
 
-      // Email users: check profile completion (existing behaviour).
+      // Email users: check whether they have completed their profile.
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("profile_complete")

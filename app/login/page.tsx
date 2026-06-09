@@ -83,7 +83,16 @@ function LoginForm() {
   const resendVerification = async () => {
     if (!email || resendBusy) return;
     setResendBusy(true);
-    await supabase.auth.resend({ type: "signup", email });
+    // Pass emailRedirectTo so the resent link also points at /auth/callback,
+    // not the Supabase default (which may point to a different URL).
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+    await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${siteUrl}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
+      },
+    });
     setResendBusy(false);
     setResendDone(true);
   };
