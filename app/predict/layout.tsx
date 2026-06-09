@@ -6,7 +6,8 @@ const BASE_URL   = "https://www.superbrain.social";
 const PRED_TITLE = "SuperBrain World Cup 2026 Predictor";
 const PRED_DESC  = "Predict every World Cup match, create private leagues, compete with friends and win the Custom Champion Watch.";
 const PRED_URL   = `${BASE_URL}/predict`;
-const OG_IMAGE   = `${BASE_URL}/predict/opengraph-image`;
+// Static JPG — universally readable by all crawlers (Facebook, Messenger, etc.)
+const OG_IMAGE   = `${BASE_URL}/og/world-cup-predictor.jpg`;
 
 export const metadata: Metadata = {
   title:       PRED_TITLE,
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
         url:    OG_IMAGE,
         width:  1200,
         height: 630,
+        type:   "image/jpeg",
         alt:    "SuperBrain World Cup 2026 Predictor — Predict every match. Compete for the Custom Champion Watch.",
       },
     ],
