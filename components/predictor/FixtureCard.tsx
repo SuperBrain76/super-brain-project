@@ -9,6 +9,8 @@ import {
   stageLabel,
   pointsColor,
 } from "@/lib/predictor";
+import { getKnockoutSeeds } from "@/lib/knockoutSeeds";
+import SeedPill from "./SeedPill";
 
 const LAST_FIXTURE_KEY = "lastPredictedFixture";
 
@@ -25,13 +27,16 @@ function TeamDisplay({
   team,
   align,
   dim,
+  seedLabel,
 }: {
-  team:  Fixture["homeTeam"];
-  align: "left" | "right";
-  dim?:  boolean;
+  team:       Fixture["homeTeam"];
+  align:      "left" | "right";
+  dim?:       boolean;
+  seedLabel?: string | null;
 }) {
-  const name = team?.name ?? "TBD";
-  const flag = team?.flagEmoji ?? "🏳";
+  const isTbd = !team;
+  const name  = team?.name ?? null;
+  const flag  = team?.flagEmoji ?? null;
 
   return (
     <div
@@ -39,15 +44,45 @@ function TeamDisplay({
         align === "right" ? "flex-row-reverse" : ""
       }`}
     >
-      <span className="text-xl shrink-0 leading-none">{flag}</span>
-      <span
-        className={`text-sm font-semibold leading-tight truncate ${
-          align === "right" ? "text-right" : ""
-        }`}
-        style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
+      {/* Flag or placeholder shield */}
+      {flag ? (
+        <span className="text-xl shrink-0 leading-none">{flag}</span>
+      ) : (
+        <span
+          className="text-lg shrink-0 leading-none opacity-30"
+          aria-hidden="true"
+        >
+          🛡
+        </span>
+      )}
+
+      <div
+        className={`flex flex-col min-w-0 gap-0.5 ${align === "right" ? "items-end" : ""}`}
       >
-        {name}
-      </span>
+        {/* Team name or seed label as primary */}
+        {name ? (
+          <span
+            className="text-sm font-semibold leading-tight truncate"
+            style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
+          >
+            {name}
+          </span>
+        ) : seedLabel ? (
+          <span
+            className="text-sm font-semibold leading-tight"
+            style={{ color: "#7a5e14", fontWeight: 600 }}
+          >
+            {seedLabel}
+          </span>
+        ) : (
+          <span className="text-sm" style={{ color: MUTED }}>TBD</span>
+        )}
+
+        {/* Seed pill below name when team IS known (path context) */}
+        {name && seedLabel && (
+          <SeedPill label={seedLabel} />
+        )}
+      </div>
     </div>
   );
 }
@@ -306,11 +341,25 @@ export default function FixtureCard({
         </div>
 
         {/* Teams + score */}
-        <div className="flex items-center gap-2 px-3 py-2">
-          <TeamDisplay team={fixture.homeTeam} align="left" />
-          <ScoreBadge fixture={fixture} />
-          <TeamDisplay team={fixture.awayTeam} align="right" dim />
-        </div>
+        {(() => {
+          const seeds = getKnockoutSeeds(fixture.fixtureNumber);
+          return (
+            <div className="flex items-center gap-2 px-3 py-2">
+              <TeamDisplay
+                team={fixture.homeTeam}
+                align="left"
+                seedLabel={seeds?.home}
+              />
+              <ScoreBadge fixture={fixture} />
+              <TeamDisplay
+                team={fixture.awayTeam}
+                align="right"
+                dim
+                seedLabel={seeds?.away}
+              />
+            </div>
+          );
+        })()}
 
         {/* YOUR PICK strip — only when there is a prediction */}
         {showPrediction && hasPred && !compact && (

@@ -578,20 +578,36 @@ export default function PredictHub() {
           </div>
         </Link>
 
-        {/* ── Rules link + lock notice ──────────────────────── */}
+        {/* ── Rules link + bracket path + lock notice ──────── */}
         <div className="flex flex-col items-center gap-1">
-          <Link
-            href="/predict/rules"
-            className="flex items-center gap-2 py-1 text-sm transition-colors"
-            style={{ color: "#7a8f82" }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            Scoring rules &amp; FAQ
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/predict/rules"
+              className="flex items-center gap-2 py-1 text-sm transition-colors"
+              style={{ color: "#7a8f82" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Scoring rules
+            </Link>
+            <span style={{ color: "#c4d4c8" }}>·</span>
+            <Link
+              href="/predict/bracket"
+              className="flex items-center gap-2 py-1 text-sm transition-colors"
+              style={{ color: "#7a8f82" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="16 3 21 3 21 8"/>
+                <line x1="4" y1="20" x2="21" y2="3"/>
+                <polyline points="21 16 21 21 16 21"/>
+                <line x1="15" y1="15" x2="21" y2="21"/>
+              </svg>
+              Knockout path
+            </Link>
+          </div>
           <p className="text-[10px] text-center" style={{ color: "#9eada5" }}>
             🔒 Each match locks at kickoff — the tournament does not lock all at once.
           </p>

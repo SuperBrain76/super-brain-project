@@ -16,6 +16,8 @@ import {
   pointsColor,
   type Fixture,
 } from "@/lib/predictor";
+import { getKnockoutSeeds } from "@/lib/knockoutSeeds";
+import SeedPill from "@/components/predictor/SeedPill";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -125,6 +127,7 @@ export default function FixturePredictPage() {
   const countdown = kickoffCountdown(fixture.kicksOffAt);
   const homeTeam  = fixture.homeTeam;
   const awayTeam  = fixture.awayTeam;
+  const seeds     = getKnockoutSeeds(fixture.fixtureNumber);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -135,7 +138,7 @@ export default function FixturePredictPage() {
           <Link href="/predict" className="hover:underline" style={{ color: MUTED }}>Predictor</Link>
           <span>/</span>
           <span className="truncate" style={{ color: TEXT2, fontWeight: 600 }}>
-            {homeTeam?.name ?? "TBD"} vs {awayTeam?.name ?? "TBD"}
+            {homeTeam?.name ?? seeds?.home ?? "TBD"} vs {awayTeam?.name ?? seeds?.away ?? "TBD"}
           </span>
         </div>
 
@@ -150,10 +153,15 @@ export default function FixturePredictPage() {
           {/* Teams */}
           <div className="grid grid-cols-3 items-center gap-3 mb-4">
             <div className="flex flex-col items-center gap-1 text-center">
-              <span className="text-4xl leading-none">{homeTeam?.flagEmoji ?? "🏳"}</span>
-              <span className="text-sm font-bold leading-tight" style={{ color: TEXT1 }}>
-                {homeTeam?.name ?? "TBD"}
+              <span className="text-4xl leading-none">
+                {homeTeam?.flagEmoji ?? (seeds ? "🛡" : "🏳")}
               </span>
+              <span className="text-sm font-bold leading-tight" style={{ color: homeTeam ? TEXT1 : "#7a5e14" }}>
+                {homeTeam?.name ?? seeds?.home ?? "TBD"}
+              </span>
+              {homeTeam && seeds?.home && (
+                <SeedPill label={seeds.home} />
+              )}
             </div>
 
             <div className="flex flex-col items-center gap-1">
@@ -175,10 +183,15 @@ export default function FixturePredictPage() {
             </div>
 
             <div className="flex flex-col items-center gap-1 text-center">
-              <span className="text-4xl leading-none">{awayTeam?.flagEmoji ?? "🏳"}</span>
-              <span className="text-sm font-bold leading-tight" style={{ color: TEXT1 }}>
-                {awayTeam?.name ?? "TBD"}
+              <span className="text-4xl leading-none">
+                {awayTeam?.flagEmoji ?? (seeds ? "🛡" : "🏳")}
               </span>
+              <span className="text-sm font-bold leading-tight" style={{ color: awayTeam ? TEXT1 : "#7a5e14" }}>
+                {awayTeam?.name ?? seeds?.away ?? "TBD"}
+              </span>
+              {awayTeam && seeds?.away && (
+                <SeedPill label={seeds.away} />
+              )}
             </div>
           </div>
 
@@ -232,17 +245,17 @@ export default function FixturePredictPage() {
 
             {/* Score spinners */}
             <div className="flex items-center justify-center gap-6">
-              <ScoreInput value={homeScore} onChange={setHomeScore} label={homeTeam?.name ?? "Home"} disabled={saving} />
+              <ScoreInput value={homeScore} onChange={setHomeScore} label={homeTeam?.name ?? seeds?.home ?? "Home"} disabled={saving} />
               <span className="text-2xl font-bold mt-6" style={{ color: BORDER }}>–</span>
-              <ScoreInput value={awayScore} onChange={setAwayScore} label={awayTeam?.name ?? "Away"} disabled={saving} />
+              <ScoreInput value={awayScore} onChange={setAwayScore} label={awayTeam?.name ?? seeds?.away ?? "Away"} disabled={saving} />
             </div>
 
             {/* Outcome hint */}
             <p className="text-center text-xs" style={{ color: MUTED }}>
               {homeScore > awayScore
-                ? `${homeTeam?.name ?? "Home"} win`
+                ? `${homeTeam?.name ?? seeds?.home ?? "Home"} win`
                 : awayScore > homeScore
-                ? `${awayTeam?.name ?? "Away"} win`
+                ? `${awayTeam?.name ?? seeds?.away ?? "Away"} win`
                 : "Draw"}
               {" · "}Exact score = 5 pts · Correct GD = 3 pts · Correct result = 2 pts
             </p>
