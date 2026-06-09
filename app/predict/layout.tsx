@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import EmailVerificationBanner from "@/components/predictor/EmailVerificationBanner";
 
-const BASE_URL   = "https://www.superbrain.social";
 const PRED_TITLE = "SuperBrain World Cup 2026 Predictor";
 const PRED_DESC  = "Predict every World Cup match, create private leagues, compete with friends and win the Custom Champion Watch.";
-const PRED_URL   = `${BASE_URL}/predict`;
-// Static JPG — universally readable by all crawlers (Facebook, Messenger, etc.)
-const OG_IMAGE   = `${BASE_URL}/og/world-cup-predictor.jpg`;
+// Fully-qualified static JPEG — the only og:image for /predict.
+// opengraph-image.tsx has been permanently DELETED from this directory.
+// No dynamic OG route exists here; one og:image tag only.
+const STATIC_OG  = "https://www.superbrain.social/og/world-cup-predictor.jpg";
+const PRED_URL   = "https://www.superbrain.social/predict";
 
 export const metadata: Metadata = {
   title:       PRED_TITLE,
   description: PRED_DESC,
+  // Explicit metadataBase override so relative resolution never kicks in
+  metadataBase: new URL("https://www.superbrain.social"),
   openGraph: {
     type:        "website",
     siteName:    "SuperBrain",
@@ -20,7 +23,7 @@ export const metadata: Metadata = {
     url:         PRED_URL,
     images: [
       {
-        url:    OG_IMAGE,
+        url:    STATIC_OG,
         width:  1200,
         height: 630,
         type:   "image/jpeg",
@@ -32,7 +35,7 @@ export const metadata: Metadata = {
     card:        "summary_large_image",
     title:       PRED_TITLE,
     description: PRED_DESC,
-    images:      [OG_IMAGE],
+    images:      [STATIC_OG],
   },
 };
 
