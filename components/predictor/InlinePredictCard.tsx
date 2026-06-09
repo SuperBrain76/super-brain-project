@@ -325,11 +325,21 @@ export default function InlinePredictCard({
         transition:  "box-shadow 0.9s ease-out, border-color 0.15s",
       }}
     >
-      {/* Header: stage + status badge */}
+      {/* Header: stage + match number (knockout only) + status badge */}
       <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-0">
-        <span className="text-[10px] uppercase tracking-widest truncate" style={{ color: MUTED }}>
-          {fixture.groupName ? `Group ${fixture.groupName}` : stageLabel(fixture.stage)}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[10px] uppercase tracking-widest truncate" style={{ color: MUTED }}>
+            {fixture.groupName ? `Group ${fixture.groupName}` : stageLabel(fixture.stage)}
+          </span>
+          {!fixture.groupName && fixture.fixtureNumber >= 73 && (
+            <span
+              className="text-[9px] font-bold px-1 py-0.5 rounded-sm shrink-0 font-mono"
+              style={{ color: "#5a6e60", background: "#e8ede6", border: "1px solid #c4d4c8" }}
+            >
+              M{fixture.fixtureNumber}
+            </span>
+          )}
+        </div>
         <StatusBadge fixture={fixture} showPrediction={showPrediction} />
       </div>
 
