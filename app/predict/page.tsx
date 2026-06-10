@@ -10,6 +10,7 @@ import InlinePredictCard from "@/components/predictor/InlinePredictCard";
 import PredictionProgress, { GroupBadge } from "@/components/predictor/PredictionProgress";
 import { WhatsAppFirstPredictionBanner } from "@/components/WhatsAppChannelCard";
 import GettingStarted from "@/components/predictor/GettingStarted";
+import GroupStandings from "@/components/predictor/GroupStandings";
 import {
   getCompetition,
   getFixtures,
@@ -513,6 +514,24 @@ export default function PredictHub() {
               </p>
             </div>
           </Link>
+
+          {/* Group Standings */}
+          <Link
+            href="/predict/standings"
+            className="flex flex-col gap-3 p-4 rounded-xl border transition-all active:scale-[0.98]"
+            style={{ background: "#fff", borderColor: "#dde5d8" }}
+          >
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#eef3ec" }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.8" strokeLinecap="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-tight" style={{ color: "#0f1f17" }}>Group Standings</p>
+              <p className="text-[11px] mt-1" style={{ color: "#7a8f82" }}>All 12 groups · live tables</p>
+            </div>
+          </Link>
         </div>
 
         {/* ── Discover public leagues ───────────────────────── */}
@@ -726,6 +745,21 @@ export default function PredictHub() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Group Standings ──────────────────────────────── */}
+        {fixtures.some((f) => f.stage === "group") && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: "#1a3a2a" }}>
+                Group Standings
+              </h2>
+              <Link href="/predict/standings" className="text-xs font-semibold" style={{ color: "#b8972a" }}>
+                Full tables →
+              </Link>
+            </div>
+            <GroupStandings fixtures={fixtures} />
           </div>
         )}
       </div>
