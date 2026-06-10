@@ -515,24 +515,72 @@ export default function PredictHub() {
             </div>
           </Link>
 
-          {/* Group Standings */}
-          <Link
-            href="/predict/standings"
-            className="flex flex-col gap-3 p-4 rounded-xl border transition-all active:scale-[0.98]"
-            style={{ background: "#fff", borderColor: "#dde5d8" }}
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#eef3ec" }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.8" strokeLinecap="round">
+        </div>
+
+        {/* ── Group Overview banner (full width) ───────────── */}
+        <Link
+          href="/predict/standings"
+          className="w-full rounded-xl border overflow-hidden transition-all active:scale-[0.99] flex flex-col"
+          style={{ background: "#fff", borderColor: "#dde5d8", textDecoration: "none" }}
+        >
+          {/* Header bar */}
+          <div className="flex items-center justify-between px-4 py-3" style={{ background: "#1a3a2a" }}>
+            <div className="flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b8972a" strokeWidth="2" strokeLinecap="round">
                 <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                 <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
               </svg>
+              <span className="font-bold text-sm text-white">Group Overview</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wide" style={{ background: "#b8972a", color: "#fff" }}>Live</span>
             </div>
-            <div>
-              <p className="font-bold text-sm leading-tight" style={{ color: "#0f1f17" }}>Group Standings</p>
-              <p className="text-[11px] mt-1" style={{ color: "#7a8f82" }}>All 12 groups · live tables</p>
-            </div>
-          </Link>
-        </div>
+            <span className="text-xs font-semibold" style={{ color: "#b8972a" }}>All 12 groups →</span>
+          </div>
+
+          {/* Mini preview of 2 groups side by side */}
+          <div className="grid grid-cols-2 divide-x" style={{ borderColor: "#dde5d8" }}>
+            {(["A", "B"] as const).map((grp) => {
+              const grpFixtures = fixtures.filter((f) => f.groupName === grp && f.stage === "group");
+              const teamMap = new Map<string, { name: string; flag: string; pts: number; played: number }>();
+              for (const f of grpFixtures) {
+                for (const t of [f.homeTeam, f.awayTeam]) {
+                  if (!t) continue;
+                  if (!teamMap.has(t.code)) teamMap.set(t.code, { name: t.name, flag: t.flagEmoji ?? "", pts: 0, played: 0 });
+                }
+                if (f.status === "completed" && f.homeScore !== null && f.awayScore !== null && f.homeTeam && f.awayTeam) {
+                  const h = teamMap.get(f.homeTeam.code)!;
+                  const a = teamMap.get(f.awayTeam.code)!;
+                  h.played++; a.played++;
+                  if (f.homeScore > f.awayScore) { h.pts += 3; }
+                  else if (f.homeScore < f.awayScore) { a.pts += 3; }
+                  else { h.pts++; a.pts++; }
+                  teamMap.set(f.homeTeam.code, h);
+                  teamMap.set(f.awayTeam.code, a);
+                }
+              }
+              const rows = [...teamMap.values()].sort((a, b) => b.pts - a.pts);
+              return (
+                <div key={grp} className="px-3 py-2.5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#7a8f82" }}>Group {grp}</p>
+                  <div className="flex flex-col gap-1">
+                    {rows.map((r, i) => (
+                      <div key={r.name} className="flex items-center gap-1.5">
+                        <span className="text-[9px] w-3 text-right shrink-0" style={{ color: i < 2 ? "#b8972a" : "#c4d4c8", fontWeight: i < 2 ? 700 : 400 }}>{i + 1}</span>
+                        <span className="text-[11px]">{r.flag}</span>
+                        <span className="text-[10px] flex-1 truncate" style={{ color: "#0f1f17" }}>{r.name}</span>
+                        <span className="text-[10px] font-bold w-4 text-right" style={{ color: "#b8972a" }}>{r.pts}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-2 flex items-center gap-1.5" style={{ borderTop: `1px solid #dde5d8`, background: "#f8f5f0" }}>
+            <span className="text-[10px]" style={{ color: "#7a8f82" }}>Tap to see all 12 group tables</span>
+          </div>
+        </Link>
 
         {/* ── Discover public leagues ───────────────────────── */}
         <Link
@@ -753,7 +801,7 @@ export default function PredictHub() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: "#1a3a2a" }}>
-                Group Standings
+                Group Overview
               </h2>
               <Link href="/predict/standings" className="text-xs font-semibold" style={{ color: "#b8972a" }}>
                 Full tables →
