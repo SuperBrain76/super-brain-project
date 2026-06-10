@@ -179,23 +179,26 @@ export function extractScore(fixture: ApiFootballFixture): IngestedScore {
   const short = fixture.fixture.status.short;
 
   const isFinal = ["FT", "AET", "PEN", "AWD", "WO"].includes(short);
+  const isLive  = ["1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE"].includes(short);
 
-  // Non-final: return null/null — do NOT write to DB
-  if (!isFinal) {
-    return { homeScore: null, awayScore: null };
+  if (isFinal) {
+    // Use score.fulltime for the official 90-min result
+    const home = fixture.score.fulltime.home;
+    const away = fixture.score.fulltime.away;
+    if (home === null || away === null) return { homeScore: null, awayScore: null };
+    return { homeScore: home, awayScore: away };
   }
 
-  // Final: always use score.fulltime (90-min result only)
-  // Guard against unexpected null from API during transition period
-  const home = fixture.score.fulltime.home;
-  const away = fixture.score.fulltime.away;
-
-  if (home === null || away === null) {
-    // fulltime not yet populated — treat as non-final until it arrives
-    return { homeScore: null, awayScore: null };
+  if (isLive) {
+    // Use goals.home/away — the running live score updated by API-Football
+    const home = fixture.goals.home;
+    const away = fixture.goals.away;
+    if (home === null || away === null) return { homeScore: null, awayScore: null };
+    return { homeScore: home, awayScore: away };
   }
 
-  return { homeScore: home, awayScore: away };
+  // Not started / postponed — no score
+  return { homeScore: null, awayScore: null };
 }
 
 // ── Fixture matching ──────────────────────────────────────────

@@ -238,12 +238,13 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
       const statusChanged = newStatus !== dbFix.status;
 
-      // Score change only meaningful when match is complete AND
-      // extractScore returned real values (non-null fulltime scores).
-      // This is the gatekeeper that prevents partial live scores from
-      // ever reaching the auto_score_predictions trigger.
+      // Write scores for both live and completed matches so points
+      // fluctuate in real-time during a match (every 5-min cron tick).
+      // extractScore() returns null/null for non-started/postponed fixtures
+      // so those are never written. The auto_score_predictions trigger
+      // re-scores all predictions whenever the score changes.
       const scoreChanged =
-        newStatus === "completed" &&
+        (newStatus === "live" || newStatus === "completed") &&
         homeScore !== null &&
         awayScore !== null &&
         (homeScore !== dbFix.home_score || awayScore !== dbFix.away_score);
@@ -265,7 +266,8 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         console.log(
           `[ingest:SCORE] fixture ${dbFix.id.slice(0, 8)} | ` +
           `api_status=${apiFix.fixture.status.short} | ` +
-          `fulltime=${homeScore}-${awayScore} | ` +
+          `score=${homeScore}-${awayScore} | ` +
+          `type=${newStatus === "completed" ? "FINAL" : "LIVE"} | ` +
           `writing to DB → auto_score_predictions trigger will fire`,
         );
       }
