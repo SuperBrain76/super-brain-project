@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const KICKOFF = new Date("2026-06-12T00:00:00Z"); // June 11, 8 PM ET
+const KICKOFF = new Date("2026-06-11T23:00:00Z"); // June 11, 7 PM ET / 19:00 local Mexico City
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
