@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { resend, FROM, SITE, emailWrapper, ctaButton, divider } from "@/lib/email";
+import { getResend, FROM, SITE, emailWrapper, ctaButton, divider } from "@/lib/email";
+
+export const dynamic = "force-dynamic";
 
 function adminDb() {
   return createClient(
@@ -167,7 +169,7 @@ export async function GET(req: NextRequest) {
     `;
 
     try {
-      await resend.emails.send({
+      await getResend().emails.send({
         from: FROM,
         to: user.email,
         subject: `📊 Today's SuperBrain standings — who's leading?`,
