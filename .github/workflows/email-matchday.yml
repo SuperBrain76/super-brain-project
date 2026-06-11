@@ -1,0 +1,18 @@
+name: Email — Match Day Reminder
+
+on:
+  schedule:
+    # Runs at 09:00 UTC daily — 3h before typical first kick-off window
+    # Adjust this time if the day's first match is always at a fixed hour
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger match-day email
+        run: |
+          curl -fsSL \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/email-matchday"
