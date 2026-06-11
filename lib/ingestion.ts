@@ -214,7 +214,7 @@ export function findDbFixtureByKickoff(
   const apiMs = new Date(apiKickoffIso).getTime();
   return dbFixtures.find((f) => {
     const dbMs = new Date(f.kicks_off_at).getTime();
-    return Math.abs(dbMs - apiMs) <= 5 * 60 * 1000;
+    return Math.abs(dbMs - apiMs) <= 30 * 60 * 1000;
   });
 }
 
