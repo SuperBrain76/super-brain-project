@@ -225,11 +225,30 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     let skippedNoMatch = 0;
     const changes: string[] = [];
 
+    // When live endpoint returns exactly 1 match and we have exactly 1
+    // in-progress DB fixture, skip time-matching entirely — the API already
+    // confirmed it's live so it must be the same fixture. This handles
+    // timezone/clock differences between API-Football and our seeded times.
+    const inProgressDb = typedDb.filter(
+      (f) => f.status !== "completed" && f.status !== "postponed",
+    );
+    const useSingleMatchFallback =
+      apiFixtures.length === 1 &&
+      inProgressDb.length === 1 &&
+      pollReason !== "kickoff_imminent"; // Don't confuse pre-match with live
+
     for (const apiFix of apiFixtures) {
-      const dbFix = findDbFixtureByKickoff(apiFix.fixture.date, typedDb);
+      const dbFix =
+        useSingleMatchFallback
+          ? inProgressDb[0]
+          : findDbFixtureByKickoff(apiFix.fixture.date, typedDb);
 
       if (!dbFix) {
         skippedNoMatch++;
+        console.log(
+          `[ingest:NOMATCH] api_date=${apiFix.fixture.date} | ` +
+          `db_fixtures=${typedDb.map((f) => f.kicks_off_at).join(",")}`,
+        );
         continue; // Fixture not in our ±3h window
       }
 
