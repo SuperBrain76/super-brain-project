@@ -66,25 +66,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: "no fixtures today" });
   }
 
-  // Get all opted-in users — join auth.users for email via service role
-  const { data: users, error: usersErr } = await db
-    .schema("auth")
-    .from("users")
-    .select("id, email, raw_user_meta_data")
-    .in(
-      "id",
-      (
-        await db
-          .from("user_profiles")
-          .select("id")
-          .eq("email_notifications", true)
-      ).data?.map((u) => u.id) ?? [],
-    );
+  // Get opted-in user IDs
+  const { data: optedIn } = await db
+    .from("user_profiles")
+    .select("id")
+    .eq("email_notifications", true);
 
-  if (usersErr || !users || users.length === 0) {
-    console.log("[email-matchday] No subscribers or error:", usersErr?.message);
+  const ids = new Set((optedIn ?? []).map((p) => p.id));
+
+  if (ids.size === 0) {
     return NextResponse.json({ skipped: true, reason: "no subscribers" });
   }
+
+  const { data: { users: allUsers }, error: authErr } = await db.auth.admin.listUsers({ perPage: 1000 });
+
+  if (authErr || !allUsers) {
+    console.error("[email-matchday] auth error:", authErr?.message);
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+  }
+
+  const users = allUsers.filter((u) => ids.has(u.id) && u.email);
 
   const matchCount = fixtures.length;
   const rows = fixtures
@@ -97,8 +98,8 @@ export async function GET(req: NextRequest) {
   for (const user of users) {
     if (!user.email) continue;
     const displayName =
-      user.raw_user_meta_data?.full_name ??
-      user.raw_user_meta_data?.name ??
+      user.user_metadata?.full_name ??
+      user.user_metadata?.name ??
       "Predictor";
     const firstName = String(displayName).split(" ")[0];
 

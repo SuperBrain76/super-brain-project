@@ -20,22 +20,27 @@ export async function GET(req: NextRequest) {
 
   const db = adminDb();
 
+  // Get opted-in user IDs
   const { data: optedIn } = await db
     .from("user_profiles")
     .select("id")
     .eq("email_notifications", true);
 
-  const ids = (optedIn ?? []).map((p) => p.id);
+  const ids = new Set((optedIn ?? []).map((p) => p.id));
 
-  const { data: users } = await db
-    .schema("auth")
-    .from("users")
-    .select("id, email, raw_user_meta_data")
-    .in("id", ids);
-
-  if (!users || users.length === 0) {
+  if (ids.size === 0) {
     return NextResponse.json({ skipped: true, reason: "no subscribers" });
   }
+
+  // Fetch all auth users via admin API (supports email access)
+  const { data: { users: allUsers }, error: authErr } = await db.auth.admin.listUsers({ perPage: 1000 });
+
+  if (authErr || !allUsers) {
+    console.error("[blast-opening-day] auth.admin.listUsers error:", authErr?.message);
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+  }
+
+  const users = allUsers.filter((u) => ids.has(u.id) && u.email);
 
   let sent = 0;
   let failed = 0;
@@ -43,8 +48,8 @@ export async function GET(req: NextRequest) {
   for (const user of users) {
     if (!user.email) continue;
     const displayName =
-      user.raw_user_meta_data?.full_name ??
-      user.raw_user_meta_data?.name ??
+      user.user_metadata?.full_name ??
+      user.user_metadata?.name ??
       "Predictor";
     const firstName = String(displayName).split(" ")[0];
 

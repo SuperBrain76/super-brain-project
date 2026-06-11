@@ -91,23 +91,26 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b[1].pts - a[1].pts)
     .slice(0, 5);
 
-  // Get opted-in subscribers
+  // Get opted-in user IDs
   const { data: optedInProfiles } = await db
     .from("user_profiles")
     .select("id")
     .eq("email_notifications", true);
 
-  const optedInIds = (optedInProfiles ?? []).map((p) => p.id);
+  const ids = new Set((optedInProfiles ?? []).map((p) => p.id));
 
-  const { data: users } = await db
-    .schema("auth")
-    .from("users")
-    .select("id, email, raw_user_meta_data")
-    .in("id", optedInIds);
-
-  if (!users || users.length === 0) {
+  if (ids.size === 0) {
     return NextResponse.json({ skipped: true, reason: "no subscribers" });
   }
+
+  const { data: { users: allUsers }, error: authErr } = await db.auth.admin.listUsers({ perPage: 1000 });
+
+  if (authErr || !allUsers) {
+    console.error("[email-standings] auth error:", authErr?.message);
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+  }
+
+  const users = allUsers.filter((u) => ids.has(u.id) && u.email);
 
   const globalRows = top10
     .map((u) => leaderRow(Number(u.rank), u.display_name ?? "—", Number(u.total_points ?? 0)))
@@ -124,8 +127,8 @@ export async function GET(req: NextRequest) {
     if (!user.email) continue;
 
     const displayName =
-      user.raw_user_meta_data?.full_name ??
-      user.raw_user_meta_data?.name ??
+      user.user_metadata?.full_name ??
+      user.user_metadata?.name ??
       "Predictor";
     const firstName = String(displayName).split(" ")[0];
 
