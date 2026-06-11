@@ -270,6 +270,7 @@ export default function InlinePredictCard({
 }: InlinePredictCardProps) {
   const open    = isPredictionOpen(fixture);
   const done    = fixture.status === "completed";
+  const live    = fixture.status === "live";
   const hasPred = !!fixture.myPrediction;
   const isExact = hasPred && done && (fixture.myPrediction?.pointsAwarded === 3 || fixture.myPrediction?.pointsAwarded === 5);
 
