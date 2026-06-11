@@ -350,18 +350,23 @@ export default function InlinePredictCard({
           <div className="flex items-center gap-2 px-3 pt-2 pb-2">
             <TeamDisplay team={fixture.homeTeam} align="left" seedLabel={seeds?.home} />
 
-            {/* Centre: score (completed) or "vs" (not open) */}
-            {done && fixture.homeScore !== null ? (
-              <div className="flex items-center justify-center gap-1 shrink-0 px-2">
-                <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.homeScore}</span>
-                <span className="font-bold" style={{ color: BORDER }}>–</span>
-                <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.awayScore}</span>
+            {/* Centre: score (completed or live) or "vs" */}
+            {(done || live) && fixture.homeScore !== null ? (
+              <div className="flex flex-col items-center justify-center shrink-0 px-2 gap-0.5">
+                {live && (
+                  <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: "#e53e3e" }}>Live</span>
+                )}
+                <div className="flex items-center gap-1">
+                  <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.homeScore}</span>
+                  <span className="font-bold" style={{ color: BORDER }}>–</span>
+                  <span className="text-lg font-black tabular-nums" style={{ color: NAVY }}>{fixture.awayScore}</span>
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center shrink-0 px-2">
                 <span className="text-xs font-semibold tracking-widest uppercase"
                   style={{ color: fixture.status === "live" ? "#e53e3e" : MUTED }}>
-                  {fixture.status === "live" ? "LIVE" : "vs"}
+                  {fixture.status === "live" ? "Live" : "vs"}
                 </span>
               </div>
             )}
