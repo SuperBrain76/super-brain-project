@@ -2,9 +2,8 @@ name: Email — Match Day Reminder
 
 on:
   schedule:
-    # Runs at 09:00 UTC daily — 3h before typical first kick-off window
-    # Adjust this time if the day's first match is always at a fixed hour
-    - cron: "0 9 * * *"
+    # Runs at 15:00 UTC daily — 3h before the typical first kick-off (18:00 UTC)
+    - cron: "0 15 * * *"
   workflow_dispatch: {}
 
 jobs:
