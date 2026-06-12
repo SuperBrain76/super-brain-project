@@ -14,6 +14,7 @@ import GroupStandings from "@/components/predictor/GroupStandings";
 import {
   getCompetition,
   getFixtures,
+  invalidateFixturesCache,
   getMyStats,
   isPredictionOpen,
   type Fixture,
@@ -90,6 +91,21 @@ export default function PredictHub() {
     }
     load();
   }, []);
+
+  // Poll for live score updates every 15 seconds when a match is in progress
+  useEffect(() => {
+    if (!competition) return;
+    const hasLive = fixtures.some((f) => f.status === "live");
+    if (!hasLive) return;
+
+    const interval = setInterval(async () => {
+      invalidateFixturesCache(competition.id);
+      const { fixtures: fx } = await getFixtures(competition.id);
+      if (fx.length > 0) setFixtures(fx);
+    }, 15_000);
+
+    return () => clearInterval(interval);
+  }, [competition, fixtures]);
 
   // Load user stats separately so fixture list isn't blocked
   useEffect(() => {
