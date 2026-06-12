@@ -55,6 +55,7 @@ export default function PredictorLeaderboardPage() {
   const [myStats,     setMyStats]     = useState<MyStats | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
+  const [tab,         setTab]         = useState<"overall" | "match">("overall");
 
   useEffect(() => {
     async function load() {
@@ -73,6 +74,13 @@ export default function PredictorLeaderboardPage() {
     if (!user || !competition) return;
     getMyStats(competition.id).then(setMyStats);
   }, [user, competition]);
+
+  // Re-rank rows for Match Prediction view (sort by matchPoints only)
+  const displayRows = tab === "match"
+    ? [...rows]
+        .sort((a, b) => b.matchPoints - a.matchPoints || b.exactScores - a.exactScores || b.correctGd - a.correctGd)
+        .map((r, i) => ({ ...r, rank: i + 1 }))
+    : rows;
 
   if (authLoading || loading) {
     return (
@@ -172,6 +180,34 @@ export default function PredictorLeaderboardPage() {
         {/* Grand Prize banner */}
         <GrandPrizeLeaderboardBanner participantCount={rows.length} />
 
+        {/* Tab toggle */}
+        <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: BG }}>
+          {[
+            { key: "overall" as const, label: "🏆 World Cup Champion" },
+            { key: "match"   as const, label: "⚽ Match Champion" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className="flex-1 py-2.5 text-xs font-bold transition-colors"
+              style={{
+                background:   tab === key ? GREEN : "transparent",
+                color:        tab === key ? "#fff" : MUTED,
+                borderRadius: "0",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab description */}
+        <p className="text-xs px-1" style={{ color: MUTED }}>
+          {tab === "overall"
+            ? "Total points including bonus questions — overall World Cup champion."
+            : "Match predictions only — fair for anyone who joined after the tournament started."}
+        </p>
+
         {/* Leaderboard table */}
         <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
 
@@ -181,8 +217,12 @@ export default function PredictorLeaderboardPage() {
             <span className="flex-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Player</span>
             <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: MUTED }}>%</span>
             <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GREEN }}>⚡</span>
-            <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
-            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold" style={{ color: GREEN }}>Total</span>
+            {tab === "overall" && (
+              <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
+            )}
+            <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold" style={{ color: GREEN }}>
+              {tab === "overall" ? "Total" : "Match"}
+            </span>
           </div>
 
           {/* Empty state */}
@@ -199,19 +239,20 @@ export default function PredictorLeaderboardPage() {
           )}
 
           {/* Rows */}
-          {rows.map((row) => {
-            const isMe   = !!(user && row.userId === user.id);
+          {displayRows.map((row) => {
+            const isMe     = !!(user && row.userId === user.id);
             const matchPct = Math.round((row.predictions / 104) * 100);
+            const pts      = tab === "overall" ? row.totalPoints : row.matchPoints;
             return (
               <Link
                 key={`${row.rank}-${row.displayName}`}
                 href={`/predict/user/${row.userId}`}
                 className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-[#f6f9f5]"
                 style={{
-                  borderBottom:  `1px solid ${BORDER}`,
-                  background:    isMe ? "#eef3ec" : undefined,
-                  borderLeft:    isMe ? `3px solid ${GREEN}` : "3px solid transparent",
-                  display:       "flex",
+                  borderBottom: `1px solid ${BORDER}`,
+                  background:   isMe ? "#eef3ec" : undefined,
+                  borderLeft:   isMe ? `3px solid ${GREEN}` : "3px solid transparent",
+                  display:      "flex",
                 }}
               >
                 <RankBadge rank={row.rank} />
@@ -243,16 +284,18 @@ export default function PredictorLeaderboardPage() {
                   {row.exactScores > 0 ? row.exactScores : "—"}
                 </span>
 
-                {/* Bonus pts */}
-                <span className="w-10 text-right text-xs tabular-nums hidden sm:block"
-                  style={{ color: row.bonusPoints > 0 ? GOLD : MUTED }}>
-                  {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
-                </span>
+                {/* Bonus pts — only in overall tab */}
+                {tab === "overall" && (
+                  <span className="w-10 text-right text-xs tabular-nums hidden sm:block"
+                    style={{ color: row.bonusPoints > 0 ? GOLD : MUTED }}>
+                    {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
+                  </span>
+                )}
 
-                {/* Total pts */}
+                {/* Points */}
                 <span className="w-12 text-right font-bold text-sm tabular-nums"
-                  style={{ color: row.totalPoints > 0 ? GREEN : MUTED }}>
-                  {row.totalPoints}
+                  style={{ color: pts > 0 ? GREEN : MUTED }}>
+                  {pts}
                 </span>
               </Link>
             );
