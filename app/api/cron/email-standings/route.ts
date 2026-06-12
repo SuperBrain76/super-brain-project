@@ -54,22 +54,36 @@ export async function GET(req: NextRequest) {
   const db = adminDb();
   const today = new Date().toISOString().slice(0, 10);
 
-  // Get today's completed fixtures with team names
-  const { data: todayFixtures } = await db
+  // Get today's completed fixtures
+  const { data: rawFixtures, error: fxErr } = await db
     .from("fixtures")
-    .select(`
-      id, home_score, away_score,
-      home_team:teams!home_team_id ( name ),
-      away_team:teams!away_team_id ( name )
-    `)
+    .select("id, home_team_id, away_team_id, home_score, away_score")
     .gte("kicks_off_at", `${today}T00:00:00Z`)
     .lt("kicks_off_at", `${today}T23:59:59Z`)
     .not("home_score", "is", null);
 
-  if (!todayFixtures || todayFixtures.length === 0) {
+  if (fxErr) console.error("[email-standings] fixture query error:", fxErr.message);
+
+  if (!rawFixtures || rawFixtures.length === 0) {
     console.log("[email-standings] No completed matches today, skipping.");
     return NextResponse.json({ skipped: true, reason: "no completed matches today" });
   }
+
+  // Resolve team names
+  const allTeamIds = [...new Set([
+    ...rawFixtures.map((f) => f.home_team_id),
+    ...rawFixtures.map((f) => f.away_team_id),
+  ])];
+  const { data: teamsData } = await db.from("teams").select("id, name").in("id", allTeamIds);
+  const teamName = new Map((teamsData ?? []).map((t) => [t.id, t.name as string]));
+
+  const todayFixtures = rawFixtures.map((f) => ({
+    id:        f.id as string,
+    home:      teamName.get(f.home_team_id as string) ?? "TBD",
+    away:      teamName.get(f.away_team_id as string) ?? "TBD",
+    homeScore: f.home_score as number,
+    awayScore: f.away_score as number,
+  }));
 
   // Competition ID
   const { data: comp } = await db
@@ -91,7 +105,7 @@ export async function GET(req: NextRequest) {
   const rankMap = new Map(leaderboard.map((r) => [r.user_id, { rank: Number(r.rank), pts: Number(r.total_points) }]));
 
   // Today's top scorers
-  const todayFixtureIds = todayFixtures.map((f) => f.id);
+  const todayFixtureIds = todayFixtures.map((f) => f.id as string);
   const { data: todayPredictions } = await db
     .from("predictions")
     .select("user_id, points_awarded")
@@ -142,11 +156,9 @@ export async function GET(req: NextRequest) {
     .join("");
 
   // Results section
-  const resultsRows = todayFixtures.map((f) => {
-    const home = (f.home_team as { name: string } | null)?.name ?? "TBD";
-    const away = (f.away_team as { name: string } | null)?.name ?? "TBD";
-    return resultRow(home, f.home_score as number, f.away_score as number, away);
-  }).join("");
+  const resultsRows = todayFixtures.map((f) =>
+    resultRow(f.home, f.homeScore, f.awayScore, f.away)
+  ).join("");
 
   let sent = 0;
   let failed = 0;

@@ -52,23 +52,35 @@ export async function GET(req: NextRequest) {
   const db = adminDb();
   const today = new Date().toISOString().slice(0, 10);
 
-  // Get today's scheduled fixtures with team names via join
-  const { data: fixtures } = await db
+  // Get today's scheduled fixtures
+  const { data: rawFixtures, error: fxErr } = await db
     .from("fixtures")
-    .select(`
-      id, kicks_off_at, status,
-      home_team:teams!home_team_id ( name ),
-      away_team:teams!away_team_id ( name )
-    `)
+    .select("id, home_team_id, away_team_id, kicks_off_at")
     .gte("kicks_off_at", `${today}T00:00:00Z`)
     .lt("kicks_off_at", `${today}T23:59:59Z`)
     .eq("status", "scheduled")
     .order("kicks_off_at");
 
-  if (!fixtures || fixtures.length === 0) {
+  if (fxErr) console.error("[email-matchday] fixture query error:", fxErr.message);
+
+  if (!rawFixtures || rawFixtures.length === 0) {
     console.log("[email-matchday] No scheduled fixtures today, skipping.");
     return NextResponse.json({ skipped: true, reason: "no fixtures today" });
   }
+
+  // Resolve team names
+  const allTeamIds = [...new Set([
+    ...rawFixtures.map((f) => f.home_team_id as string),
+    ...rawFixtures.map((f) => f.away_team_id as string),
+  ])];
+  const { data: teamsData } = await db.from("teams").select("id, name").in("id", allTeamIds);
+  const teamName = new Map((teamsData ?? []).map((t) => [t.id, t.name as string]));
+
+  const fixtures = rawFixtures.map((f) => ({
+    home:      teamName.get(f.home_team_id as string) ?? "TBD",
+    away:      teamName.get(f.away_team_id as string) ?? "TBD",
+    kicksOffAt: f.kicks_off_at as string,
+  }));
 
   // Get opted-in user IDs
   const { data: optedIn } = await db
@@ -92,11 +104,9 @@ export async function GET(req: NextRequest) {
   const users = allUsers.filter((u) => ids.has(u.id) && u.email);
   const matchCount = fixtures.length;
 
-  const rows = fixtures.map((f) => {
-    const home = (f.home_team as { name: string } | null)?.name ?? "TBD";
-    const away = (f.away_team as { name: string } | null)?.name ?? "TBD";
-    return matchRow(home, away, f.kicks_off_at as string);
-  }).join("");
+  const rows = fixtures.map((f) =>
+    matchRow(f.home, f.away, f.kicksOffAt)
+  ).join("");
 
   let sent = 0;
   let failed = 0;
