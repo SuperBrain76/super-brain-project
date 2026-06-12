@@ -52,14 +52,18 @@ export async function GET(req: NextRequest) {
   const db = adminDb();
   const today = new Date().toISOString().slice(0, 10);
 
-  // Get today's scheduled fixtures
+  // Get today's scheduled fixtures with team names via join
   const { data: fixtures } = await db
     .from("fixtures")
-    .select("id, home_team, away_team, kickoff_time")
-    .gte("kickoff_time", `${today}T00:00:00Z`)
-    .lt("kickoff_time", `${today}T23:59:59Z`)
+    .select(`
+      id, kicks_off_at, status,
+      home_team:teams!home_team_id ( name ),
+      away_team:teams!away_team_id ( name )
+    `)
+    .gte("kicks_off_at", `${today}T00:00:00Z`)
+    .lt("kicks_off_at", `${today}T23:59:59Z`)
     .eq("status", "scheduled")
-    .order("kickoff_time");
+    .order("kicks_off_at");
 
   if (!fixtures || fixtures.length === 0) {
     console.log("[email-matchday] No scheduled fixtures today, skipping.");
@@ -73,12 +77,12 @@ export async function GET(req: NextRequest) {
     .eq("email_notifications", true);
 
   const ids = new Set((optedIn ?? []).map((p) => p.id));
-
   if (ids.size === 0) {
     return NextResponse.json({ skipped: true, reason: "no subscribers" });
   }
 
-  const { data: { users: allUsers }, error: authErr } = await db.auth.admin.listUsers({ perPage: 1000 });
+  const { data: { users: allUsers }, error: authErr } =
+    await db.auth.admin.listUsers({ perPage: 1000 });
 
   if (authErr || !allUsers) {
     console.error("[email-matchday] auth error:", authErr?.message);
@@ -86,11 +90,13 @@ export async function GET(req: NextRequest) {
   }
 
   const users = allUsers.filter((u) => ids.has(u.id) && u.email);
-
   const matchCount = fixtures.length;
-  const rows = fixtures
-    .map((f) => matchRow(f.home_team, f.away_team, f.kickoff_time))
-    .join("");
+
+  const rows = fixtures.map((f) => {
+    const home = (f.home_team as { name: string } | null)?.name ?? "TBD";
+    const away = (f.away_team as { name: string } | null)?.name ?? "TBD";
+    return matchRow(home, away, f.kicks_off_at as string);
+  }).join("");
 
   let sent = 0;
   let failed = 0;
