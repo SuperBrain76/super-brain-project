@@ -40,28 +40,22 @@ function PtsPill({ pts }: { pts: number | null }) {
 export default function UserPredictionsPage() {
   const { userId } = useParams<{ userId: string }>();
 
-  const [profile,     setProfile]     = useState<LeaderboardRow | null>(null);
-  const [fixtures,    setFixtures]    = useState<Fixture[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [predictionsHidden, setPredictionsHidden] = useState(false);
+  const [profile,  setProfile]  = useState<LeaderboardRow | null>(null);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
     async function load() {
       const { competition } = await getCompetition("wc2026");
       if (!competition) { setLoading(false); return; }
 
-      // Get leaderboard to find display name + stats for this user
-      const rows = await getPredictorLeaderboard(competition.id);
-      const row = rows.find((r) => r.userId === userId) ?? null;
-      setProfile(row);
-
-      // Fetch kicked-off fixtures with user's predictions
-      const { fixtures: fx } = await getUserPublicPredictions(userId, competition.id);
+      // Run in parallel: leaderboard profile + public predictions
+      const [rows, { fixtures: fx }] = await Promise.all([
+        getPredictorLeaderboard(competition.id),
+        getUserPublicPredictions(userId, competition.id),
+      ]);
+      setProfile(rows.find((r) => r.userId === userId) ?? null);
       setFixtures(fx);
-      // If no predictions returned but fixtures exist, RLS is blocking
-      if (fx.length > 0 && fx.every((f) => f.myPrediction === null)) {
-        setPredictionsHidden(true);
-      }
       setLoading(false);
     }
     load();
@@ -145,25 +139,14 @@ export default function UserPredictionsPage() {
             <span className="text-[10px]" style={{ color: MUTED }}>Visible after kickoff only</span>
           </div>
 
-          {predictionsHidden && (
-            <div className="rounded-xl p-5 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-              <p className="text-2xl mb-2">🔒</p>
-              <p className="font-semibold text-sm" style={{ color: TEXT1 }}>Predictions are private</p>
-              <p className="text-xs mt-1 leading-relaxed" style={{ color: MUTED }}>
-                Individual predictions become visible after each match kicks off.<br />
-                Check back once matches begin.
-              </p>
-            </div>
-          )}
-
-          {!predictionsHidden && fixtures.length === 0 && (
+          {fixtures.length === 0 && (
             <div className="rounded-xl p-5 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
               <p className="text-sm" style={{ color: TEXT2 }}>No kicked-off matches yet.</p>
               <p className="text-xs mt-1" style={{ color: MUTED }}>Predictions become visible as the tournament progresses.</p>
             </div>
           )}
 
-          {!predictionsHidden && fixtures.map((f) => {
+          {fixtures.map((f) => {
             const pred = f.myPrediction;
             const done = f.status === "completed";
             const isExact = pred && done && (pred.pointsAwarded === 5 || pred.pointsAwarded === 3);
