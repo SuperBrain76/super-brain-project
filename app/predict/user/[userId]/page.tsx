@@ -194,13 +194,20 @@ export default function UserPredictionsPage() {
                     <span className="text-lg leading-none">{f.homeTeam?.flagEmoji ?? "🏳"}</span>
                     <span className="text-sm font-semibold truncate" style={{ color: TEXT1 }}>{f.homeTeam?.name ?? "TBD"}</span>
                   </div>
-                  <div className="shrink-0 text-center px-2">
-                    {done && f.homeScore !== null ? (
-                      <span className="text-sm font-black" style={{ color: TEXT1 }}>
-                        {f.homeScore}–{f.awayScore}
-                      </span>
+                  <div className="shrink-0 text-center px-2 flex flex-col items-center gap-0.5">
+                    {(done || f.status === "live") && f.homeScore !== null ? (
+                      <>
+                        {f.status === "live" && (
+                          <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: "#e53e3e" }}>Live</span>
+                        )}
+                        <span className="text-sm font-black" style={{ color: TEXT1 }}>
+                          {f.homeScore}–{f.awayScore}
+                        </span>
+                      </>
                     ) : (
-                      <span className="text-xs uppercase tracking-widest" style={{ color: MUTED }}>vs</span>
+                      <span className="text-xs uppercase tracking-widest" style={{ color: f.status === "live" ? "#e53e3e" : MUTED }}>
+                        {f.status === "live" ? "LIVE" : "vs"}
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-row-reverse">

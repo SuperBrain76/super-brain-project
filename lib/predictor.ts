@@ -1246,13 +1246,12 @@ export async function getUserPublicPredictions(
 
   if (fxErr || !fxData || fxData.length === 0) return { fixtures: [], error: null };
 
-  // Second: try to get predictions for target user (requires permissive RLS)
-  const fixtureIds = (fxData as Record<string, unknown>[]).map((r) => r.id as string);
-  const { data: predData } = await supabase
-    .from("predictions")
-    .select("fixture_id, home_score, away_score, points_awarded")
-    .eq("user_id", userId)
-    .in("fixture_id", fixtureIds);
+  // Use SECURITY DEFINER RPC so we can read another user's predictions
+  // (RLS only allows reading own rows; the function enforces kicked-off constraint server-side)
+  const { data: predData } = await supabase.rpc("get_user_public_predictions", {
+    p_user_id:        userId,
+    p_competition_id: competitionId,
+  });
 
   const predMap = new Map<string, Record<string, unknown>>();
   if (predData) {

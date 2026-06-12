@@ -126,13 +126,15 @@ function LeaderboardTable({ rows, currentUserId, ownerId }: {
         const isMe    = row.userId === currentUserId;
         const isOwner = row.userId === ownerId;
         return (
-          <div
+          <Link
             key={`${row.rank}-${row.displayName}`}
-            className="flex items-center gap-2 px-3 py-3 transition-colors"
+            href={`/predict/user/${row.userId}`}
+            className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-[#f6f9f5]"
             style={{
               borderBottom: `1px solid ${BORDER}`,
               background:   isMe ? "#eef3ec" : undefined,
               borderLeft:   isMe ? `3px solid ${GREEN}` : "3px solid transparent",
+              display:      "flex",
             }}
           >
             <RankBadge rank={row.rank} />
@@ -162,7 +164,7 @@ function LeaderboardTable({ rows, currentUserId, ownerId }: {
               style={{ color: row.totalPoints > 0 ? GREEN : MUTED }}>
               {row.totalPoints}
             </span>
-          </div>
+          </Link>
         );
       })}
     </div>
