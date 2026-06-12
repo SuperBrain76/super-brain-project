@@ -12,7 +12,7 @@ const _competitionCache = new Map<string, { competition: Competition | null; err
 // query. Cache it client-side with a 60 second TTL.
 // Key: `${competitionId}:${stage ?? "all"}` — stage is almost always
 // undefined (full list) so effectively one entry per competition.
-const _fixturesTTL = 60_000; // 60 s
+const _fixturesTTL = 15_000; // 15 s (short so live scores refresh quickly)
 const _fixturesCache = new Map<string, {
   fixtures: unknown[];   // raw pre-map Fixture objects (typed below after Fixture is declared)
   error:    string | null;
