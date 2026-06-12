@@ -90,21 +90,28 @@ function TeamDisplay({
 // ── Centre score / vs ────────────────────────────────────────
 
 function ScoreBadge({ fixture }: { fixture: Fixture }) {
-  if (fixture.status === "completed" && fixture.homeScore !== null && fixture.awayScore !== null) {
+  const showScore = (fixture.status === "completed" || fixture.status === "live") &&
+    fixture.homeScore !== null && fixture.awayScore !== null;
+
+  if (showScore) {
     return (
-      <div className="flex items-center justify-center gap-1 shrink-0 px-2">
-        <span className="text-lg font-black number-display tabular-nums" style={{ color: NAVY }}>
-          {fixture.homeScore}
-        </span>
-        <span className="font-bold" style={{ color: BORDER }}>–</span>
-        <span className="text-lg font-black number-display tabular-nums" style={{ color: NAVY }}>
-          {fixture.awayScore}
-        </span>
+      <div className="flex flex-col items-center justify-center shrink-0 px-2 gap-0.5">
+        {fixture.status === "live" && (
+          <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: "#e53e3e" }}>Live</span>
+        )}
+        <div className="flex items-center gap-1">
+          <span className="text-lg font-black number-display tabular-nums" style={{ color: NAVY }}>
+            {fixture.homeScore}
+          </span>
+          <span className="font-bold" style={{ color: BORDER }}>–</span>
+          <span className="text-lg font-black number-display tabular-nums" style={{ color: NAVY }}>
+            {fixture.awayScore}
+          </span>
+        </div>
       </div>
     );
   }
 
-  const open = isPredictionOpen(fixture);
   return (
     <div className="flex items-center justify-center shrink-0 px-2">
       <span
