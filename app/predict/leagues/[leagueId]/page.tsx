@@ -720,9 +720,6 @@ export default function LeagueDetailPage() {
           </div>
         )}
 
-        {/* Members */}
-        <MembersList members={members} currentUserId={user?.id ?? null} />
-
         {/* Standings */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
