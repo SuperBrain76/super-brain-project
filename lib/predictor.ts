@@ -31,11 +31,12 @@ export interface Competition {
 }
 
 export interface Team {
-  id:          string;
-  name:        string;
-  code:        string;
-  flagEmoji:   string | null;
-  groupName:   string | null;
+  id:           string;
+  name:         string;
+  code:         string;
+  flagEmoji:    string | null;
+  groupName:    string | null;
+  fifaRanking:  number | null;
 }
 
 export interface Fixture {
@@ -166,11 +167,12 @@ function rowToCompetition(r: Record<string, unknown>): Competition {
 
 function rowToTeam(r: Record<string, unknown>): Team {
   return {
-    id:        r.id as string,
-    name:      r.name as string,
-    code:      r.code as string,
-    flagEmoji: r.flag_emoji as string | null,
-    groupName: r.group_name as string | null,
+    id:          r.id as string,
+    name:        r.name as string,
+    code:        r.code as string,
+    flagEmoji:   r.flag_emoji as string | null,
+    groupName:   r.group_name as string | null,
+    fifaRanking: (r.fifa_ranking as number | null) ?? null,
   };
 }
 
@@ -270,8 +272,8 @@ export async function listCompetitions(): Promise<Competition[]> {
 const FIXTURE_SELECT = `
   id, competition_id, stage, group_name, fixture_number,
   home_score, away_score, kicks_off_at, venue, status,
-  home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name ),
-  away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name ),
+  home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
+  away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
   predictions ( home_score, away_score, points_awarded )
 `;
 
@@ -1237,8 +1239,8 @@ export async function getUserPublicPredictions(
     .select(`
       id, competition_id, stage, group_name, fixture_number,
       home_score, away_score, kicks_off_at, venue, status,
-      home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name ),
-      away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name )
+      home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
+      away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking )
     `)
     .eq("competition_id", competitionId)
     .lt("kicks_off_at", now)

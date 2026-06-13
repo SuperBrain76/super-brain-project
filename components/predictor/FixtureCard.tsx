@@ -61,12 +61,19 @@ function TeamDisplay({
       >
         {/* Team name or seed label as primary */}
         {name ? (
-          <span
-            className="text-sm font-semibold leading-tight truncate"
-            style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
-          >
-            {name}
-          </span>
+          <>
+            <span
+              className="text-sm font-semibold leading-tight truncate"
+              style={{ color: dim ? MUTED : "#0f1f17", fontWeight: dim ? 500 : 600 }}
+            >
+              {name}
+            </span>
+            {team?.fifaRanking && (
+              <span className="text-[9px] font-semibold" style={{ color: MUTED }}>
+                FIFA #{team.fifaRanking}
+              </span>
+            )}
+          </>
         ) : seedLabel ? (
           <span
             className="text-sm font-semibold leading-tight"
