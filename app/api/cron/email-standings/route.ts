@@ -52,14 +52,22 @@ export async function GET(req: NextRequest) {
   }
 
   const db = adminDb();
-  const today = new Date().toISOString().slice(0, 10);
 
-  // Get today's completed fixtures
+  // "Match day" window: 06:00 UTC yesterday → 06:00 UTC today
+  // This groups all Americas match-day games correctly:
+  // afternoon (18-20 UTC) + late-night (00-04 UTC next calendar day)
+  const now = new Date();
+  const dayEnd   = new Date(now);
+  dayEnd.setUTCHours(6, 0, 0, 0);           // 06:00 UTC today
+  const dayStart = new Date(dayEnd);
+  dayStart.setUTCDate(dayStart.getUTCDate() - 1); // 06:00 UTC yesterday
+
+  // Get the match-day's completed fixtures
   const { data: rawFixtures, error: fxErr } = await db
     .from("fixtures")
     .select("id, home_team_id, away_team_id, home_score, away_score")
-    .gte("kicks_off_at", `${today}T00:00:00Z`)
-    .lt("kicks_off_at", `${today}T23:59:59Z`)
+    .gte("kicks_off_at", dayStart.toISOString())
+    .lt("kicks_off_at", dayEnd.toISOString())
     .not("home_score", "is", null);
 
   if (fxErr) console.error("[email-standings] fixture query error:", fxErr.message);

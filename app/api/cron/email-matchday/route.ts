@@ -50,14 +50,21 @@ export async function GET(req: NextRequest) {
   }
 
   const db = adminDb();
-  const today = new Date().toISOString().slice(0, 10);
 
-  // Get today's scheduled fixtures
+  // "Match day" window: 06:00 UTC today → 06:00 UTC tomorrow
+  // Covers afternoon games (18-20 UTC) + late-night games (00-04 UTC next calendar day)
+  const now = new Date();
+  const dayStart = new Date(now);
+  dayStart.setUTCHours(6, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+  // Get this match-day's scheduled fixtures
   const { data: rawFixtures, error: fxErr } = await db
     .from("fixtures")
     .select("id, home_team_id, away_team_id, kicks_off_at")
-    .gte("kicks_off_at", `${today}T00:00:00Z`)
-    .lt("kicks_off_at", `${today}T23:59:59Z`)
+    .gte("kicks_off_at", dayStart.toISOString())
+    .lt("kicks_off_at", dayEnd.toISOString())
     .eq("status", "scheduled")
     .order("kicks_off_at");
 
