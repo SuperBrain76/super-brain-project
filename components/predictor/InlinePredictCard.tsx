@@ -54,6 +54,11 @@ function TeamDisplay({
             >
               {name}
             </span>
+            {team?.fifaRanking && (
+              <span className="text-[9px] font-semibold" style={{ color: MUTED }}>
+                FIFA #{team.fifaRanking}
+              </span>
+            )}
             {seedLabel && <SeedPill label={seedLabel} />}
           </>
         ) : seedLabel ? (
