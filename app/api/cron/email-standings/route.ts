@@ -168,78 +168,93 @@ export async function GET(req: NextRequest) {
     resultRow(f.home, f.homeScore, f.awayScore, f.away)
   ).join("");
 
+  // Guard: standings cron runs at 08:00 UTC. Skip if >30 min past schedule to block retries.
+  const minutesPastSchedule = (now.getUTCHours() * 60 + now.getUTCMinutes()) - (8 * 60);
+  if (minutesPastSchedule > 30) {
+    console.log(`[email-standings] Outside send window (${minutesPastSchedule}m past schedule), skipping.`);
+    return NextResponse.json({ skipped: true, reason: "outside send window" });
+  }
+
   let sent = 0;
   let failed = 0;
 
-  for (const user of users) {
-    if (!user.email) continue;
+  // Build all email payloads first
+  const emails = users
+    .filter((u) => !!u.email)
+    .map((user) => {
+      const displayName =
+        user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        "Predictor";
+      const firstName = String(displayName).split(" ")[0];
 
-    const displayName =
-      user.user_metadata?.full_name ??
-      user.user_metadata?.name ??
-      "Predictor";
-    const firstName = String(displayName).split(" ")[0];
+      const myRank = rankMap.get(user.id);
+      const rankLine = myRank
+        ? `<p style="font-size:14px;color:#1a3a2a;font-family:sans-serif;margin:0 0 20px;">
+             You're currently <strong style="color:#b8972a;">#${myRank.rank}</strong> globally with <strong style="color:#1a3a2a;">${myRank.pts} pts</strong>.
+           </p>`
+        : "";
 
-    // Personal rank line
-    const myRank = rankMap.get(user.id);
-    const rankLine = myRank
-      ? `<p style="font-size:14px;color:#1a3a2a;font-family:sans-serif;margin:0 0 20px;">
-           You're currently <strong style="color:#b8972a;">#${myRank.rank}</strong> globally with <strong style="color:#1a3a2a;">${myRank.pts} pts</strong>.
-         </p>`
-      : "";
+      const body = `
+        <h2 style="font-size:20px;color:#1a3a2a;margin:0 0 4px;font-family:Georgia,serif;">
+          Today's Results Are In
+        </h2>
+        <p style="font-size:14px;color:#7a8f82;font-family:sans-serif;margin:0 0 12px;">
+          Hi ${firstName}, here's how the SuperBrain Predictor stands after today's matches.
+        </p>
 
-    const body = `
-      <h2 style="font-size:20px;color:#1a3a2a;margin:0 0 4px;font-family:Georgia,serif;">
-        Today's Results Are In
-      </h2>
-      <p style="font-size:14px;color:#7a8f82;font-family:sans-serif;margin:0 0 12px;">
-        Hi ${firstName}, here's how the SuperBrain Predictor stands after today's matches.
-      </p>
+        ${rankLine}
 
-      ${rankLine}
-
-      <h3 style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7a8f82;font-family:sans-serif;margin:16px 0 8px;">
-        Today's Results
-      </h3>
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
-        <tbody>${resultsRows}</tbody>
-      </table>
-
-      ${divider}
-
-      <h3 style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7a8f82;font-family:sans-serif;margin:16px 0 8px;">
-        Global Top 10
-      </h3>
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tbody>${globalRows}</tbody>
-      </table>
-
-      ${todayTop5.length > 0 ? `
-        ${divider}
         <h3 style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7a8f82;font-family:sans-serif;margin:16px 0 8px;">
-          Today's Top Scorers
+          Today's Results
+        </h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+          <tbody>${resultsRows}</tbody>
+        </table>
+
+        ${divider}
+
+        <h3 style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7a8f82;font-family:sans-serif;margin:16px 0 8px;">
+          Global Top 10
         </h3>
         <table width="100%" cellpadding="0" cellspacing="0">
-          <tbody>${todayRows}</tbody>
+          <tbody>${globalRows}</tbody>
         </table>
-      ` : ""}
 
-      ${divider}
+        ${todayTop5.length > 0 ? `
+          ${divider}
+          <h3 style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7a8f82;font-family:sans-serif;margin:16px 0 8px;">
+            Today's Top Scorers
+          </h3>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tbody>${todayRows}</tbody>
+          </table>
+        ` : ""}
 
-      ${ctaButton("View Full Leaderboard →", `${SITE}/predict/leaderboard`)}
-    `;
+        ${divider}
 
-    try {
-      await getResend().emails.send({
+        ${ctaButton("View Full Leaderboard →", `${SITE}/predict/leaderboard`)}
+      `;
+
+      return {
         from: FROM,
-        to: user.email,
+        to: user.email as string,
         subject: `📊 Today's SuperBrain standings — who's leading?`,
         html: emailWrapper(body, user.id),
-      });
-      sent++;
-    } catch (err) {
-      console.error(`[email-standings] Failed for ${user.email}:`, err);
-      failed++;
+      };
+    });
+
+  // Resend batch API — single call per 100 recipients, scales to any list size
+  const resend = getResend();
+  const RESEND_BATCH_LIMIT = 100;
+  for (let i = 0; i < emails.length; i += RESEND_BATCH_LIMIT) {
+    const chunk = emails.slice(i, i + RESEND_BATCH_LIMIT);
+    const { data, error } = await resend.batch.send(chunk);
+    if (error) {
+      console.error("[email-standings] batch error:", error);
+      failed += chunk.length;
+    } else {
+      sent += data?.data?.length ?? chunk.length;
     }
   }
 

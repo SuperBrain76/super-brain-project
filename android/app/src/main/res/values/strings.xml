@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SuperBrain</string>
+    <string name="title_activity_main">SuperBrain</string>
+    <string name="package_name">social.superbrain.predict</string>
+    <string name="custom_url_scheme">social.superbrain.predict</string>
+</resources>

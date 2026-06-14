@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const LAST_UPDATED = "May 2026";
+const LAST_UPDATED = "June 2026";
 
 export const metadata = {
   title: "Privacy Policy — SuperBrain",
@@ -36,53 +36,48 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside flex flex-col gap-1 text-cockpit-dim">
               <li><span className="text-cockpit-text font-medium">Account data</span> — email address and password (via Supabase Auth) when you create an account.</li>
-              <li><span className="text-cockpit-text font-medium">Profile data</span> — your chosen display name and country. Fields such as birth year, gender, and industry are entirely optional.</li>
-              <li><span className="text-cockpit-text font-medium">Test results</span> — your scores, percentile estimates, result titles, and the date each test was completed.</li>
-              <li><span className="text-cockpit-text font-medium">Feedback</span> — optional survey responses you submit after completing a test.</li>
-              <li><span className="text-cockpit-text font-medium">Analytics events</span> — actions such as page views, test starts, and share clicks (see PostHog section below).</li>
+              <li><span className="text-cockpit-text font-medium">Profile data</span> — your chosen display name and avatar. Additional profile fields are entirely optional.</li>
+              <li><span className="text-cockpit-text font-medium">Prediction data</span> — match score predictions you submit, including scores awarded and timestamps.</li>
+              <li><span className="text-cockpit-text font-medium">League data</span> — leagues you create or join, including league names and member lists.</li>
+              <li><span className="text-cockpit-text font-medium">Email preferences</span> — whether you have opted in to match-day notifications and standings emails.</li>
+              <li><span className="text-cockpit-text font-medium">Analytics events</span> — actions such as page views and feature interactions (see PostHog section below).</li>
               <li><span className="text-cockpit-text font-medium">Technical data</span> — browser type, device type, and general location derived from your IP address.</li>
             </ul>
-            <p>
-              You can take any test without creating an account. No data is stored unless you choose to save your result.
-            </p>
           </Section>
 
           <Section title="How we use your data">
             <p>We use your data to:</p>
             <ul className="list-disc list-inside flex flex-col gap-1">
-              <li>Operate your account and display your results.</li>
-              <li>Power the global leaderboard with your best score for each test.</li>
-              <li>Generate personalised share links and challenge flows.</li>
-              <li>Improve our tests and scoring algorithms using aggregated, anonymised insights.</li>
-              <li>Understand how people use SuperBrain so we can build better features.</li>
+              <li>Operate your account and record your match predictions.</li>
+              <li>Calculate and display scores on the global leaderboard and within your private leagues.</li>
+              <li>Send match-day reminders and standings summaries if you have opted in to email notifications.</li>
+              <li>Improve SuperBrain using aggregated, anonymised usage insights.</li>
             </ul>
             <p>
               We do not sell your personal data to third parties. We do not use your data for advertising targeting.
             </p>
           </Section>
 
-          <Section title="Public leaderboard">
+          <Section title="Public leaderboard &amp; league standings">
             <p>
-              If you save a result and appear on the leaderboard, the following information is publicly visible:
+              Your leaderboard position and prediction history for completed matches are visible to other users. The following information may be publicly visible:
             </p>
             <ul className="list-disc list-inside flex flex-col gap-1">
               <li>Display name</li>
-              <li>Country (if set)</li>
-              <li>Score and percentile rank</li>
-              <li>Result title (e.g. "Elite Reactor")</li>
-              <li>Test name</li>
+              <li>Total points and rank</li>
+              <li>Match predictions (after kick-off only — future predictions are never shown)</li>
             </ul>
             <p>
-              Your email address is never shown publicly. Optional profile fields (birth year, gender, industry) are used only for internal analysis and are never displayed on the leaderboard.
+              Your email address is never shown publicly.
             </p>
           </Section>
 
           <Section title="Analytics — PostHog">
             <p>
-              We use <span className="text-cockpit-text font-medium">PostHog</span> to collect anonymised product analytics. PostHog records events such as which tests are taken, how often results are shared, and where users drop off. This data is used exclusively to improve SuperBrain.
+              We use <span className="text-cockpit-text font-medium">PostHog</span> to collect anonymised product analytics. PostHog records events such as page views and feature usage. This data is used exclusively to improve SuperBrain.
             </p>
             <p>
-              PostHog does not receive your email address or raw test scores linked to your identity. Data is stored on PostHog&apos;s servers. You can learn more at{" "}
+              PostHog does not receive your email address or prediction data linked to your identity. Data is stored on PostHog&apos;s servers. You can learn more at{" "}
               <a
                 href="https://posthog.com/privacy"
                 target="_blank"

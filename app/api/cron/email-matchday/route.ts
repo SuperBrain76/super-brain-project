@@ -115,51 +115,71 @@ export async function GET(req: NextRequest) {
     matchRow(f.home, f.away, f.kicksOffAt)
   ).join("");
 
+  // Guard: only send within 30 minutes of the scheduled 16:00 UTC time.
+  // Prevents Vercel retry invocations (which fire late) from sending duplicates.
+  const minutesPastSchedule = (now.getUTCHours() * 60 + now.getUTCMinutes()) - (16 * 60);
+  if (minutesPastSchedule > 30) {
+    console.log(`[email-matchday] Outside send window (${minutesPastSchedule}m past schedule), skipping to prevent duplicate.`);
+    return NextResponse.json({ skipped: true, reason: "outside send window" });
+  }
+
   let sent = 0;
   let failed = 0;
 
-  for (const user of users) {
-    if (!user.email) continue;
-    const displayName =
-      user.user_metadata?.full_name ??
-      user.user_metadata?.name ??
-      "Predictor";
-    const firstName = String(displayName).split(" ")[0];
+  // Build all email payloads first
+  const emails = users
+    .filter((u) => !!u.email)
+    .map((user) => {
+      const displayName =
+        user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        "Predictor";
+      const firstName = String(displayName).split(" ")[0];
 
-    const body = `
-      <h2 style="font-size:20px;color:#1a3a2a;margin:0 0 4px;font-family:Georgia,serif;">
-        Match Day! ⚽
-      </h2>
-      <p style="font-size:14px;color:#7a8f82;font-family:sans-serif;margin:0 0 20px;">
-        Hi ${firstName}, there ${matchCount === 1 ? "is" : "are"} <strong style="color:#1a3a2a;">${matchCount} match${matchCount === 1 ? "" : "es"}</strong> today. Get your predictions in before kick-off!
-      </p>
+      const body = `
+        <h2 style="font-size:20px;color:#1a3a2a;margin:0 0 4px;font-family:Georgia,serif;">
+          Match Day! ⚽
+        </h2>
+        <p style="font-size:14px;color:#7a8f82;font-family:sans-serif;margin:0 0 20px;">
+          Hi ${firstName}, there ${matchCount === 1 ? "is" : "are"} <strong style="color:#1a3a2a;">${matchCount} match${matchCount === 1 ? "" : "es"}</strong> today. Get your predictions in before kick-off!
+        </p>
 
-      ${divider}
+        ${divider}
 
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
-        <tbody>${rows}</tbody>
-      </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+          <tbody>${rows}</tbody>
+        </table>
 
-      ${divider}
+        ${divider}
 
-      ${ctaButton("Make Your Predictions →", `${SITE}/predict`)}
+        ${ctaButton("Make Your Predictions →", `${SITE}/predict`)}
 
-      <p style="font-size:12px;color:#7a8f82;font-family:sans-serif;text-align:center;margin:8px 0 0;">
-        Predictions lock at kick-off. Don't leave it too late!
-      </p>
-    `;
+        <p style="font-size:12px;color:#7a8f82;font-family:sans-serif;text-align:center;margin:8px 0 0;">
+          Predictions lock at kick-off. Don't leave it too late!
+        </p>
+      `;
 
-    try {
-      await getResend().emails.send({
+      return {
         from: FROM,
-        to: user.email,
+        to: user.email as string,
         subject: `⚽ ${matchCount} match${matchCount === 1 ? "" : "es"} today — make your predictions!`,
         html: emailWrapper(body, user.id),
-      });
-      sent++;
-    } catch (err) {
-      console.error(`[email-matchday] Failed for ${user.email}:`, err);
-      failed++;
+      };
+    });
+
+  // Use Resend batch API — single API call, Resend handles delivery internally.
+  // Supports up to 100 emails per batch call; we chunk to stay within that limit.
+  // This completes in ~1-2 seconds regardless of recipient count, no timeout risk.
+  const resend = getResend();
+  const RESEND_BATCH_LIMIT = 100;
+  for (let i = 0; i < emails.length; i += RESEND_BATCH_LIMIT) {
+    const chunk = emails.slice(i, i + RESEND_BATCH_LIMIT);
+    const { data, error } = await resend.batch.send(chunk);
+    if (error) {
+      console.error("[email-matchday] batch error:", error);
+      failed += chunk.length;
+    } else {
+      sent += data?.data?.length ?? chunk.length;
     }
   }
 
