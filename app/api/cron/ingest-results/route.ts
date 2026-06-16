@@ -190,16 +190,31 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     let apiFixtures = liveResult.fixtures;
     console.log(`[ingest:API] live response: ${apiFixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
 
-    // Step B: If nothing live, fetch today's full schedule to catch
-    //         matches that recently finished (status just changed to FT)
+    // Step B: If nothing live, fetch the full schedule for the date(s) the
+    //         in-progress fixtures actually kicked off on — NOT wall-clock
+    //         "today". Matches kicking off late (e.g. 22:00-23:00 UTC) can
+    //         run past midnight UTC; by the time API-Football stops listing
+    //         them under live=all (i.e. FT), wall-clock "today" has already
+    //         rolled to the next day, so a today-only date query silently
+    //         misses them and the DB status gets stuck on "live" forever
+    //         (getPollReason keeps reporting live_match based on that same
+    //         stale status, so the bug never self-corrects).
     if (apiFixtures.length === 0) {
-      const todayUtc = new Date().toISOString().slice(0, 10);
-      console.log(`[ingest:API] no live matches — calling GET /fixtures?league=1&season=2026&date=${todayUtc}`);
-      const todayResult = await fetchFixturesByDate(FOOTBALL_API_KEY, todayUtc);
-      apiCallsMade += todayResult.apiCallsMade;
-      quota = todayResult.quota;
-      apiFixtures = todayResult.fixtures;
-      console.log(`[ingest:API] date response: ${apiFixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
+      const relevantDates = new Set<string>([
+        new Date().toISOString().slice(0, 10), // always check wall-clock today too
+        ...typedDb
+          .filter((f) => f.status !== "completed" && f.status !== "postponed")
+          .map((f) => f.kicks_off_at.slice(0, 10)),
+      ]);
+
+      for (const dateStr of relevantDates) {
+        console.log(`[ingest:API] no live matches — calling GET /fixtures?league=1&season=2026&date=${dateStr}`);
+        const dateResult = await fetchFixturesByDate(FOOTBALL_API_KEY, dateStr);
+        apiCallsMade += dateResult.apiCallsMade;
+        quota = dateResult.quota;
+        apiFixtures = apiFixtures.concat(dateResult.fixtures);
+        console.log(`[ingest:API] date=${dateStr} response: ${dateResult.fixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
+      }
     }
 
     if (apiFixtures.length === 0) {
