@@ -168,10 +168,10 @@ export async function GET(req: NextRequest) {
     resultRow(f.home, f.homeScore, f.awayScore, f.away)
   ).join("");
 
-  // Guard: standings cron runs at 10:00 UTC. Allow up to 4 hours late to handle Vercel delays.
-  // Blocks same-day retries that fire after 14:00 UTC (unlikely but safe).
+  // Guard: standings cron runs at 10:00 UTC (2pm UAE). Allow up to 45 minutes late to handle
+  // Vercel delays. Blocks same-day retries that fire outside this narrow window.
   const minutesPastSchedule = (now.getUTCHours() * 60 + now.getUTCMinutes()) - (10 * 60);
-  if (minutesPastSchedule > 240) {
+  if (minutesPastSchedule > 45) {
     console.log(`[email-standings] Outside send window (${minutesPastSchedule}m past schedule), skipping.`);
     return NextResponse.json({ skipped: true, reason: "outside send window" });
   }

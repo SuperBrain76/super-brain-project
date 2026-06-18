@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/email-matchday",
-      "schedule": "0 16 * * *"
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/cron/email-standings",

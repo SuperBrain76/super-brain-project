@@ -115,10 +115,10 @@ export async function GET(req: NextRequest) {
     matchRow(f.home, f.away, f.kicksOffAt)
   ).join("");
 
-  // Guard: only send within 30 minutes of the scheduled 16:00 UTC time.
+  // Guard: only send within 45 minutes of the scheduled 14:00 UTC time (6pm UAE).
   // Prevents Vercel retry invocations (which fire late) from sending duplicates.
-  const minutesPastSchedule = (now.getUTCHours() * 60 + now.getUTCMinutes()) - (16 * 60);
-  if (minutesPastSchedule > 30) {
+  const minutesPastSchedule = (now.getUTCHours() * 60 + now.getUTCMinutes()) - (14 * 60);
+  if (minutesPastSchedule > 45) {
     console.log(`[email-matchday] Outside send window (${minutesPastSchedule}m past schedule), skipping to prevent duplicate.`);
     return NextResponse.json({ skipped: true, reason: "outside send window" });
   }
