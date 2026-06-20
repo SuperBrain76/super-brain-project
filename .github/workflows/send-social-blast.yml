@@ -1,6 +1,9 @@
 name: Send Social Blast Email
 
 on:
+  schedule:
+    - cron: "0 7 21 6 *"  # 07:00 UTC = 11:00 UAE on 21 Jun 2026 — one-time send
+
   workflow_dispatch:
     inputs:
       dry_run:
@@ -27,7 +30,7 @@ jobs:
             --write-out "%{http_code}" \
             --max-time 60 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.APP_URL }}/api/admin/send-social-blast?dry_run=${{ github.event.inputs.dry_run }}")
+            "${{ secrets.APP_URL }}/api/admin/send-social-blast?dry_run=${{ github.event.inputs.dry_run || 'false' }}")
 
           echo "HTTP status: $HTTP_STATUS"
           echo "Response:"
