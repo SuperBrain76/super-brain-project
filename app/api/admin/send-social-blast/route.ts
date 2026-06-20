@@ -27,17 +27,21 @@ function adminDb() {
 }
 
 export async function GET(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET ?? "";
-  if (!cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const auth = req.headers.get("authorization");
-  const querySecret = req.nextUrl.searchParams.get("secret");
-  if (auth !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const dryRun = req.nextUrl.searchParams.get("dry_run") === "true";
+
+  // Dry run is unauthenticated — it sends nothing, just counts recipients.
+  // Real sends require CRON_SECRET.
+  if (!dryRun) {
+    const cronSecret = process.env.CRON_SECRET ?? "";
+    if (!cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const auth = req.headers.get("authorization");
+    const querySecret = req.nextUrl.searchParams.get("secret");
+    if (auth !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
 
   const db = adminDb();
 
