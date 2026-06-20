@@ -2,7 +2,7 @@ name: Send Social Blast Email
 
 on:
   schedule:
-    - cron: "0 7 21 6 *"  # 07:00 UTC = 11:00 UAE on 21 Jun 2026 — one-time send
+    - cron: "0 7 20 6 *"  # 07:00 UTC = 11:00 UAE on 20 Jun 2026 — one-time send
 
   workflow_dispatch:
     inputs:
