@@ -1,0 +1,49 @@
+name: Send Social Blast Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (true = count only, no emails sent)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  send:
+    name: Send social blast to all users
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Send blast
+        run: |
+          HTTP_STATUS=$(curl \
+            --silent \
+            --output /tmp/response.json \
+            --write-out "%{http_code}" \
+            --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/admin/send-social-blast?dry_run=${{ github.event.inputs.dry_run }}")
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response:"
+          cat /tmp/response.json | jq . 2>/dev/null || cat /tmp/response.json
+
+          if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
+            echo "::error::Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+          SENT=$(cat /tmp/response.json | jq -r '.sent // "n/a"' 2>/dev/null)
+          WOULD_SEND=$(cat /tmp/response.json | jq -r '.wouldSendTo // "n/a"' 2>/dev/null)
+          DRY=$(cat /tmp/response.json | jq -r '.dry_run // false' 2>/dev/null)
+
+          if [ "$DRY" = "true" ]; then
+            echo "::notice::DRY RUN — would send to $WOULD_SEND users"
+          else
+            echo "::notice::Sent to $SENT users"
+          fi
