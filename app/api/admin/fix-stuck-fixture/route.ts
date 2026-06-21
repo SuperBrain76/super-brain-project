@@ -103,8 +103,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     date,
-    stuckFixtures: typedDb.length,
-    apiFixtures: apiFixtures.length,
+    stuckFixtures: typedDb.map((f) => ({ id: f.id.slice(0, 8), kicks_off_at: f.kicks_off_at, status: f.status })),
+    apiFixtures: apiFixtures.map((f) => ({ date: f.fixture.date, status: f.fixture.status.short, home: f.teams.home.name, away: f.teams.away.name })),
     updated,
     changes,
     apiCallsMade,
