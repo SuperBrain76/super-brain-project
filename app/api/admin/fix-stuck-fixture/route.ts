@@ -67,7 +67,10 @@ export async function GET(req: NextRequest) {
   const changes: string[] = [];
 
   for (const apiFix of apiFixtures) {
-    const dbFix = findDbFixtureByKickoff(apiFix.fixture.date, typedDb);
+    // Use 90-min tolerance here (vs 30-min in normal ingest) to catch seeding
+    // mismatches like Türkiye-Paraguay where DB has 04:00 UTC, API has 03:00 UTC.
+    const apiMs = new Date(apiFix.fixture.date).getTime();
+    const dbFix = typedDb.find((f) => Math.abs(new Date(f.kicks_off_at).getTime() - apiMs) <= 90 * 60 * 1000);
     if (!dbFix) continue;
 
     const newStatus               = mapStatus(apiFix.fixture.status.short);
