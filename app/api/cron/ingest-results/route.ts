@@ -270,7 +270,9 @@ async function handler(req: NextRequest): Promise<NextResponse> {
       const newStatus               = mapStatus(apiFix.fixture.status.short);
       const { homeScore, awayScore } = extractScore(apiFix);
 
-      const statusChanged = newStatus !== dbFix.status;
+      const newKicksOffAt = new Date(apiFix.fixture.date).toISOString();
+      const statusChanged    = newStatus !== dbFix.status;
+      const kickoffChanged   = newKicksOffAt !== dbFix.kicks_off_at;
 
       // Write scores for both live and completed matches so points
       // fluctuate in real-time during a match (every 5-min cron tick).
@@ -283,11 +285,12 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         awayScore !== null &&
         (homeScore !== dbFix.home_score || awayScore !== dbFix.away_score);
 
-      if (!statusChanged && !scoreChanged) continue;
+      if (!statusChanged && !scoreChanged && !kickoffChanged) continue;
 
       const updatePayload: Record<string, unknown> = {
-        status:     newStatus,
-        updated_at: new Date().toISOString(),
+        status:       newStatus,
+        kicks_off_at: newKicksOffAt, // Always sync to API-Football's official time
+        updated_at:   new Date().toISOString(),
       };
 
       if (scoreChanged) {

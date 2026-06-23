@@ -317,3 +317,17 @@ export async function fetchFixturesByDate(
   );
   return { fixtures, quota, apiCallsMade: 1 };
 }
+
+/**
+ * Fetch the complete WC2026 schedule from API-Football in one request.
+ * Used by the kickoff-time sync endpoint to correct seeded times in bulk.
+ */
+export async function fetchAllFixtures(
+  apiKey: string,
+): Promise<ApiFootballResponse> {
+  const { fixtures, quota } = await apiFetch(
+    `fixtures?${WC2026}`,
+    apiKey,
+  );
+  return { fixtures, quota, apiCallsMade: 1 };
+}
