@@ -203,9 +203,10 @@ export function extractScore(fixture: ApiFootballFixture): IngestedScore {
 
 // ── Fixture matching ──────────────────────────────────────────
 // Match API fixtures to DB fixtures by kickoff timestamp.
-// ±5-minute tolerance handles minor clock differences between
-// our NBC Sports-sourced data and API-Football's official times.
-// WC2026 never has two fixtures within 5 min of each other.
+// 90-minute tolerance: our seeded kickoff times (from NBC Sports schedule)
+// can differ from API-Football's official times by up to ~60 minutes.
+// WC2026 group-stage matches are always 3+ hours apart so a 90-min
+// window never accidentally matches the wrong game.
 
 export function findDbFixtureByKickoff(
   apiKickoffIso: string,
@@ -214,7 +215,7 @@ export function findDbFixtureByKickoff(
   const apiMs = new Date(apiKickoffIso).getTime();
   return dbFixtures.find((f) => {
     const dbMs = new Date(f.kicks_off_at).getTime();
-    return Math.abs(dbMs - apiMs) <= 30 * 60 * 1000;
+    return Math.abs(dbMs - apiMs) <= 90 * 60 * 1000;
   });
 }
 
