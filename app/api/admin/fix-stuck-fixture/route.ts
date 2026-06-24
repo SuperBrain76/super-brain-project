@@ -40,11 +40,14 @@ export async function GET(req: NextRequest) {
 
   const db = createClient(SUPABASE_URL, SUPABASE_SRK, { auth: { persistSession: false } });
 
-  // Fetch all stuck (live) fixtures from DB regardless of date
+  // Fetch all fixtures that should be done but aren't — live OR still scheduled
+  // past their kickoff time. The double-kickoff bug left some as "scheduled" forever.
+  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(); // kicked off 3h+ ago
   const { data: stuckFixtures, error: dbErr } = await db
     .from("fixtures")
     .select("id, kicks_off_at, home_score, away_score, status")
-    .eq("status", "live");
+    .in("status", ["live", "scheduled"])
+    .lt("kicks_off_at", cutoff);
 
   if (dbErr) {
     return NextResponse.json({ error: dbErr.message }, { status: 500 });
