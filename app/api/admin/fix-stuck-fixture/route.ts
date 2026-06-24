@@ -40,13 +40,19 @@ export async function GET(req: NextRequest) {
 
   const db = createClient(SUPABASE_URL, SUPABASE_SRK, { auth: { persistSession: false } });
 
-  // Fetch all fixtures that should be done but aren't — live OR still scheduled
-  // past their kickoff time. The double-kickoff bug left some as "scheduled" forever.
-  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(); // kicked off 3h+ ago
+  // ?force=true re-syncs ALL fixtures for the date (including completed ones
+  // that may have the wrong score from the simultaneous-match swap bug).
+  const force = req.nextUrl.searchParams.get("force") === "true";
+
+  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const statusFilter = force
+    ? ["live", "scheduled", "completed"]
+    : ["live", "scheduled"];
+
   const { data: stuckFixtures, error: dbErr } = await db
     .from("fixtures")
     .select("id, kicks_off_at, home_score, away_score, status")
-    .in("status", ["live", "scheduled"])
+    .in("status", statusFilter)
     .lt("kicks_off_at", cutoff);
 
   if (dbErr) {
