@@ -1,25 +1,24 @@
 /**
- * GET /api/admin/fix-stuck-fixture?date=YYYY-MM-DD
+ * GET /api/admin/fix-stuck-fixture?date=YYYY-MM-DD[&force=true]
  *
- * Fetches all WC2026 results for a given date from API-Football and
- * force-updates any fixtures that are stuck in 'live' status.
- * Bypasses the normal ±3h window used by the ingest cron.
+ * Fetches WC2026 results for a given date from API-Football and updates
+ * any fixtures that are stuck or have wrong scores.
  *
- * Unauthenticated — read-only against API-Football, writes only to
- * fixtures that are genuinely stuck (status = live but API says FT).
+ * Matches DB fixtures to API fixtures by team name, not just kickoff time,
+ * so simultaneous group-stage matches are never swapped.
+ *
+ * ?force=true  — also re-syncs completed fixtures (catches swapped scores)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import {
-  fetchFixturesByDate,
-  mapStatus,
-  extractScore,
-  findDbFixtureByKickoff,
-  type DbFixture,
-} from "@/lib/ingestion";
+import { fetchFixturesByDate, mapStatus, extractScore } from "@/lib/ingestion";
 
 export const dynamic = "force-dynamic";
+
+function normalizeName(name: string) {
+  return name.toLowerCase().replace(/[^a-z]/g, "");
+}
 
 export async function GET(req: NextRequest) {
   const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY ?? "";
@@ -30,7 +29,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing env vars" }, { status: 500 });
   }
 
-  // Default to yesterday UTC if no date provided
   const dateParam = req.nextUrl.searchParams.get("date");
   const date = dateParam ?? (() => {
     const d = new Date();
@@ -38,38 +36,39 @@ export async function GET(req: NextRequest) {
     return d.toISOString().slice(0, 10);
   })();
 
-  const db = createClient(SUPABASE_URL, SUPABASE_SRK, { auth: { persistSession: false } });
-
-  // ?force=true re-syncs ALL fixtures for the date (including completed ones
-  // that may have the wrong score from the simultaneous-match swap bug).
   const force = req.nextUrl.searchParams.get("force") === "true";
 
-  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const db = createClient(SUPABASE_URL, SUPABASE_SRK, { auth: { persistSession: false } });
+
+  // Load DB fixtures with team IDs so we can match by name
+  const cutoff = new Date(Date.now() - 90 * 60 * 1000).toISOString(); // kicked off 90min+ ago
   const statusFilter = force
     ? ["live", "scheduled", "completed"]
     : ["live", "scheduled"];
 
-  const { data: stuckFixtures, error: dbErr } = await db
+  const { data: dbRows, error: dbErr } = await db
     .from("fixtures")
-    .select("id, kicks_off_at, home_score, away_score, status")
+    .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
     .in("status", statusFilter)
     .lt("kicks_off_at", cutoff);
 
-  if (dbErr) {
-    return NextResponse.json({ error: dbErr.message }, { status: 500 });
+  if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
+  if (!dbRows || dbRows.length === 0) {
+    return NextResponse.json({ message: "No fixtures to fix", updated: 0 });
   }
 
-  const typedDb = (stuckFixtures ?? []) as DbFixture[];
+  // Load team names for all referenced teams
+  const teamIds = [...new Set([
+    ...dbRows.map((f) => f.home_team_id as string),
+    ...dbRows.map((f) => f.away_team_id as string),
+  ])];
+  const { data: teamsData } = await db.from("teams").select("id, name").in("id", teamIds);
+  const teamName = new Map((teamsData ?? []).map((t) => [t.id as string, t.name as string]));
 
-  if (typedDb.length === 0) {
-    return NextResponse.json({ message: "No stuck live fixtures found", updated: 0 });
-  }
-
-  // Fetch API-Football results for the given date
+  // Fetch API-Football results for this date
   const { fixtures: apiFixtures, apiCallsMade } = await fetchFixturesByDate(FOOTBALL_API_KEY, date);
-
   if (apiFixtures.length === 0) {
-    return NextResponse.json({ message: `No API fixtures found for ${date}`, apiCallsMade, stuckCount: typedDb.length });
+    return NextResponse.json({ message: `No API fixtures for ${date}`, apiCallsMade });
   }
 
   let updated = 0;
@@ -77,20 +76,43 @@ export async function GET(req: NextRequest) {
   const claimedDbIds = new Set<string>();
 
   for (const apiFix of apiFixtures) {
-    const apiMs = new Date(apiFix.fixture.date).getTime();
-    const availableDb = typedDb.filter((f) => !claimedDbIds.has(f.id));
-    const dbFix = availableDb.find((f) => Math.abs(new Date(f.kicks_off_at).getTime() - apiMs) <= 90 * 60 * 1000);
+    const apiMs       = new Date(apiFix.fixture.date).getTime();
+    const apiHomeName = normalizeName(apiFix.teams.home.name);
+    const apiAwayName = normalizeName(apiFix.teams.away.name);
+
+    // Match by team name first (exact), fall back to time-only for unambiguous windows
+    const available = dbRows.filter((f) => !claimedDbIds.has(f.id as string));
+
+    let dbFix = available.find((f) => {
+      const dbMs   = new Date(f.kicks_off_at as string).getTime();
+      const inWindow = Math.abs(dbMs - apiMs) <= 90 * 60 * 1000;
+      if (!inWindow) return false;
+      const home = normalizeName(teamName.get(f.home_team_id as string) ?? "");
+      const away = normalizeName(teamName.get(f.away_team_id as string) ?? "");
+      return (home === apiHomeName || away === apiAwayName);
+    });
+
+    // Fallback: time-only match when team names aren't in our DB
+    if (!dbFix) {
+      dbFix = available.find((f) => {
+        const dbMs = new Date(f.kicks_off_at as string).getTime();
+        return Math.abs(dbMs - apiMs) <= 90 * 60 * 1000;
+      });
+    }
+
     if (!dbFix) continue;
-    claimedDbIds.add(dbFix.id);
+    claimedDbIds.add(dbFix.id as string);
 
     const newStatus               = mapStatus(apiFix.fixture.status.short);
     const { homeScore, awayScore } = extractScore(apiFix);
 
-    if (newStatus === "live") continue; // Still live on API side — skip
+    // In force mode update live scores too (fixes swapped live scores)
+    if (!force && newStatus === "live") continue;
 
     const updatePayload: Record<string, unknown> = {
-      status:     newStatus,
-      updated_at: new Date().toISOString(),
+      status:       newStatus,
+      kicks_off_at: new Date(apiFix.fixture.date).toISOString(),
+      updated_at:   new Date().toISOString(),
     };
 
     if (homeScore !== null && awayScore !== null) {
@@ -104,22 +126,14 @@ export async function GET(req: NextRequest) {
       .eq("id", dbFix.id);
 
     if (updateErr) {
-      console.error(`[fix-stuck] update failed for ${dbFix.id}:`, updateErr.message);
+      console.error(`[fix-stuck] failed ${dbFix.id}:`, updateErr.message);
       continue;
     }
 
     updated++;
-    const label = `${dbFix.id.slice(0, 8)} → ${newStatus} ${homeScore}-${awayScore}`;
+    const label = `${(dbFix.id as string).slice(0, 8)} ${teamName.get(dbFix.home_team_id as string) ?? "?"} vs ${teamName.get(dbFix.away_team_id as string) ?? "?"} → ${newStatus} ${homeScore ?? "?"}-${awayScore ?? "?"}`;
     changes.push(label);
-    console.log(`[fix-stuck] ${label}`);
   }
 
-  return NextResponse.json({
-    date,
-    stuckFixtures: typedDb.map((f) => ({ id: f.id.slice(0, 8), kicks_off_at: f.kicks_off_at, status: f.status })),
-    apiFixtures: apiFixtures.map((f) => ({ date: f.fixture.date, status: f.fixture.status.short, home: f.teams.home.name, away: f.teams.away.name })),
-    updated,
-    changes,
-    apiCallsMade,
-  });
+  return NextResponse.json({ date, updated, changes, apiCallsMade });
 }
