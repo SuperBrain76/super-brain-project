@@ -121,7 +121,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   const { data: dbFixtures, error: dbErr } = await db
     .from("fixtures")
-    .select("id, kicks_off_at, home_score, away_score, status")
+    .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
     .eq("competition_id", competitionId)
     .gte("kicks_off_at", windowStart)
     .lte("kicks_off_at", windowEnd)
@@ -131,6 +131,18 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     // DB error is a real error — return 500 so GitHub marks the run failed
     console.error("[ingest] DB query failed:", dbErr.message);
     return NextResponse.json({ error: `DB error: ${dbErr.message}` }, { status: 500 });
+  }
+
+  // Load team names so we can match simultaneous fixtures by team, not just time
+  const teamIds = [...new Set([
+    ...(dbFixtures ?? []).map((f) => f.home_team_id as string),
+    ...(dbFixtures ?? []).map((f) => f.away_team_id as string),
+  ])];
+  const { data: teamsData } = await db.from("teams").select("id, name").in("id", teamIds);
+  const teamNameMap = new Map((teamsData ?? []).map((t) => [t.id as string, t.name as string]));
+
+  function normalizeName(name: string) {
+    return name.toLowerCase().replace(/[^a-z]/g, "");
   }
 
   const typedDb = (dbFixtures ?? []) as DbFixture[];
@@ -259,10 +271,22 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
     for (const apiFix of apiFixtures) {
       const availableDb = typedDb.filter((f) => !claimedDbIds.has(f.id));
-      const dbFix =
-        useSingleMatchFallback
-          ? inProgressDb[0]
-          : findDbFixtureByKickoff(apiFix.fixture.date, availableDb);
+
+      let dbFix: typeof typedDb[0] | undefined;
+      if (useSingleMatchFallback) {
+        dbFix = inProgressDb[0];
+      } else {
+        const apiMs       = new Date(apiFix.fixture.date).getTime();
+        const apiHomeName = normalizeName(apiFix.teams.home.name);
+        const apiAwayName = normalizeName(apiFix.teams.away.name);
+        // Match by team name within 90-min window (handles simultaneous kickoffs)
+        dbFix = availableDb.find((f) => {
+          if (Math.abs(new Date(f.kicks_off_at).getTime() - apiMs) > 90 * 60 * 1000) return false;
+          const home = normalizeName(teamNameMap.get((f as Record<string, unknown>).home_team_id as string) ?? "");
+          const away = normalizeName(teamNameMap.get((f as Record<string, unknown>).away_team_id as string) ?? "");
+          return home === apiHomeName || away === apiAwayName;
+        }) ?? findDbFixtureByKickoff(apiFix.fixture.date, availableDb); // fallback: time-only
+      }
 
       if (dbFix) claimedDbIds.add(dbFix.id);
 
