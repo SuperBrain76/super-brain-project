@@ -61,10 +61,13 @@ export async function GET() {
   let updated = 0;
   let skipped = 0;
   const changes: string[] = [];
+  const claimedDbIds = new Set<string>();
 
   for (const apiFix of apiFixtures) {
     const officialTime = new Date(apiFix.fixture.date).toISOString();
-    const dbFix = findDbFixtureByKickoff(apiFix.fixture.date, typedDb);
+    const availableDb = typedDb.filter((f) => !claimedDbIds.has(f.id));
+    const dbFix = findDbFixtureByKickoff(apiFix.fixture.date, availableDb);
+    if (dbFix) claimedDbIds.add(dbFix.id);
 
     if (!dbFix) {
       skipped++;

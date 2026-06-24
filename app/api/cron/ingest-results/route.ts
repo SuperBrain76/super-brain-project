@@ -252,11 +252,19 @@ async function handler(req: NextRequest): Promise<NextResponse> {
       inProgressDb.length === 1 &&
       pollReason !== "kickoff_imminent"; // Don't confuse pre-match with live
 
+    // Track which DB fixtures have been claimed so simultaneous kickoffs
+    // (group-stage final round: 2 matches at exactly the same time) each
+    // get matched to a distinct DB row instead of both hitting the same one.
+    const claimedDbIds = new Set<string>();
+
     for (const apiFix of apiFixtures) {
+      const availableDb = typedDb.filter((f) => !claimedDbIds.has(f.id));
       const dbFix =
         useSingleMatchFallback
           ? inProgressDb[0]
-          : findDbFixtureByKickoff(apiFix.fixture.date, typedDb);
+          : findDbFixtureByKickoff(apiFix.fixture.date, availableDb);
+
+      if (dbFix) claimedDbIds.add(dbFix.id);
 
       if (!dbFix) {
         skippedNoMatch++;
