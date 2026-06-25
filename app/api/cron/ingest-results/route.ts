@@ -293,8 +293,9 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         // Match by team name within 90-min window (handles simultaneous kickoffs)
         dbFix = availableDb.find((f) => {
           if (Math.abs(new Date(f.kicks_off_at).getTime() - apiMs) > 90 * 60 * 1000) return false;
-          const home = normalizeName(teamNameMap.get((f as Record<string, unknown>).home_team_id as string) ?? "");
-          const away = normalizeName(teamNameMap.get((f as Record<string, unknown>).away_team_id as string) ?? "");
+          const row  = f as unknown as Record<string, unknown>;
+          const home = normalizeName(teamNameMap.get(row.home_team_id as string) ?? "");
+          const away = normalizeName(teamNameMap.get(row.away_team_id as string) ?? "");
           return home === apiHomeName || away === apiAwayName;
         }) ?? findDbFixtureByKickoff(apiFix.fixture.date, availableDb); // fallback: time-only
       }
