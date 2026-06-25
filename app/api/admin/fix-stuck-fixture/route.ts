@@ -16,8 +16,19 @@ import { fetchFixturesByDate, mapStatus, extractScore } from "@/lib/ingestion";
 
 export const dynamic = "force-dynamic";
 
+const TEAM_ALIASES: Record<string, string> = {
+  "czechia":                    "czechrepublic",
+  "türkiye":                    "turkey",
+  "turkiye":                    "turkey",
+  "coteivoire":                 "ivorycoast",
+  "congodr":                    "drcongo",
+  "democraticrepublicofcongo":  "drcongo",
+  "northmacedonia":             "macedonia",
+  "bosniaandherzegovina":       "bosniaherzegovina",
+};
 function normalizeName(name: string) {
-  return name.toLowerCase().replace(/[^a-z]/g, "");
+  const raw = name.toLowerCase().replace(/[^a-z]/g, "");
+  return TEAM_ALIASES[raw] ?? raw;
 }
 
 export async function GET(req: NextRequest) {

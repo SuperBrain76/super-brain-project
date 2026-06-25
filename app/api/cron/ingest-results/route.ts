@@ -141,8 +141,19 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   const { data: teamsData } = await db.from("teams").select("id, name").in("id", teamIds);
   const teamNameMap = new Map((teamsData ?? []).map((t) => [t.id as string, t.name as string]));
 
+  const TEAM_ALIASES: Record<string, string> = {
+    "czechia":                    "czechrepublic",
+    "türkiye":                    "turkey",
+    "turkiye":                    "turkey",
+    "coteivoire":                 "ivorycoast",
+    "congodr":                    "drcongo",
+    "democraticrepublicofcongo":  "drcongo",
+    "northmacedonia":             "macedonia",
+    "bosniaandherzegovina":       "bosniaherzegovina",
+  };
   function normalizeName(name: string) {
-    return name.toLowerCase().replace(/[^a-z]/g, "");
+    const raw = name.toLowerCase().replace(/[^a-z]/g, "");
+    return TEAM_ALIASES[raw] ?? raw;
   }
 
   const typedDb = (dbFixtures ?? []) as DbFixture[];
