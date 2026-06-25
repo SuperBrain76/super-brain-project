@@ -24,7 +24,17 @@ function adminDb() {
 export async function GET(req: NextRequest) {
   const dryRun = req.nextUrl.searchParams.get("dry_run") === "true";
 
-  // Auth temporarily removed for one-time send — will be restored immediately after
+  if (!dryRun) {
+    const cronSecret = process.env.CRON_SECRET ?? "";
+    if (!cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const auth = req.headers.get("authorization");
+    const querySecret = req.nextUrl.searchParams.get("secret");
+    if (auth !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
 
   const db = adminDb();
   const { data: { users: allUsers }, error: authErr } =
