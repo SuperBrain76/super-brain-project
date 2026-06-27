@@ -57,6 +57,7 @@ function resultRow(home: string, homeScore: number, awayScore: number, away: str
 
 export async function GET(req: NextRequest) {
   const debug = req.nextUrl.searchParams.get("debug") === "true";
+  const force = req.nextUrl.searchParams.get("force") === "true";
   const auth = req.headers.get("authorization") ?? "";
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -195,7 +196,7 @@ export async function GET(req: NextRequest) {
   // Guard: standings cron runs at 10:00 UTC (2pm UAE). Allow up to 45 minutes late to handle
   // Vercel delays. Blocks same-day retries that fire outside this narrow window.
   const minutesPastSchedule = (now.getUTCHours() * 60 + now.getUTCMinutes()) - (10 * 60);
-  if (minutesPastSchedule > 45) {
+  if (!force && minutesPastSchedule > 45) {
     console.log(`[email-standings] Outside send window (${minutesPastSchedule}m past schedule), skipping.`);
     return NextResponse.json({ skipped: true, reason: "outside send window" });
   }
