@@ -12,6 +12,16 @@ function adminDb() {
   );
 }
 
+// Anon client — used for public RPCs like get_predictor_leaderboard that
+// return correct results only when called with the anon key (not service role).
+function anonDb() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+    { auth: { persistSession: false } },
+  );
+}
+
 function medal(rank: number) {
   if (rank === 1) return "🥇";
   if (rank === 2) return "🥈";
@@ -102,8 +112,10 @@ export async function GET(req: NextRequest) {
     .eq("slug", "wc2026")
     .single();
 
-  // Global top 10 (now includes user_id)
-  const { data: globalLeader } = await db.rpc("get_predictor_leaderboard", {
+  // Global top 10 — must use anon client, not service role.
+  // The get_predictor_leaderboard RPC returns correct totals only when called
+  // with the anon key (same as the website). Service role gives stale/wrong data.
+  const { data: globalLeader } = await anonDb().rpc("get_predictor_leaderboard", {
     p_competition_id: comp?.id ?? null,
   });
   const leaderboard = (globalLeader ?? []) as Array<{
@@ -116,6 +128,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       debug: true,
       competitionId: comp?.id ?? null,
+      leaderboardClient: "anon",
       leaderboardTop10: top10.map((r) => ({ rank: r.rank, name: r.display_name, pts: r.total_points })),
       todayFixtures: todayFixtures.map((f) => ({ home: f.home, away: f.away, score: `${f.homeScore}-${f.awayScore}` })),
     });
