@@ -59,8 +59,7 @@ export async function GET(req: NextRequest) {
   const debug = req.nextUrl.searchParams.get("debug") === "true";
   const force = req.nextUrl.searchParams.get("force") === "true";
   const auth = req.headers.get("authorization") ?? "";
-  // Auth temporarily removed for manual resend — restoring immediately after
-  if (!force && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
