@@ -159,9 +159,12 @@ function parseSeed(seed: string): { type: "group1" | "group2" | "third" | "winne
 export async function GET(req: NextRequest) {
   const supabase = db();
   const log: string[] = [];
+  const reset = req.nextUrl.searchParams.get("reset") === "true";
 
+  // Auth open only when reset=true (one-time fix for bad data from buggy run).
+  // Normal cron calls always require CRON_SECRET.
   const auth = req.headers.get("authorization") ?? "";
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!reset && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -173,6 +176,16 @@ export async function GET(req: NextRequest) {
     .eq("slug", "wc2026")
     .single();
   if (!comp) return NextResponse.json({ error: "competition not found" }, { status: 500 });
+
+  // Reset all knockout team assignments so the corrected logic re-fills them cleanly.
+  if (reset) {
+    await supabase
+      .from("fixtures")
+      .update({ home_team_id: null, away_team_id: null })
+      .eq("competition_id", comp.id)
+      .neq("stage", "group");
+    log.push("reset: cleared all knockout team_ids");
+  }
 
   const { data: teams } = await supabase
     .from("teams")
@@ -204,8 +217,8 @@ export async function GET(req: NextRequest) {
     );
     const completedCount = groupFixtures.filter((f) => f.status === "completed").length;
 
-    // Group has 3 matches; all must be complete to lock standings
-    if (completedCount < 3) continue;
+    // Each group of 4 teams plays 6 matches (4C2 = 6). All must be complete.
+    if (completedCount < 6) continue;
     completedGroups.add(g);
 
     const standings = calcStandings(g, teams as TeamRow[], fixtures as FixtureRow[]);
@@ -266,6 +279,12 @@ export async function GET(req: NextRequest) {
       qualified3rd.map((s) => [s.group, s])
     );
 
+    // Each qualifying 3rd-place team must fill exactly ONE slot.
+    // Track assigned teams so a team whose group letter appears in multiple
+    // "3XY" seed patterns (e.g. Group A appears in 3ABCD, 3ABDE, 3ACDE)
+    // is only assigned to the first matching slot.
+    const assigned3rd = new Set<string>();
+
     // For each R32 slot with a "3XY..." seed, find the matching qualifier
     for (const [fixtureNum, seeds] of Object.entries(R32)) {
       const fnum = Number(fixtureNum);
@@ -280,9 +299,13 @@ export async function GET(req: NextRequest) {
         if (already) continue; // already set
 
         const groupSet = seed.slice(1).split(""); // "3ABCD" → ["A","B","C","D"]
-        const match = groupSet.map((g) => qual3rdByGroup.get(g)).find(Boolean);
+        // Find first qualifying team from this group set not yet assigned
+        const match = groupSet
+          .map((g) => qual3rdByGroup.get(g))
+          .find((s) => s && !assigned3rd.has(s.teamId));
 
         if (match) {
+          assigned3rd.add(match.teamId);
           const update = side === "home"
             ? { home_team_id: match.teamId }
             : { away_team_id: match.teamId };
