@@ -46,6 +46,7 @@ function resultRow(home: string, homeScore: number, awayScore: number, away: str
 }
 
 export async function GET(req: NextRequest) {
+  const debug = req.nextUrl.searchParams.get("debug") === "true";
   const auth = req.headers.get("authorization") ?? "";
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -108,6 +109,16 @@ export async function GET(req: NextRequest) {
     rank: number; user_id: string; display_name: string; total_points: number;
   }>;
   const top10 = leaderboard.slice(0, 10);
+
+  // Debug mode: return raw data without sending
+  if (debug) {
+    return NextResponse.json({
+      debug: true,
+      competitionId: comp?.id ?? null,
+      leaderboardTop10: top10.map((r) => ({ rank: r.rank, name: r.display_name, pts: r.total_points })),
+      todayFixtures: todayFixtures.map((f) => ({ home: f.home, away: f.away, score: `${f.homeScore}-${f.awayScore}` })),
+    });
+  }
 
   // Build user_id → rank/pts lookup for personal rank line
   const rankMap = new Map(leaderboard.map((r) => [r.user_id, { rank: Number(r.rank), pts: Number(r.total_points) }]));
