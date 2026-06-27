@@ -48,7 +48,8 @@ function resultRow(home: string, homeScore: number, awayScore: number, away: str
 export async function GET(req: NextRequest) {
   const debug = req.nextUrl.searchParams.get("debug") === "true";
   const auth = req.headers.get("authorization") ?? "";
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Debug mode is unauthenticated — read-only, no emails sent
+  if (!debug && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
