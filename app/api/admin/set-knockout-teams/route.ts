@@ -27,7 +27,7 @@ function db() {
 // Source: official match schedule cross-referenced with confirmed group results
 // Kickoff times verified against fixture seeds (UTC → UAE UTC+4)
 
-const CONFIRMED_PAIRINGS: Record<number, [string, string | null]> = {
+const CONFIRMED_PAIRINGS: Record<number, [string | null, string | null]> = {
   73: ["RSA", "CAN"],   // South Africa vs Canada       — Jun 28 23:00 UAE
   74: ["GER", "PAR"],   // Germany vs Paraguay           — Jun 30 00:30 UAE
   75: ["NED", "MAR"],   // Netherlands vs Morocco        — Jun 30 05:00 UAE
