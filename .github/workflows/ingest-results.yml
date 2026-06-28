@@ -88,27 +88,5 @@ jobs:
             exit 1
           fi
 
-      - name: Advance knockout fixtures
-        run: |
-          HTTP_STATUS=$(curl \
-            --silent \
-            --location \
-            --output /tmp/ko_response.json \
-            --write-out "%{http_code}" \
-            --max-time 30 \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.APP_URL }}/api/cron/advance-knockout")
-
-          echo "HTTP status: $HTTP_STATUS"
-          cat /tmp/ko_response.json | jq . 2>/dev/null || cat /tmp/ko_response.json
-
-          CHANGES=$(cat /tmp/ko_response.json | jq -r '.changes | length' 2>/dev/null || echo "0")
-          GROUPS=$(cat /tmp/ko_response.json | jq -r '.completedGroups // 0' 2>/dev/null)
-          if [ "$CHANGES" != "0" ] && [ "$CHANGES" != "null" ]; then
-            echo "::notice::Knockout advanced — $CHANGES slot(s) filled, $GROUPS/12 groups complete"
-          fi
-
-          if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
-            echo "::error::advance-knockout returned HTTP $HTTP_STATUS"
-            exit 1
-          fi
+      # advance-knockout step removed — bracket logic was incorrect,
+      # knockout teams are managed manually via /api/admin/set-knockout-teams
