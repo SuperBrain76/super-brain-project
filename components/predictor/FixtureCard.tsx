@@ -85,8 +85,8 @@ function TeamDisplay({
           <span className="text-sm" style={{ color: MUTED }}>TBD</span>
         )}
 
-        {/* Seed pill below name when team IS known (path context) */}
-        {name && seedLabel && (
+        {/* Seed pill only shown when team is TBD — once team is known, suppress it */}
+        {!name && seedLabel && (
           <SeedPill label={seedLabel} />
         )}
       </div>
