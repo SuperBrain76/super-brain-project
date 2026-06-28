@@ -28,22 +28,22 @@ function db() {
 // Kickoff times verified against fixture seeds (UTC → UAE UTC+4)
 
 const CONFIRMED_PAIRINGS: Record<number, [string | null, string | null]> = {
-  73: ["RSA", "CAN"],   // South Africa vs Canada       — Jun 28 23:00 UAE
-  74: ["GER", "PAR"],   // Germany vs Paraguay           — Jun 30 00:30 UAE
-  75: ["NED", "MAR"],   // Netherlands vs Morocco        — Jun 30 05:00 UAE
-  76: ["BRA", "JPN"],   // Brazil vs Japan               — Jun 29 21:00 UAE
-  77: ["FRA", "SWE"],   // France vs Sweden              — Jul 01 01:00 UAE
-  78: ["CIV", "NOR"],   // Côte d'Ivoire vs Norway       — Jun 30 21:00 UAE
-  79: ["MEX", null],    // Mexico vs TBD                 — Jul 01 05:00 UAE
-  // 80: TBD vs TBD     — Jul 01 20:00 UAE
-  81: ["USA", "BIH"],   // USA vs Bosnia and Herzegovina — Jul 02 04:00 UAE
-  82: ["BEL", null],    // Belgium vs TBD                — Jul 02 00:00 UAE
-  // 83: TBD vs TBD     — Jul 03 03:00 UAE
-  84: ["ESP", null],    // Spain vs TBD                  — Jul 02 23:00 UAE
-  85: ["SUI", null],    // Switzerland vs TBD            — Jul 03 07:00 UAE
-  86: ["ARG", "CPV"],   // Argentina vs Cabo Verde       — Jul 04 02:00 UAE
-  87: [null, null],     // TBD vs TBD                    — Jul 04 05:30 UAE
-  88: ["AUS", "EGY"],   // Australia vs Egypt            — Jul 03 22:00 UAE
+  73: ["RSA", "CAN"],   // South Africa vs Canada            — Jun 28 23:00 UAE
+  74: ["GER", "PAR"],   // Germany vs Paraguay               — Jun 30 00:30 UAE
+  75: ["NED", "MAR"],   // Netherlands vs Morocco            — Jun 30 05:00 UAE
+  76: ["BRA", "JPN"],   // Brazil vs Japan                   — Jun 29 21:00 UAE
+  77: ["FRA", "SWE"],   // France vs Sweden                  — Jul 01 01:00 UAE
+  78: ["CIV", "NOR"],   // Côte d'Ivoire vs Norway           — Jun 30 21:00 UAE
+  79: ["MEX", "ECU"],   // Mexico vs Ecuador                 — Jul 01 05:00 UAE
+  80: ["ENG", "COD"],   // England vs DR Congo               — Jul 01 20:00 UAE
+  81: ["USA", "BIH"],   // USA vs Bosnia and Herzegovina     — Jul 02 04:00 UAE
+  82: ["BEL", "SEN"],   // Belgium vs Senegal                — Jul 02 00:00 UAE
+  83: ["POR", "CRO"],   // Portugal vs Croatia               — Jul 03 03:00 UAE
+  84: ["ESP", "AUT"],   // Spain vs Austria                  — Jul 02 23:00 UAE
+  85: ["SUI", "ALG"],   // Switzerland vs Algeria            — Jul 03 07:00 UAE
+  86: ["ARG", "CPV"],   // Argentina vs Cabo Verde           — Jul 04 02:00 UAE
+  87: ["COL", "GHA"],   // Colombia vs Ghana                 — Jul 04 05:30 UAE
+  88: ["AUS", "EGY"],   // Australia vs Egypt                — Jul 03 22:00 UAE
 };
 
 export async function GET(req: NextRequest) {
