@@ -146,5 +146,32 @@ export async function GET(req: NextRequest) {
     changes.push(label);
   }
 
-  return NextResponse.json({ date, updated, changes, apiCallsMade });
+  const debug = req.nextUrl.searchParams.get("debug") === "true";
+  if (debug) {
+    return NextResponse.json({
+      date,
+      updated,
+      changes,
+      apiCallsMade,
+      quota,
+      apiFixtures: apiFixtures.map((f) => ({
+        id: f.fixture.id,
+        date: f.fixture.date,
+        status: f.fixture.status.short,
+        home: f.teams.home.name,
+        away: f.teams.away.name,
+        homeScore: f.goals?.home,
+        awayScore: f.goals?.away,
+      })),
+      dbFixtures: dbRows.map((f) => ({
+        id: f.id,
+        kicks_off_at: f.kicks_off_at,
+        status: f.status,
+        home_team: teamName.get(f.home_team_id as string) ?? f.home_team_id,
+        away_team: teamName.get(f.away_team_id as string) ?? f.away_team_id,
+      })),
+    });
+  }
+
+  return NextResponse.json({ date, updated, changes, apiCallsMade, quota });
 }
