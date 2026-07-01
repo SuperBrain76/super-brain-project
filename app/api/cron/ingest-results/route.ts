@@ -98,9 +98,10 @@ async function handler(req: NextRequest): Promise<NextResponse> {
   // Service-role DB client (bypasses RLS — server-side only)
   const db = createClient(SUPABASE_URL, SUPABASE_SRK);
 
-  // ── CHECK 2: DB fixtures in ±3-hour window ───────────────────
+  // ── CHECK 2: DB fixtures in window ───────────────────────────
   // Query our own DB before touching the external API.
-  // Filter by competition slug to avoid matching non-WC fixtures.
+  // Include: fixtures within ±3h of now, PLUS any stuck "live" fixtures
+  // regardless of age (catches matches that completed outside the window).
   const now         = Date.now();
   const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
   const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
@@ -119,13 +120,32 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Competition wc2026 not found" }, { status: 500 });
   }
 
-  const { data: dbFixtures, error: dbErr } = await db
+  // Windowed fixtures (upcoming + recent)
+  const { data: windowFixtures, error: dbErr } = await db
     .from("fixtures")
     .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
     .eq("competition_id", competitionId)
     .gte("kicks_off_at", windowStart)
     .lte("kicks_off_at", windowEnd)
     .order("kicks_off_at", { ascending: true });
+
+  // Also fetch any stuck "live" fixtures outside the window
+  const { data: stuckLive } = await db
+    .from("fixtures")
+    .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
+    .eq("competition_id", competitionId)
+    .eq("status", "live")
+    .lt("kicks_off_at", windowStart)
+    .order("kicks_off_at", { ascending: true });
+
+  // Merge, deduplicating by id
+  const seen = new Set<string>();
+  const merged = [...(windowFixtures ?? []), ...(stuckLive ?? [])].filter((f) => {
+    if (seen.has(f.id)) return false;
+    seen.add(f.id);
+    return true;
+  });
+  const dbFixtures = merged;
 
   if (dbErr) {
     // DB error is a real error — return 500 so GitHub marks the run failed
