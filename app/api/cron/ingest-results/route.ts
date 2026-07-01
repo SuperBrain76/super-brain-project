@@ -129,12 +129,13 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     .lte("kicks_off_at", windowEnd)
     .order("kicks_off_at", { ascending: true });
 
-  // Also fetch any stuck "live" fixtures outside the window
+  // Also fetch any stuck "live" or "postponed" fixtures outside the window
+  // "postponed" can occur when API-Football marks a match as postponed then completes it
   const { data: stuckLive } = await db
     .from("fixtures")
     .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
     .eq("competition_id", competitionId)
-    .eq("status", "live")
+    .in("status", ["live", "postponed"])
     .lt("kicks_off_at", windowStart)
     .order("kicks_off_at", { ascending: true });
 
