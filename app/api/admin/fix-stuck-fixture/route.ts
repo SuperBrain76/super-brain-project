@@ -77,9 +77,9 @@ export async function GET(req: NextRequest) {
   const teamName = new Map((teamsData ?? []).map((t) => [t.id as string, t.name as string]));
 
   // Fetch API-Football results for this date
-  const { fixtures: apiFixtures, apiCallsMade } = await fetchFixturesByDate(FOOTBALL_API_KEY, date);
+  const { fixtures: apiFixtures, apiCallsMade, quota } = await fetchFixturesByDate(FOOTBALL_API_KEY, date);
   if (apiFixtures.length === 0) {
-    return NextResponse.json({ message: `No API fixtures for ${date}`, apiCallsMade });
+    return NextResponse.json({ message: `No API fixtures for ${date}`, apiCallsMade, quota });
   }
 
   let updated = 0;
