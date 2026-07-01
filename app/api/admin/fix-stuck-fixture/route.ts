@@ -94,16 +94,19 @@ export async function GET(req: NextRequest) {
     // Match by team name first (exact), fall back to time-only for unambiguous windows
     const available = dbRows.filter((f) => !claimedDbIds.has(f.id as string));
 
+    // Wide window (8h) to handle timezone mismatches in seeded kickoff times
+    const WIDE_WINDOW_MS = 8 * 60 * 60 * 1000;
+
     let dbFix = available.find((f) => {
       const dbMs   = new Date(f.kicks_off_at as string).getTime();
-      const inWindow = Math.abs(dbMs - apiMs) <= 90 * 60 * 1000;
+      const inWindow = Math.abs(dbMs - apiMs) <= WIDE_WINDOW_MS;
       if (!inWindow) return false;
       const home = normalizeName(teamName.get(f.home_team_id as string) ?? "");
       const away = normalizeName(teamName.get(f.away_team_id as string) ?? "");
       return (home === apiHomeName || away === apiAwayName);
     });
 
-    // Fallback: time-only match when team names aren't in our DB
+    // Fallback: time-only match within wide window when team names aren't in our DB
     if (!dbFix) {
       dbFix = available.find((f) => {
         const dbMs = new Date(f.kicks_off_at as string).getTime();
