@@ -157,6 +157,11 @@ export default function ProfileSettingsPage() {
   const [pwError,   setPwError]   = useState<string | null>(null);
   const [pwDone,    setPwDone]    = useState(false);
 
+  // Account deletion state
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteBusy,    setDeleteBusy]    = useState(false);
+  const [deleteError,   setDeleteError]   = useState<string | null>(null);
+
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [user, loading, router]);
@@ -207,6 +212,26 @@ export default function ProfileSettingsPage() {
     if (error) { setSaveError(error); return; }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm !== "DELETE") return;
+    setDeleteBusy(true); setDeleteError(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setDeleteError("Not authenticated."); setDeleteBusy(false); return; }
+
+    const res = await fetch("/api/account/delete", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setDeleteError(body.error ?? "Failed to delete account.");
+      setDeleteBusy(false);
+      return;
+    }
+    await supabase.auth.signOut();
+    router.push("/");
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -444,6 +469,36 @@ export default function ProfileSettingsPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* ── Danger Zone — account deletion ───────────── */}
+        <div className="bg-cockpit-card border border-red-500 border-opacity-30 rounded-sm p-5 mt-6">
+          <SectionHeading>Danger Zone</SectionHeading>
+          <p className="text-cockpit-muted text-xs -mt-2 mb-5 leading-relaxed">
+            Permanently deletes your account and all associated data — predictions, results, league memberships, and profile. This cannot be undone.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Field label='Type "DELETE" to confirm'>
+              <input
+                type="text"
+                value={deleteConfirm}
+                onChange={(e) => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
+                placeholder="DELETE"
+                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-cockpit-muted font-mono"
+              />
+            </Field>
+            {deleteError && <p className="text-red-400 text-xs">{deleteError}</p>}
+            <div>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteBusy || deleteConfirm !== "DELETE"}
+                className="px-4 py-2 rounded-sm border border-red-500 border-opacity-60 text-red-400 text-sm font-semibold transition-all hover:bg-red-500 hover:bg-opacity-10 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {deleteBusy ? "Deleting account…" : "Delete my account permanently"}
+              </button>
+            </div>
+          </div>
         </div>
 
         <p className="text-cockpit-muted text-xs text-center mt-6">

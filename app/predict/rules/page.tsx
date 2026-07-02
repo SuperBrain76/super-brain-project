@@ -388,12 +388,12 @@ export default function RulesPage() {
             </p>
             <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
               The <span className="font-semibold" style={{ color: TEXT1 }}>highest finishing team</span> that was ranked
-              outside the <span className="font-semibold" style={{ color: TEXT1 }}>FIFA Top 20</span> in the official
-              FIFA Men&apos;s World Rankings <span className="font-semibold" style={{ color: TEXT1 }}>immediately before the tournament begins</span>.
+              outside the <span className="font-semibold" style={{ color: TEXT1 }}>Top 20</span> in the official
+              Men&apos;s World Rankings <span className="font-semibold" style={{ color: TEXT1 }}>immediately before the tournament begins</span>.
             </p>
             <p className="text-xs mt-2" style={{ color: MUTED }}>
-              Final position is determined by official FIFA tournament standings. In the event of a tie,
-              the team with the lower pre-tournament FIFA ranking is selected.
+              Final position is determined by official tournament standings. In the event of a tie,
+              the team with the lower pre-tournament world ranking is selected.
             </p>
           </Card>
 
@@ -473,7 +473,7 @@ export default function RulesPage() {
             <p className="text-sm leading-relaxed mt-3" style={{ color: TEXT2 }}>
               SuperBrain Predictor is a free-to-play, points-based prediction game. The Grand Prize
               (Custom Champion Watch) is awarded to the overall global leaderboard winner at the conclusion
-              of the 2026 FIFA World Cup. See the{" "}
+              of the 2026 World Cup. See the{" "}
               <Link href="/predict/prize" className="hover:underline" style={{ color: GREEN }}>
                 Grand Prize page
               </Link>{" "}
@@ -485,6 +485,13 @@ export default function RulesPage() {
                 Contact page
               </Link>
               . We will investigate and rescore if a genuine error is confirmed.
+            </p>
+          </Card>
+
+          {/* Apple not-a-sponsor notice — required by App Store guideline 5.3.2 */}
+          <Card>
+            <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
+              This contest is in no way sponsored, endorsed, administered by, or associated with Apple Inc. Any questions or comments regarding this contest should be directed to SuperBrain, not to Apple. Apple is not responsible for any prize fulfilment.
             </p>
           </Card>
         </Section>

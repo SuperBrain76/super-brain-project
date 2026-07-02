@@ -100,7 +100,7 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2.5 border border-cockpit-accent border-opacity-25 bg-cockpit-surface px-4 py-2 rounded-sm mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-cockpit-green animate-pulse" />
             <span className="text-cockpit-green text-xs tracking-widest uppercase font-mono">
-              Free to Play · FIFA World Cup 2026
+              Free to Play · World Cup 2026
             </span>
           </div>
 

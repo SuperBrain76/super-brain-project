@@ -7,6 +7,14 @@ const config: CapacitorConfig = {
   server: {
     url: "https://www.superbrain.social",
     cleartext: false,
+    // Allow OAuth URLs to load inside the WebView rather than opening the device's
+    // default browser — required by App Store guideline 4
+    allowNavigation: [
+      "accounts.google.com",
+      "*.google.com",
+      "appleid.apple.com",
+      "*.apple.com",
+    ],
   },
   ios: {
     contentInset: "always",

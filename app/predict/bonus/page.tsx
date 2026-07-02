@@ -35,7 +35,7 @@ const BONUS_META: Record<string, { icon: string; hint: string }> = {
   golden_glove:  { icon: "🥅", hint: "Which goalkeeper will win the Golden Glove award?" },
   most_goals:    { icon: "⚽", hint: "Which team will score the most goals overall?" },
   best_defence:  { icon: "🛡️", hint: "Which team will concede the fewest goals?" },
-  surprise_team: { icon: "⭐", hint: "Highest finishing team ranked outside FIFA Top 20 before the tournament." },
+  surprise_team: { icon: "⭐", hint: "Highest finishing team ranked outside the Top 20 in official world rankings before the tournament." },
 };
 
 // ── Breadcrumb ────────────────────────────────────────────────

@@ -34,3 +34,17 @@ export async function signInWithGoogle(next?: string): Promise<string | null> {
 
   return error ? error.message : null;
 }
+
+export async function signInWithApple(next?: string): Promise<string | null> {
+  const siteUrl     = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+  const callbackUrl = next
+    ? `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`
+    : `${siteUrl}/auth/callback`;
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "apple",
+    options: { redirectTo: callbackUrl },
+  });
+
+  return error ? error.message : null;
+}

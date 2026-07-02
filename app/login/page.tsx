@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import { track } from "@/lib/analytics";
-import { signInWithGoogle } from "@/lib/googleAuth";
+import { signInWithGoogle, signInWithApple } from "@/lib/googleAuth";
 
 // ── Google "G" logo (official multicolor) ─────────────────────
 function GoogleLogo() {
@@ -42,6 +42,7 @@ function LoginForm() {
   const [resendDone,      setResendDone]      = useState(false);
   const [busy,            setBusy]            = useState(false);
   const [googleBusy,      setGoogleBusy]      = useState(false);
+  const [appleBusy,       setAppleBusy]       = useState(false);
 
   const next = searchParams.get("next") ?? "";
 
@@ -106,7 +107,16 @@ function LoginForm() {
     track.googleLoginClicked("login_page");
     const err = await signInWithGoogle(next || undefined);
     if (err) { setError(err); setGoogleBusy(false); }
-    // On success the browser navigates away — no state reset needed
+  };
+
+  const handleApple = async () => {
+    if (!isSupabaseConfigured) {
+      setError("Supabase is not configured. Add the required environment variables.");
+      return;
+    }
+    setError(""); setSuccess(""); setAppleBusy(true);
+    const err = await signInWithApple(next || undefined);
+    if (err) { setError(err); setAppleBusy(false); }
   };
 
   const switchMode = (next: Mode) => {
@@ -238,6 +248,32 @@ function LoginForm() {
         )}
 
         <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-7">
+
+          {/* ── Apple Sign In ────────────────────────────── */}
+          <button
+            type="button"
+            onClick={handleApple}
+            disabled={appleBusy || !isSupabaseConfigured}
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-sm text-sm font-semibold transition-all mb-3"
+            style={{
+              background: "#000000",
+              border:     "1px solid #000000",
+              color:      "#ffffff",
+              opacity:    appleBusy ? 0.7 : 1,
+            }}
+          >
+            {appleBusy ? (
+              <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#444" strokeWidth="3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="17" height="17" viewBox="0 0 814 1000" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.8 135.4-317.7 269-317.7 70.5 0 129.2 46.2 172.9 46.2 42.1 0 108.5-49.4 188.5-49.4 30.5 0 108.2 2.6 164 99.9zm-336.8-176.3c-31.5-38.1-86.8-66.4-141.5-66.4-8.9 0-17.9.6-26.8 1.9-5.4 0.8-8.9 4.5-8.9 9.6 0 4.5 3.2 9.6 7.7 12.2 34.7 20 78.2 52.6 104.9 88.1 21.5 28.8 36.5 63.3 36.5 99.4 0 10.3-8.3 18.6-18.6 18.6h-11.5c-8.9 0-16.7-6.4-18.3-15.1-11.5-63.3-59.5-122.5-108.2-153.7-4.5-3.2-7-8.3-7-13.5 0-8.9 7-16 16-16h11.5c47.1 0 92.9 18.6 128.3 52 35.4 33.4 56.9 79.2 56.9 127.4 0 9.6-7.7 17.3-17.3 17.3h-13.5c-9 0-16.7-7-17.3-16-3.8-57.5-47.1-109.4-101.5-132.1"/>
+              </svg>
+            )}
+            {appleBusy ? "Redirecting to Apple…" : "Continue with Apple"}
+          </button>
 
           {/* ── Google OAuth ─────────────────────────────── */}
           <button

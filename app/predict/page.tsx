@@ -303,7 +303,7 @@ export default function PredictHub() {
                 className="text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: "#b8972a" }}
               >
-                FIFA World Cup 2026 · Predictor
+                World Cup 2026 · Predictor
               </span>
             </div>
 
@@ -314,7 +314,7 @@ export default function PredictHub() {
                   Predict Every Match.<br />Win The Watch.
                 </h1>
                 <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  FIFA World Cup 2026 Championship
+                  World Cup 2026 Championship
                 </p>
               </div>
               <a

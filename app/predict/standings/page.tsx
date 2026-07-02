@@ -43,7 +43,7 @@ export default function StandingsPage() {
             </Link>
           </div>
           <h1 className="text-xl font-bold" style={{ color: GREEN }}>Group Overview</h1>
-          <p className="text-xs mt-0.5" style={{ color: MUTED }}>Live Tables for all Groups · FIFA World Cup 2026</p>
+          <p className="text-xs mt-0.5" style={{ color: MUTED }}>Live Tables for all Groups · World Cup 2026</p>
         </div>
       </div>
 
