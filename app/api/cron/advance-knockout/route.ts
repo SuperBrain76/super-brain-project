@@ -27,7 +27,7 @@ function db() {
 const PENALTY_WINNER: Record<number, "home" | "away"> = {
   74: "away",  // GER 1-1 PAR → Paraguay won on penalties
   75: "away",  // NED 1-1 MAR → Morocco won on penalties
-  82: "away",  // BEL 2-2 SEN → Senegal won on penalties
+  82: "home",  // BEL 2-2 SEN → Belgium won on penalties
   86: "home",  // ARG 1-1 CPV → Argentina won on penalties
   88: "away",  // AUS 1-1 EGY → Egypt won on penalties
 };

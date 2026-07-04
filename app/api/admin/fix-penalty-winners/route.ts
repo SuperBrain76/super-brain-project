@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const PENALTY_RESULTS: Record<number, "home" | "away"> = {
   74: "away",  // GER 1-1 PAR → Paraguay won
   75: "away",  // NED 1-1 MAR → Morocco won
-  82: "away",  // BEL 2-2 SEN → Senegal won
+  82: "home",  // BEL 2-2 SEN → Belgium won
   86: "home",  // ARG 1-1 CPV → Argentina won
   88: "away",  // AUS 1-1 EGY → Egypt won
 };
