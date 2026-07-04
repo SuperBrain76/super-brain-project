@@ -45,6 +45,8 @@ export async function GET() {
       status: f.status,
       home: home?.code ?? "TBD",
       away: away?.code ?? "TBD",
+      home_id: f.home_team_id,
+      away_id: f.away_team_id,
       score: f.home_score != null ? `${f.home_score}-${f.away_score}` : null,
       winner,
     };
