@@ -1,0 +1,318 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { getPublicProfile, type PublicProfile } from "@/lib/publicProfile";
+
+const INK = "#0f2419";
+const GREEN = "#1a3a2a";
+const GREEN2 = "#24513a";
+const GOLD = "#c9a227";
+const GOLD_SOFT = "#e7cf7a";
+const MUTED = "#7a8f82";
+const TEXT = "#12251b";
+const BORDER = "#e3e9dd";
+const BG = "#f6f4ee";
+const CARD = "#ffffff";
+
+const TEST_LABELS: Record<string, string> = {
+  reaction: "Reaction", memory: "Memory", "verbal-memory": "Verbal Memory",
+  stroop: "Stroop", focus: "Focus", "tap-speed": "Tap Speed",
+  matrix: "Matrix", pressure: "Pressure",
+};
+function testLabel(k: string) {
+  return TEST_LABELS[k] ?? k.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function fmt(n: number) { return n.toLocaleString(); }
+function initials(name: string) {
+  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "SB";
+}
+function joinLabel(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+function timeAgo(iso: string) {
+  const s = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24); if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export default function PublicProfilePage() {
+  const params = useParams();
+  const username = String(params?.username ?? "");
+  const [p, setP] = useState<PublicProfile | null | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    (async () => setP(await getPublicProfile(username)))();
+  }, [username]);
+
+  const share = useCallback(async () => {
+    if (!p || !p.username) return;
+    const url = `${window.location.origin}/u/${p.username}`;
+    const text = `Check out ${p.displayName ?? p.username} on SuperBrain`;
+    try {
+      if (navigator.share) await navigator.share({ title: "SuperBrain", text, url });
+      else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    } catch { /* cancelled */ }
+  }, [p]);
+
+  if (p === undefined) {
+    return <Shell><div className="animate-pulse space-y-4">
+      <div className="h-40 rounded-3xl" style={{ background: "#e7ece4" }} />
+      <div className="h-24 rounded-2xl" style={{ background: "#e7ece4" }} />
+      <div className="h-40 rounded-2xl" style={{ background: "#e7ece4" }} />
+    </div></Shell>;
+  }
+  if (p === null || !p.found) {
+    return <Shell><Empty title="Profile not found" body={`No SuperBrain profile exists at /u/${username}.`} /></Shell>;
+  }
+
+  const name = p.displayName ?? p.username ?? "Partner";
+  const avatarColor = p.avatarColor ?? "#1a3a2a";
+
+  // Private profile — minimal card only.
+  if (!p.isPublic) {
+    return (
+      <Shell>
+        <Banner url={p.bannerUrl} />
+        <div className="px-1 -mt-10">
+          <Avatar name={name} url={p.avatarUrl} color={avatarColor} />
+          <h1 className="text-xl font-black mt-3" style={{ color: TEXT }}>{name}</h1>
+          {p.username && <p className="text-sm" style={{ color: MUTED }}>@{p.username}</p>}
+          <div className="mt-6 rounded-2xl p-6 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="text-2xl mb-2">🔒</p>
+            <p className="text-sm font-bold" style={{ color: TEXT }}>This profile is private</p>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>The partner has chosen to keep their stats hidden.</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell>
+      <Banner url={p.bannerUrl} />
+
+      {/* Identity */}
+      <div className="px-1 -mt-10">
+        <div className="flex items-end justify-between">
+          <Avatar name={name} url={p.avatarUrl} color={avatarColor} />
+          <button onClick={share} className="mb-1 px-4 py-2 rounded-full text-sm font-bold"
+            style={{ background: GREEN, color: "#fff" }}>
+            {copied ? "Copied ✓" : "Share"}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <h1 className="text-xl font-black" style={{ color: TEXT }}>{name}</h1>
+          {p.level?.name && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
+              style={{ background: "#fff6dc", color: "#8a6d12" }}>
+              <span>{p.level.icon ?? "⭐"}</span>{p.level.name}
+            </span>
+          )}
+        </div>
+        <p className="text-sm" style={{ color: MUTED }}>
+          {p.username ? `@${p.username}` : ""}
+          {p.country ? ` · ${p.country}` : ""}
+          {p.joinDate ? ` · Joined ${joinLabel(p.joinDate)}` : ""}
+        </p>
+        {p.bio && <p className="text-sm mt-2" style={{ color: TEXT }}>{p.bio}</p>}
+      </div>
+
+      {/* Balance + level progress */}
+      {(p.balance !== null || p.level) && (
+        <div className="rounded-3xl p-5 relative overflow-hidden"
+          style={{ background: `linear-gradient(160deg, ${GREEN2} 0%, ${INK} 100%)`, color: "#fff" }}>
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-20"
+            style={{ background: `radial-gradient(circle, ${GOLD}, transparent 70%)` }} />
+          {p.balance !== null && p.currency && (
+            <>
+              <p className="text-xs uppercase tracking-widest" style={{ color: "#bfccc2" }}>{p.currency.name}</p>
+              <p className="text-4xl font-black" style={{ color: GOLD_SOFT }}>
+                {p.currency.symbol} {fmt(p.balance)}
+              </p>
+            </>
+          )}
+          {p.level && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: "#bfccc2" }}>
+                <span>Lvl {p.level.level ?? 1} · {p.level.name ?? "Partner"}</span>
+                <span>{p.level.nextName ? `${fmt(p.level.lifetimeEarned)} / ${fmt(p.level.nextAt ?? 0)} → ${p.level.nextName}` : "Max level"}</span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, p.level.progressPct))}%`, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_SOFT})` }} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stat tiles */}
+      <div className="grid grid-cols-4 gap-2">
+        <Stat icon="🏆" value={p.leaderboard.contributionRank ? `#${fmt(p.leaderboard.contributionRank)}` : "—"} label="rank" />
+        <Stat icon="🎖️" value={p.achievements ? `${p.achievements.unlocked}` : "—"} label="badges" />
+        <Stat icon="⚽" value={p.predictions ? fmt(p.predictions.totalPoints) : "—"} label="pred pts" />
+        <Stat icon="🧠" value={p.tests ? `${p.tests.completed}` : "—"} label="tests" />
+      </div>
+
+      {/* Achievements */}
+      {p.achievements && (
+        <Section title="Achievements" hint={`${p.achievements.unlocked} of ${p.achievements.total}`}>
+          {p.achievements.list.length > 0 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {p.achievements.list.map((a) => (
+                <div key={a.code} className="rounded-2xl p-2.5 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }} title={a.description}>
+                  <div className="text-2xl mb-0.5">{a.icon}</div>
+                  <p className="text-[10px] font-bold leading-tight" style={{ color: TEXT }}>{a.name}</p>
+                </div>
+              ))}
+            </div>
+          ) : <Muted>No badges yet.</Muted>}
+        </Section>
+      )}
+
+      {/* Prediction stats */}
+      {p.predictions && (
+        <Section title="Prediction Stats">
+          <div className="grid grid-cols-4 gap-2">
+            <MiniStat value={fmt(p.predictions.totalPoints)} label="Points" accent />
+            <MiniStat value={fmt(p.predictions.predictions)} label="Made" />
+            <MiniStat value={fmt(p.predictions.exactScores)} label="Exact" />
+            <MiniStat value={p.predictions.rank ? `#${fmt(p.predictions.rank)}` : "—"} label="Rank" />
+          </div>
+        </Section>
+      )}
+
+      {/* Cognitive test stats */}
+      {p.tests && p.tests.best.length > 0 && (
+        <Section title="Cognitive Tests" hint={p.tests.avgPercentile !== null ? `avg ${p.tests.avgPercentile}th pct` : undefined}>
+          <div className="rounded-2xl p-3 space-y-2.5" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            {p.tests.best.map((t) => (
+              <div key={t.test_name}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-semibold" style={{ color: TEXT }}>{testLabel(t.test_name)}</span>
+                  <span style={{ color: MUTED }}>{t.score}/100 · {t.percentile}th</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: BG }}>
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, t.score))}%`, background: `linear-gradient(90deg, ${GREEN2}, ${GOLD})` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Network */}
+      {p.network && (
+        <Section title="Network">
+          <div className="grid grid-cols-2 gap-2">
+            <MiniStat value={fmt(p.network.total)} label="Referrals" />
+            <MiniStat value={fmt(p.network.active)} label="Active partners" accent />
+          </div>
+        </Section>
+      )}
+
+      {/* Referral CTA */}
+      {p.referral?.code && (
+        <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(160deg, ${GREEN2}, ${INK})`, color: "#fff" }}>
+          <p className="text-sm font-bold mb-1">Join {name} on SuperBrain</p>
+          <p className="text-xs mb-3" style={{ color: "#bfccc2" }}>Use partner code <span style={{ color: GOLD_SOFT }}>{p.referral.code}</span></p>
+          <Link href={`/?ref=${encodeURIComponent(p.referral.code)}`} className="inline-block px-5 py-2.5 rounded-full text-sm font-bold" style={{ background: GOLD, color: INK }}>
+            Get started
+          </Link>
+        </div>
+      )}
+
+      {/* Recent activity */}
+      {p.activity && p.activity.length > 0 && (
+        <Section title="Recent Activity">
+          <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            {p.activity.map((a, i) => (
+              <div key={`${a.created_at}-${i}`} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i === 0 ? "none" : `1px solid ${BORDER}` }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: TEXT }}>{a.label}</p>
+                  <p className="text-[11px]" style={{ color: MUTED }}>{timeAgo(a.created_at)}</p>
+                </div>
+                <span className="text-sm font-black shrink-0" style={{ color: "#2b7a4b" }}>+{fmt(a.delta)}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      <div className="h-4" />
+    </Shell>
+  );
+}
+
+// ── presentational helpers ────────────────────────────────────────────────────
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex-1 flex flex-col min-h-screen" style={{ background: BG }}>
+      <div className="flex-1 px-4 py-5">
+        <div className="max-w-md mx-auto space-y-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+function Banner({ url }: { url: string | null | undefined }) {
+  return (
+    <div className="h-32 rounded-3xl relative overflow-hidden"
+      style={url ? { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" }
+        : { background: `linear-gradient(120deg, ${GREEN2}, ${INK} 60%, ${GOLD})` }} />
+  );
+}
+function Avatar({ name, url, color }: { name: string; url: string | null; color: string }) {
+  return (
+    <div className="w-20 h-20 rounded-2xl border-4 flex items-center justify-center text-2xl font-black overflow-hidden"
+      style={{ borderColor: BG, background: url ? "transparent" : color, color: "#fff" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {url ? <img src={url} alt={name} className="w-full h-full object-cover" /> : initials(name)}
+    </div>
+  );
+}
+function Stat({ icon, value, label }: { icon: string; value: string; label: string }) {
+  return (
+    <div className="rounded-2xl py-3 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+      <div className="text-lg leading-none mb-1">{icon}</div>
+      <div className="text-sm font-black" style={{ color: TEXT }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wide" style={{ color: MUTED }}>{label}</div>
+    </div>
+  );
+}
+function MiniStat({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+  return (
+    <div className="rounded-xl py-2.5 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+      <div className="text-base font-black" style={{ color: accent ? GOLD : TEXT }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wide" style={{ color: MUTED }}>{label}</div>
+    </div>
+  );
+}
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2.5">
+        <h2 className="text-sm font-black" style={{ color: GREEN }}>{title}</h2>
+        {hint && <span className="text-[11px]" style={{ color: MUTED }}>{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+function Muted({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs" style={{ color: MUTED }}>{children}</p>;
+}
+function Empty({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl p-8 text-center mt-8" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+      <p className="text-3xl mb-2">🔍</p>
+      <p className="text-sm font-bold mb-1" style={{ color: TEXT }}>{title}</p>
+      <p className="text-xs" style={{ color: MUTED }}>{body}</p>
+      <Link href="/iq" className="inline-block mt-4 text-sm font-bold" style={{ color: GREEN }}>← Back to your dashboard</Link>
+    </div>
+  );
+}

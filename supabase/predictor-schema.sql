@@ -277,6 +277,15 @@ begin
     updated_at = now()
   where fixture_id = new.id;
 
+  -- Economy (additive, fire-and-forget): mint IQ for scored predictions.
+  -- Guarded so an economy failure can never block match scoring.
+  -- economy_award_fixture is defined in migration 021_economy_core.sql.
+  begin
+    perform public.economy_award_fixture(new.id);
+  exception when others then
+    raise warning 'economy_award_fixture failed for fixture %: %', new.id, sqlerrm;
+  end;
+
   return new;
 end;
 $$;
@@ -341,6 +350,14 @@ begin
   where fixture_id = p_fixture_id;
 
   get diagnostics updated_count = row_count;
+
+  -- Economy (additive): reconcile IQ for these predictions. Guarded.
+  begin
+    perform public.economy_award_fixture(p_fixture_id);
+  exception when others then
+    raise warning 'economy_award_fixture failed for fixture %: %', p_fixture_id, sqlerrm;
+  end;
+
   return updated_count;
 end;
 $$;

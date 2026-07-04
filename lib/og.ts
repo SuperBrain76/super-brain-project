@@ -147,6 +147,55 @@ export async function fetchLeagueOGById(leagueId: string): Promise<LeagueOGData 
   }
 }
 
+// ── Public profile OG data ────────────────────────────────────
+
+export interface ProfileOGData {
+  displayName: string;
+  username: string;
+  levelName: string | null;
+  levelIcon: string | null;
+  balance: number | null;
+  currencyCode: string | null;
+  achievements: number | null;
+  isPublic: boolean;
+}
+
+/** Fetch minimal public-profile data for OG image + metadata (edge-safe). */
+export async function fetchProfileOG(username: string): Promise<ProfileOGData | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key || !username) return null;
+
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/get_public_profile`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": key,
+        "Authorization": `Bearer ${key}`,
+      },
+      body: JSON.stringify({ p_username: username }),
+      next: { revalidate: 600 },
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d || !d.found) return null;
+
+    return {
+      displayName: (d.display_name as string) || "SuperBrain Partner",
+      username: (d.username as string) || username,
+      levelName: d.level?.name ?? null,
+      levelIcon: d.level?.icon ?? null,
+      balance: d.balance ?? null,
+      currencyCode: d.currency?.code ?? null,
+      achievements: d.achievements?.unlocked ?? null,
+      isPublic: d.is_public !== false,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Convert a 2-letter country code → emoji flag (server-safe). */
 export function scoreColor(score: number): string {
   if (score >= 90) return "#00d4ff";
