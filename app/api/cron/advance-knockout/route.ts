@@ -21,6 +21,17 @@ function db() {
   );
 }
 
+// Penalty shootout overrides: fixture_number → "home" | "away"
+// When a knockout match ends level (score-based logic can't determine winner),
+// manually specify which side won on penalties.
+const PENALTY_WINNER: Record<number, "home" | "away"> = {
+  74: "away",  // GER 1-1 PAR → Paraguay won on penalties
+  75: "away",  // NED 1-1 MAR → Morocco won on penalties
+  82: "away",  // BEL 2-2 SEN → Senegal won on penalties
+  86: "home",  // ARG 1-1 CPV → Argentina won on penalties
+  88: "away",  // AUS 1-1 EGY → Egypt won on penalties
+};
+
 // winner of fixture N → fills a slot in a later fixture
 // "L" prefix = loser (3rd place play-off only)
 const PROPAGATION: Record<number, { home: string; away: string }> = {
@@ -93,7 +104,11 @@ export async function GET(req: NextRequest) {
       if (src.home_score == null || src.away_score == null) continue;
       if (!src.home_team_id || !src.away_team_id) continue;
 
-      const homeWon = src.home_score > src.away_score;
+      // For drawn matches, check penalty override; fall back to score comparison
+      const penaltyWinner = PENALTY_WINNER[srcNum];
+      const homeWon = penaltyWinner
+        ? penaltyWinner === "home"
+        : src.home_score > src.away_score;
       const teamId = isLoser
         ? (homeWon ? src.away_team_id : src.home_team_id)
         : (homeWon ? src.home_team_id : src.away_team_id);
