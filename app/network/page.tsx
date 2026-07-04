@@ -5,9 +5,11 @@ import Link from "next/link";
 import {
   getNetworkDashboard,
   getNetworkLeaderboard,
+  getMyReferrals,
   type NetworkDashboard,
   type NetworkLeaderboardEntry,
   type NetworkGrowthPoint,
+  type ReferralInvitee,
 } from "@/lib/network";
 
 const INK = "#0f2419";
@@ -29,12 +31,18 @@ function weekLabel(iso: string) {
 export default function NetworkPage() {
   const [d, setD] = useState<NetworkDashboard | null | undefined>(undefined);
   const [lb, setLb] = useState<NetworkLeaderboardEntry[] | null>(null);
+  const [invitees, setInvitees] = useState<ReferralInvitee[] | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [dash, board] = await Promise.all([getNetworkDashboard(), getNetworkLeaderboard()]);
+      const [dash, board, refs] = await Promise.all([
+        getNetworkDashboard(),
+        getNetworkLeaderboard(),
+        getMyReferrals(),
+      ]);
       setD(dash);
       setLb(board);
+      setInvitees(refs);
     })();
   }, []);
 
@@ -101,6 +109,48 @@ export default function NetworkPage() {
         <Stat icon="✅" value={`${d.conversionRate}%`} label="convert" />
         <Stat icon="🏆" value={d.rankings.sizeRank ? `#${fmt(d.rankings.sizeRank)}` : "—"} label="rank" />
       </div>
+
+      {/* Who you invited */}
+      {invitees && invitees.length > 0 && (
+        <Section title="Who You Invited" hint={`${invitees.length}`}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            {invitees.map((v, i) => (
+              <div key={`${v.name}-${i}`} className="flex items-center gap-3 px-4 py-3"
+                style={{ borderTop: i === 0 ? "none" : `1px solid ${BORDER}` }}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                  style={{ background: BG, color: GREEN }}>
+                  {inits(v.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: TEXT }}>
+                    {v.name}{v.country ? <span className="ml-1.5 text-xs" style={{ color: MUTED }}>{v.country}</span> : null}
+                  </p>
+                  <p className="text-[11px]" style={{ color: MUTED }}>Joined {joinDate(v.joinedAt)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <StatusBadge status={v.status} />
+                  <span className="text-[11px] font-bold" style={{ color: v.iqGenerated > 0 ? GOLD : MUTED }}>
+                    {sym}{fmt(v.iqGenerated)} IQ
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] mt-2" style={{ color: MUTED }}>
+            You earn when an invitee becomes active. Elite = an active partner who's earned {sym}1,000+ IQ.
+          </p>
+        </Section>
+      )}
+
+      {invitees && invitees.length === 0 && (
+        <Section title="Who You Invited">
+          <div className="rounded-2xl p-5 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="text-2xl mb-1">📨</p>
+            <p className="text-sm font-bold" style={{ color: TEXT }}>No invites yet</p>
+            <p className="text-xs mt-0.5" style={{ color: MUTED }}>Share your code to start building your network.</p>
+          </div>
+        </Section>
+      )}
 
       {/* Growth chart */}
       {d.growth.length > 0 && (
@@ -231,6 +281,27 @@ function GrowthChart({ data }: { data: NetworkGrowthPoint[] }) {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+function inits(name: string) {
+  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "SB";
+}
+function joinDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+function StatusBadge({ status }: { status: ReferralInvitee["status"] }) {
+  const map = {
+    pending: { label: "Pending", bg: "#f0ede6", color: "#8a8578" },
+    active:  { label: "Active",  bg: "#e7f3ea", color: "#2b7a4b" },
+    elite:   { label: "Elite",   bg: "#fff6dc", color: "#8a6d12" },
+  } as const;
+  const s = map[status];
+  return (
+    <span className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide"
+      style={{ background: s.bg, color: s.color }}>
+      {s.label}
+    </span>
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex-1 flex flex-col min-h-screen" style={{ background: BG }}>

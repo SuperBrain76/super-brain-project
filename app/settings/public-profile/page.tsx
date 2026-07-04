@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   getMyProfileSettings,
   setUsername as apiSetUsername,
   updatePublicProfile,
+  uploadProfileImage,
   type ProfileSettings,
 } from "@/lib/publicProfile";
 
@@ -138,14 +139,28 @@ export default function PublicProfileSettings() {
                 <Hint>{bio.length}/300</Hint>
               </div>
 
-              {/* Images */}
+              {/* Images — native upload */}
               <div>
-                <Label>Avatar image URL</Label>
-                <UrlInput value={avatarUrl} onChange={setAvatarUrl} placeholder="https://…" />
+                <Label>Photo</Label>
+                <ImageField
+                  kind="avatar"
+                  url={avatarUrl}
+                  displayName={s.displayName ?? "You"}
+                  avatarColor={s.avatarColor ?? "#24513a"}
+                  onUploaded={(url) => { setAvatarUrl(url); void updatePublicProfile({ avatarUrl: url }); }}
+                  onRemove={() => { setAvatarUrl(""); void updatePublicProfile({ avatarUrl: "" }); }}
+                />
               </div>
               <div>
-                <Label>Banner image URL</Label>
-                <UrlInput value={bannerUrl} onChange={setBannerUrl} placeholder="https://…" />
+                <Label>Banner</Label>
+                <ImageField
+                  kind="banner"
+                  url={bannerUrl}
+                  displayName={s.displayName ?? "You"}
+                  avatarColor={s.avatarColor ?? "#24513a"}
+                  onUploaded={(url) => { setBannerUrl(url); void updatePublicProfile({ bannerUrl: url }); }}
+                  onRemove={() => { setBannerUrl(""); void updatePublicProfile({ bannerUrl: "" }); }}
+                />
               </div>
 
               {/* Master visibility */}
@@ -207,15 +222,75 @@ function Label({ children }: { children: React.ReactNode }) {
 function Hint({ children }: { children: React.ReactNode }) {
   return <p className="text-[11px] mt-1" style={{ color: MUTED }}>{children}</p>;
 }
-function UrlInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function initials(name: string) {
+  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "SB";
+}
+
+function ImageField({
+  kind, url, displayName, avatarColor, onUploaded, onRemove,
+}: {
+  kind: "avatar" | "banner";
+  url: string;
+  displayName: string;
+  avatarColor: string;
+  onUploaded: (url: string) => void;
+  onRemove: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setErr(null);
+    const r = await uploadProfileImage(kind, file);
+    setBusy(false);
+    if (r.error) { setErr(r.error); return; }
+    if (r.url) onUploaded(r.url);
+  }
+
   return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-3 py-2.5 text-sm rounded-xl outline-none"
-      style={{ color: TEXT, background: CARD, border: `1px solid ${BORDER}` }}
-    />
+    <div>
+      <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
+      <div className="flex items-center gap-3">
+        {kind === "avatar" ? (
+          <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center text-lg font-black shrink-0"
+            style={{ background: url ? "transparent" : avatarColor, color: "#fff", border: `1px solid ${BORDER}` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {url ? <img src={url} alt="avatar" className="w-full h-full object-cover" /> : initials(displayName)}
+          </div>
+        ) : (
+          <div className="flex-1 h-16 rounded-xl overflow-hidden"
+            style={url
+              ? { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", border: `1px solid ${BORDER}` }
+              : { background: `linear-gradient(120deg, ${GREEN}, #0f2419 60%, ${GOLD})`, border: `1px solid ${BORDER}` }} />
+        )}
+
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="px-4 py-2 rounded-full text-sm font-bold disabled:opacity-60"
+            style={{ background: GREEN, color: "#fff" }}
+          >
+            {busy ? "Uploading…" : url ? "Change" : "Upload image"}
+          </button>
+          {url && (
+            <button type="button" onClick={onRemove} className="text-xs font-semibold" style={{ color: "#b04a4a" }}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+      {err && <p className="text-[11px] mt-1.5" style={{ color: "#b04a4a" }}>{err}</p>}
+      <p className="text-[11px] mt-1.5" style={{ color: MUTED }}>
+        {kind === "avatar" ? "Square works best. JPG, PNG or WebP." : "Wide image works best (about 3:1)."}
+      </p>
+    </div>
   );
 }
 function Toggle({ label, hint, checked, onChange, disabled }: {

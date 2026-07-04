@@ -70,6 +70,32 @@ export interface NetworkLeaderboardEntry {
   networkIq: number;
 }
 
+export interface ReferralInvitee {
+  name: string;
+  country: string | null;
+  status: "pending" | "active" | "elite";
+  joinedAt: string;
+  qualifiedAt: string | null;
+  iqGenerated: number;
+}
+
+/** The people the signed-in user invited, with status + IQ each generated. */
+export async function getMyReferrals(): Promise<ReferralInvitee[] | null> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.rpc("get_my_referrals");
+  if (error) return null;
+  if (!data) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((r) => ({
+    name: r.referred_name ?? "Anonymous",
+    country: r.country ?? null,
+    status: (r.status ?? "pending") as ReferralInvitee["status"],
+    joinedAt: r.joined_at,
+    qualifiedAt: r.qualified_at ?? null,
+    iqGenerated: Number(r.iq_generated ?? 0),
+  }));
+}
+
 export async function getNetworkLeaderboard(currencyCode?: string): Promise<NetworkLeaderboardEntry[] | null> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase.rpc("get_network_leaderboard", { p_currency: currencyCode ?? null });

@@ -159,6 +159,63 @@ export async function setUsername(username: string): Promise<{ username?: string
   return { username: String(data) };
 }
 
+// ── Native image upload (Supabase Storage) ──────────────────────────────────
+
+const IMAGE_BOUNDS = {
+  avatar: { w: 512, h: 512 },
+  banner: { w: 1600, h: 600 },
+} as const;
+
+/** Downscale + re-encode an image client-side so uploads stay small/fast. */
+async function resizeImage(file: File, maxW: number, maxH: number): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxW / bitmap.width, maxH / bitmap.height);
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return await new Promise<Blob>((resolve) =>
+    canvas.toBlob((b) => resolve(b ?? file), "image/jpeg", 0.85),
+  );
+}
+
+/**
+ * Upload an avatar or banner to Storage and return its public URL.
+ * Resizes client-side, stores under {user_id}/{kind}-{ts}.jpg. No manual URLs.
+ */
+export async function uploadProfileImage(
+  kind: "avatar" | "banner",
+  file: File,
+): Promise<{ url?: string; error?: string }> {
+  if (!isSupabaseConfigured) return { error: "Not configured." };
+  if (!file.type.startsWith("image/")) return { error: "Please choose an image file." };
+  if (file.size > 15 * 1024 * 1024) return { error: "That image is too large (max 15 MB)." };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Please sign in first." };
+
+  let body: Blob = file;
+  try {
+    const b = IMAGE_BOUNDS[kind];
+    body = await resizeImage(file, b.w, b.h);
+  } catch {
+    /* fall back to the original file if resizing fails */
+  }
+
+  const path = `${user.id}/${kind}-${Date.now()}.jpg`;
+  const { error: upErr } = await supabase.storage
+    .from("profile-images")
+    .upload(path, body, { upsert: true, contentType: "image/jpeg", cacheControl: "3600" });
+  if (upErr) return { error: upErr.message };
+
+  const { data } = supabase.storage.from("profile-images").getPublicUrl(path);
+  return { url: data.publicUrl };
+}
+
 /** Update customization + privacy. Only provided fields change. */
 export async function updatePublicProfile(fields: {
   bio?: string;
