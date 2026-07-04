@@ -42,8 +42,8 @@ const PROPAGATION: Record<number, { home: string; away: string }> = {
   92:  { home: "W79", away: "W80" },
   93:  { home: "W83", away: "W84" },
   94:  { home: "W82", away: "W81" },
-  95:  { home: "W85", away: "W88" },
-  96:  { home: "W86", away: "W87" },
+  95:  { home: "W86", away: "W88" },  // ARG/CPV winner vs AUS/EGY winner
+  96:  { home: "W85", away: "W87" },  // SUI/ALG winner vs COL/GHA winner
   // QF — winners of R16
   97:  { home: "W89", away: "W90" },
   98:  { home: "W91", away: "W92" },

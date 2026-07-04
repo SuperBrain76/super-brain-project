@@ -27,8 +27,8 @@ const R16_FEEDS: Record<number, { home: number; away: number }> = {
   92: { home: 79, away: 80 },
   93: { home: 83, away: 84 },
   94: { home: 82, away: 81 },
-  95: { home: 85, away: 88 },
-  96: { home: 86, away: 87 },
+  95: { home: 86, away: 88 },  // ARG/CPV winner vs AUS/EGY winner
+  96: { home: 85, away: 87 },  // SUI/ALG winner vs COL/GHA winner
 };
 
 export async function GET() {

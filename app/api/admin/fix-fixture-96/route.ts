@@ -1,13 +1,12 @@
 /**
  * GET /api/admin/fix-fixture-96
- * One-shot fix: sets fixture 96 home team to Argentina (UUID known from bracket-status).
+ * Swaps home teams between fixtures 95 and 96.
+ * Fixture 95 should be ARG vs EGY, fixture 96 should be SUI vs COL.
+ * The PROPAGATION map had them swapped — this corrects the DB directly.
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
-
-// Argentina's UUID confirmed from /api/admin/bracket-status (fixture 86 home)
-const ARGENTINA_ID = "3ff65f4e-e893-4f23-b001-06bf3bcba5ab";
 
 export async function GET() {
   const db = createClient(
@@ -19,33 +18,35 @@ export async function GET() {
   const { data: comp } = await db.from("competitions").select("id").eq("slug", "wc2026").single();
   if (!comp) return NextResponse.json({ error: "competition not found" }, { status: 500 });
 
-  const { data: before } = await db
+  const { data: fixtures } = await db
     .from("fixtures")
     .select("id, fixture_number, home_team_id")
     .eq("competition_id", comp.id)
-    .eq("fixture_number", 96)
-    .single();
+    .in("fixture_number", [95, 96]);
 
-  if (!before) return NextResponse.json({ error: "fixture 96 not found" }, { status: 404 });
+  if (!fixtures || fixtures.length !== 2) {
+    return NextResponse.json({ error: "could not find both fixtures 95 and 96" }, { status: 500 });
+  }
 
-  const { error } = await db
-    .from("fixtures")
-    .update({ home_team_id: ARGENTINA_ID, updated_at: new Date().toISOString() })
-    .eq("id", before.id);
+  const f95 = fixtures.find((f: { fixture_number: number }) => f.fixture_number === 95);
+  const f96 = fixtures.find((f: { fixture_number: number }) => f.fixture_number === 96);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!f95 || !f96) return NextResponse.json({ error: "fixture lookup failed" }, { status: 500 });
 
-  const { data: after } = await db
-    .from("fixtures")
-    .select("home_team_id")
-    .eq("id", before.id)
-    .single();
+  // Swap home teams
+  const [err1, err2] = await Promise.all([
+    db.from("fixtures").update({ home_team_id: f96.home_team_id, updated_at: new Date().toISOString() }).eq("id", f95.id),
+    db.from("fixtures").update({ home_team_id: f95.home_team_id, updated_at: new Date().toISOString() }).eq("id", f96.id),
+  ]).then(([r1, r2]) => [r1.error, r2.error]);
+
+  if (err1 || err2) {
+    return NextResponse.json({ error: err1?.message ?? err2?.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,
-    fixture_id: before.id,
-    before: before.home_team_id,
-    after: after?.home_team_id,
-    set_to_argentina: after?.home_team_id === ARGENTINA_ID,
+    fixture_95: { was: f95.home_team_id, now: f96.home_team_id },
+    fixture_96: { was: f96.home_team_id, now: f95.home_team_id },
+    result: "fixture 95 = ARG vs EGY, fixture 96 = SUI vs COL",
   });
 }
