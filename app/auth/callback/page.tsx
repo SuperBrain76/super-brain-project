@@ -105,7 +105,8 @@ function CallbackHandler() {
         .select("profile_complete")
         .single();
 
-      router.replace(profile?.profile_complete ? "/predict" : "/profile/complete");
+      // New users (incomplete profile) start in the onboarding flow.
+      router.replace(profile?.profile_complete ? "/predict" : "/welcome");
     }
 
     resolve();

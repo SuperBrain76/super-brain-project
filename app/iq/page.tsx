@@ -9,6 +9,7 @@ import {
 } from "@/lib/economy";
 import { getMissions, claimMission, type Mission, type MissionsResult } from "@/lib/missions";
 import { useAuth } from "@/components/AuthProvider";
+import { getOnboardingStatus, type OnboardingStatus } from "@/lib/onboarding";
 
 // Palette (premium green + gold)
 const INK = "#0f2419";
@@ -46,9 +47,11 @@ export default function PartnerDashboardPage() {
   const [claimingMission, setClaimingMission] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [onb, setOnb] = useState<OnboardingStatus | null>(null);
 
   const load = useCallback(async () => {
     setDash(await getPartnerDashboard());
+    setOnb(await getOnboardingStatus());
   }, []);
 
   const loadMissions = useCallback(async () => {
@@ -145,8 +148,25 @@ export default function PartnerDashboardPage() {
   const { currency, level, streak, dailyReward, referral, leaderboard, achievements } = dash;
   const sym = currency.symbol || "";
 
+  const onbSteps = onb?.steps;
+  const onbDone = onbSteps ? [onbSteps.avatar, onbSteps.profile, onbSteps.reward, onbSteps.test, onbSteps.prediction].filter(Boolean).length : 5;
+  const showResume = !!onb?.authenticated && !onb.completedAt && onbDone < 5;
+
   return (
     <Shell>
+      {/* Resume onboarding */}
+      {showResume && (
+        <Link href="/welcome" className="flex items-center gap-3 rounded-2xl p-3.5"
+          style={{ background: "#fff6dc", border: `1px solid ${GOLD}` }}>
+          <span className="text-xl">🚀</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: "#8a6d12" }}>Finish setting up</p>
+            <p className="text-[11px]" style={{ color: "#a8862a" }}>{onbDone}/5 done — earn more IQ</p>
+          </div>
+          <span className="text-sm font-black" style={{ color: "#8a6d12" }}>Resume ›</span>
+        </Link>
+      )}
+
       {/* ── Hero: balance + partner level ─────────────────────────────── */}
       <div
         className="rounded-3xl p-6 relative overflow-hidden"
