@@ -92,10 +92,10 @@ export default function MobileBottomNav() {
     { href: "/predict/leagues",     label: "Leagues",  Icon: IconBattle,      match: "/predict/leagues"     },
     { href: "/predict/leaderboard", label: "Rankings", Icon: IconLeaderboard, match: "/predict/leaderboard" },
     {
-      href:  user ? "/profile" : "/login",
-      label: user ? "Profile"  : "Sign In",
+      href:  user ? "/iq" : "/login",
+      label: user ? "You"  : "Sign In",
       Icon:  IconProfile,
-      match: user ? "/profile" : "/login",
+      match: user ? "/iq" : "/login",
     },
   ];
 
@@ -105,10 +105,10 @@ export default function MobileBottomNav() {
     { href: "/battle",      label: "Battle",      Icon: IconBattle,      match: "/battle"      },
     { href: "/leaderboard", label: "Rankings",    Icon: IconLeaderboard, match: "/leaderboard" },
     {
-      href:  user ? "/profile" : "/login",
-      label: user ? "Profile"  : "Sign In",
+      href:  user ? "/iq" : "/login",
+      label: user ? "You"  : "Sign In",
       Icon:  IconProfile,
-      match: user ? "/profile" : "/login",
+      match: user ? "/iq" : "/login",
     },
   ];
 

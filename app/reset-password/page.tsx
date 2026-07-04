@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
     setDone(true);
 
     // Redirect to dashboard after short delay
-    setTimeout(() => router.replace("/profile"), 3000);
+    setTimeout(() => router.replace("/iq"), 3000);
   };
 
   if (loading || !user) {

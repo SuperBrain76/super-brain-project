@@ -7,6 +7,19 @@ import { getRankingColor } from "@/lib/scoring";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
 import { nameToFlag } from "@/lib/countries";
+import { getContributionLeaderboard } from "@/lib/economy";
+import { getNetworkLeaderboard } from "@/lib/network";
+import { getBattleLeaderboard } from "@/lib/battle";
+import { getPredictorLeaderboard, getCompetition } from "@/lib/predictor";
+
+type Segment = "predictions" | "iq" | "network" | "battles" | "tests";
+const SEGMENTS: { key: Segment; label: string }[] = [
+  { key: "predictions", label: "Predictions" },
+  { key: "iq",          label: "IQ" },
+  { key: "network",     label: "Network" },
+  { key: "battles",     label: "Battles" },
+  { key: "tests",       label: "Brain Tests" },
+];
 
 const TESTS = [
   { label: "Focus",         name: "Focus & Attention Test",       href: "/tests/focus" },
@@ -56,6 +69,7 @@ function SkeletonRow({ i }: { i: number }) {
 }
 
 export default function LeaderboardPage() {
+  const [segment,  setSegment]  = useState<Segment>("predictions");
   const [testIdx,  setTestIdx]  = useState(0);
   const [country,  setCountry]  = useState("");
   const [entries,  setEntries]  = useState<LeaderboardEntry[]>([]);
@@ -122,6 +136,26 @@ export default function LeaderboardPage() {
           <p className="text-cockpit-dim text-sm mt-1">Best score per player · sorted highest first.</p>
         </div>
 
+        {/* ── Segment switcher — all leaderboards in one home ── */}
+        <div className="flex gap-1 mb-5 p-1 bg-cockpit-surface border border-cockpit-border rounded-sm overflow-x-auto scrollbar-none">
+          {SEGMENTS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSegment(s.key)}
+              className={`shrink-0 px-3.5 py-2 rounded-sm text-xs font-bold tracking-wide transition-all duration-150 ${
+                segment === s.key
+                  ? "bg-cockpit-card text-white border border-cockpit-border"
+                  : "text-cockpit-muted hover:text-cockpit-dim"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {segment !== "tests" && <EconomyBoard kind={segment} />}
+
+        {segment === "tests" && (<>
         {/* ── Test filter tabs ───────────────────────────────── */}
         <div className="flex gap-1 mb-4 p-1 bg-cockpit-surface border border-cockpit-border rounded-sm overflow-x-auto scrollbar-none">
           {TESTS.map((t, i) => (
@@ -311,7 +345,103 @@ export default function LeaderboardPage() {
             </Link>
           </div>
         )}
+        </>)}
       </div>
+    </div>
+  );
+}
+
+interface EconomyRow { rank: number; name: string; country: string | null; value: string; sub?: string }
+
+const BOARD_META: Record<Exclude<Segment, "tests">, { metric: string; empty: string }> = {
+  predictions: { metric: "Points", empty: "No prediction scores yet." },
+  iq:          { metric: "IQ",     empty: "No IQ earned yet — start playing to climb." },
+  network:     { metric: "Active", empty: "No active networks yet." },
+  battles:     { metric: "Elo",    empty: "No battles played yet." },
+};
+
+function EconomyBoard({ kind }: { kind: Exclude<Segment, "tests"> }) {
+  const [rows, setRows] = useState<EconomyRow[] | null>(null);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setRows(null);
+    setErr(false);
+    (async () => {
+      let out: EconomyRow[] | null = [];
+      if (kind === "iq") {
+        const d = await getContributionLeaderboard("IQ");
+        out = d && d.map((e) => ({ rank: e.rank, name: e.displayName, country: e.country, value: `${e.balance.toLocaleString()} IQ` }));
+      } else if (kind === "network") {
+        const d = await getNetworkLeaderboard("IQ");
+        out = d && d.map((e) => ({ rank: e.rank, name: e.displayName, country: e.country, value: `${e.activeMembers.toLocaleString()} active`, sub: `${e.networkIq.toLocaleString()} IQ` }));
+      } else if (kind === "battles") {
+        const d = await getBattleLeaderboard();
+        out = d && d.map((e) => ({ rank: e.rank, name: e.displayName, country: e.country, value: `${e.elo} Elo`, sub: `${e.wins}W · ${e.losses}L` }));
+      } else {
+        const { competition } = await getCompetition("wc2026");
+        if (competition) {
+          const d = await getPredictorLeaderboard(competition.id);
+          out = d.map((e) => ({ rank: e.rank, name: e.displayName, country: e.country, value: `${e.totalPoints.toLocaleString()} pts`, sub: `${e.exactScores} exact` }));
+        } else {
+          out = [];
+        }
+      }
+      if (!alive) return;
+      if (out === null) { setErr(true); setRows([]); } else { setRows(out); }
+    })();
+    return () => { alive = false; };
+  }, [kind]);
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-10 text-center">
+        <p className="text-cockpit-dim mb-2">Rankings require Supabase.</p>
+      </div>
+    );
+  }
+
+  const meta = BOARD_META[kind];
+
+  return (
+    <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
+      <div className="flex items-center gap-4 px-5 py-3 border-b border-cockpit-border bg-cockpit-surface">
+        <div className="w-8 shrink-0" />
+        <span className="flex-1 text-cockpit-muted text-xs tracking-widest uppercase">Player</span>
+        <span className="text-cockpit-muted text-xs tracking-widest uppercase text-right">{meta.metric}</span>
+      </div>
+
+      {rows === null && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} i={i} />)}
+
+      {rows !== null && err && (
+        <div className="py-8 text-center"><p className="text-cockpit-dim text-sm">Could not load this leaderboard.</p></div>
+      )}
+
+      {rows !== null && !err && rows.length === 0 && (
+        <div className="py-8 text-center"><p className="text-cockpit-dim text-sm">{meta.empty}</p></div>
+      )}
+
+      {rows !== null && !err && rows.map((r) => {
+        const flag = nameToFlag(r.country);
+        return (
+          <div key={`${r.name}-${r.rank}`} className="flex items-center gap-4 px-5 py-4 border-b border-cockpit-border last:border-0 hover:bg-cockpit-surface transition-colors">
+            <div className="shrink-0"><RankBadge rank={r.rank} /></div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-semibold truncate">{r.name}</p>
+              {r.country && (
+                <p className="text-cockpit-muted text-xs mt-0.5">
+                  {flag && <span className="mr-1">{flag}</span>}{r.country}
+                </p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-white text-sm font-extrabold number-display">{r.value}</p>
+              {r.sub && <p className="text-cockpit-muted text-xs mt-0.5">{r.sub}</p>}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

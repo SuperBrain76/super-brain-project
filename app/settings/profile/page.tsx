@@ -257,7 +257,7 @@ export default function ProfileSettingsPage() {
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6 text-xs text-cockpit-muted font-mono">
-          <Link href="/profile" className="hover:text-cockpit-dim transition-colors">Dashboard</Link>
+          <Link href="/iq" className="hover:text-cockpit-dim transition-colors">You</Link>
           <span className="text-cockpit-border">/</span>
           <span className="text-cockpit-dim">Profile settings</span>
         </div>
@@ -502,8 +502,8 @@ export default function ProfileSettingsPage() {
         </div>
 
         <p className="text-cockpit-muted text-xs text-center mt-6">
-          <Link href="/profile" className="hover:text-cockpit-dim transition-colors">
-            ← Back to dashboard
+          <Link href="/iq" className="hover:text-cockpit-dim transition-colors">
+            ← Back to You
           </Link>
         </p>
 

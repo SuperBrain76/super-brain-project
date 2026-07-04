@@ -154,3 +154,34 @@ export async function submitBattleAnswer(
     p_time_ms:  timeMs,
   });
 }
+
+// ── Battle leaderboard (unified Rankings) ─────────────────────
+
+export interface BattleRankEntry {
+  rank:        number;
+  displayName: string;
+  country:     string | null;
+  elo:         number;
+  wins:        number;
+  losses:      number;
+}
+
+/** Top battle players by Elo. null on error, [] when empty. */
+export async function getBattleLeaderboard(): Promise<BattleRankEntry[] | null> {
+  try {
+    const { data, error } = await supabase.rpc("get_battle_leaderboard");
+    if (error) return null;
+    if (!data) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((r) => ({
+      rank:        Number(r.rank),
+      displayName: r.display_name ?? "Anonymous",
+      country:     r.country ?? null,
+      elo:         Number(r.elo),
+      wins:        Number(r.wins),
+      losses:      Number(r.losses),
+    }));
+  } catch {
+    return null;
+  }
+}

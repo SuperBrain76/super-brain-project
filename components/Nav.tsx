@@ -100,10 +100,10 @@ export default function Nav() {
           {user ? (
             <>
               <Link
-                href={isPredict ? "/profile" : "/profile"}
+                href="/iq"
                 className={`hidden md:block text-sm px-3 py-2 transition-colors ${isPredict ? "text-slate-500 hover:text-slate-800" : "text-cockpit-dim hover:text-cockpit-text"}`}
               >
-                Profile
+                You
               </Link>
               {!isPredict && (
                 <Link

@@ -8,6 +8,7 @@ import {
   type PartnerDashboard,
 } from "@/lib/economy";
 import { getMissions, claimMission, type Mission, type MissionsResult } from "@/lib/missions";
+import { useAuth } from "@/components/AuthProvider";
 
 // Palette (premium green + gold)
 const INK = "#0f2419";
@@ -39,6 +40,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function PartnerDashboardPage() {
+  const { signOut } = useAuth();
   const [dash, setDash] = useState<PartnerDashboard | null | undefined>(undefined);
   const [missions, setMissions] = useState<MissionsResult | null>(null);
   const [claimingMission, setClaimingMission] = useState<string | null>(null);
@@ -357,6 +359,24 @@ export default function PartnerDashboardPage() {
         )}
       </Section>
 
+      {/* ── You hub: everything about your account in one place ────────── */}
+      <Section title="More">
+        <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <HubRow href="/network" icon="🌐" label="Network" hint="Your referral network" />
+          <HubRow href="/results" icon="📊" label="Statistics" hint="Your test history & scores" />
+          <HubRow href="/settings/public-profile" icon="🪪" label="Public profile" hint="Username, bio, privacy" />
+          <HubRow href="/settings/profile" icon="⚙️" label="Account settings" hint="Name, country, avatar" />
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+            style={{ borderTop: `1px solid ${BORDER}` }}
+          >
+            <span className="w-8 text-center text-lg">↩</span>
+            <span className="flex-1 text-sm font-semibold" style={{ color: "#b04a4a" }}>Sign out</span>
+          </button>
+        </div>
+      </Section>
+
       <div className="h-4" />
     </Shell>
   );
@@ -450,6 +470,19 @@ function MissionsSection({
         ))}
       </div>
     </div>
+  );
+}
+
+function HubRow({ href, icon, label, hint }: { href: string; icon: string; label: string; hint: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 px-4 py-3.5" style={{ borderTop: `1px solid ${BORDER}` }}>
+      <span className="w-8 text-center text-lg">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold" style={{ color: TEXT }}>{label}</p>
+        <p className="text-[11px]" style={{ color: MUTED }}>{hint}</p>
+      </div>
+      <span style={{ color: MUTED }}>›</span>
+    </Link>
   );
 }
 
