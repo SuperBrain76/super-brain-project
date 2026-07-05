@@ -7,6 +7,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import { track } from "@/lib/analytics";
 import { signInWithGoogle, signInWithApple } from "@/lib/googleAuth";
+import { BRAND, MATERIAL } from "@/lib/brand";
 
 // ── Google "G" logo (official multicolor) ─────────────────────
 function GoogleLogo() {
@@ -133,13 +134,13 @@ function LoginForm() {
   if (awaitingVerify) {
     return (
       <div className="min-h-screen flex items-center justify-center px-5 py-16"
-        style={{ background: "#f0f3ef" }}>
+        style={{ background: MATERIAL.vignette }}>
         <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
 
           {/* Icon */}
           <div className="w-16 h-16 rounded-full flex items-center justify-center"
-            style={{ background: "#eef8f0", border: "1px solid #86c99a" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5">
+            style={{ background: "rgba(53,197,111,0.10)", border: `0.5px solid rgba(53,197,111,0.4)` }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={BRAND.sports} strokeWidth="1.5">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
             </svg>
@@ -147,19 +148,19 @@ function LoginForm() {
 
           {/* Heading */}
           <div>
-            <h2 className="text-xl font-extrabold mb-2" style={{ color: "#0f1f17" }}>
+            <h2 className="text-xl font-extrabold mb-2" style={{ color: BRAND.ink }}>
               Check your email
             </h2>
-            <p className="text-sm leading-relaxed" style={{ color: "#2e4a37" }}>
+            <p className="text-sm leading-relaxed" style={{ color: BRAND.muted }}>
               We&apos;ve sent a confirmation link to{" "}
-              <span className="font-semibold" style={{ color: "#0f1f17" }}>{email}</span>.
+              <span className="font-semibold" style={{ color: BRAND.ink }}>{email}</span>.
               Click it to activate your account.
             </p>
           </div>
 
           {/* Steps */}
-          <div className="w-full rounded-xl p-5 text-left flex flex-col gap-3"
-            style={{ background: "#ffffff", border: "1px solid #dde5d8" }}>
+          <div className="w-full rounded-2xl p-5 text-left flex flex-col gap-3"
+            style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
             {[
               "Open the email from SuperBrain",
               'Click "Confirm your email"',
@@ -167,20 +168,20 @@ function LoginForm() {
             ].map((step, i) => (
               <div key={i} className="flex items-start gap-3">
                 <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black"
-                  style={{ background: "#1a3a2a", color: "#ffffff" }}>
+                  style={{ background: BRAND.sports, color: "#04140B" }}>
                   {i + 1}
                 </span>
-                <p className="text-sm" style={{ color: "#2e4a37" }}>{step}</p>
+                <p className="text-sm" style={{ color: BRAND.muted }}>{step}</p>
               </div>
             ))}
           </div>
 
           {/* Spam notice */}
-          <div className="w-full rounded-xl px-4 py-3 flex items-start gap-3 text-left"
-            style={{ background: "#fffbeb", border: "1px solid #f59e0b40" }}>
+          <div className="w-full rounded-2xl px-4 py-3 flex items-start gap-3 text-left"
+            style={{ background: "rgba(232,193,90,0.06)", border: `0.5px solid ${BRAND.hairlineStrong}` }}>
             <span className="text-base shrink-0 mt-0.5">📬</span>
-            <p className="text-xs leading-relaxed" style={{ color: "#92400e" }}>
-              <span className="font-semibold">Can&apos;t find the email?</span>{" "}
+            <p className="text-xs leading-relaxed" style={{ color: BRAND.muted }}>
+              <span className="font-semibold" style={{ color: BRAND.ink }}>Can&apos;t find the email?</span>{" "}
               Check your <span className="font-semibold">Spam</span>, <span className="font-semibold">Junk</span>, or <span className="font-semibold">Promotions</span> folder — it sometimes lands there.
             </p>
           </div>
@@ -188,7 +189,7 @@ function LoginForm() {
           {/* Resend + sign in */}
           <div className="flex flex-col items-center gap-3">
             {resendDone ? (
-              <p className="text-sm font-semibold" style={{ color: "#1a3a2a" }}>
+              <p className="text-sm font-semibold" style={{ color: BRAND.sports }}>
                 ✓ New link sent — check your inbox
               </p>
             ) : (
@@ -196,7 +197,7 @@ function LoginForm() {
                 onClick={resendVerification}
                 disabled={resendBusy}
                 className="text-sm font-semibold hover:underline"
-                style={{ color: "#1a3a2a" }}
+                style={{ color: BRAND.sports }}
               >
                 {resendBusy ? "Sending…" : "Resend verification email"}
               </button>
@@ -204,7 +205,7 @@ function LoginForm() {
             <button
               onClick={() => { setAwaitingVerify(false); setMode("signin"); }}
               className="text-xs hover:underline"
-              style={{ color: "#7a8f82" }}
+              style={{ color: BRAND.dim }}
             >
               Already verified? Sign in →
             </button>
@@ -216,21 +217,22 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen hud-grid flex items-center justify-center px-5 py-16">
+    <div className="min-h-screen flex items-center justify-center px-5 py-16" style={{ background: MATERIAL.vignette }}>
       <div className="w-full max-w-sm">
 
-        {/* Logo */}
+        {/* Logo — monochrome; gold is reserved for value */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-7 h-7 rounded-sm bg-cockpit-accent flex items-center justify-center">
-              <span className="text-cockpit-bg font-black text-xs">SB</span>
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-6">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: BRAND.elevated, border: `0.5px solid ${BRAND.hairlineStrong}` }}>
+              <span className="font-black text-[11px] tracking-tighter" style={{ color: BRAND.ink }}>SB</span>
             </div>
-            <span className="font-bold tracking-widest text-sm text-white">SUPERBRAIN</span>
+            <span className="font-semibold tracking-[0.18em] text-sm" style={{ color: BRAND.ink }}>SUPERBRAIN</span>
           </Link>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold" style={{ color: BRAND.ink }}>
             {mode === "signin" ? "Welcome back" : "Create account"}
           </h1>
-          <p className="text-cockpit-dim text-sm mt-1">
+          <p className="text-[#A0A0A8] text-sm mt-1.5">
             {mode === "signin"
               ? "Sign in to save and share your results."
               : "Free forever. Save every result. Share your score."}
@@ -238,8 +240,8 @@ function LoginForm() {
         </div>
 
         {!isSupabaseConfigured && (
-          <div className="mb-5 px-4 py-3 border border-cockpit-amber border-opacity-40 rounded-sm bg-cockpit-amber bg-opacity-5">
-            <p className="text-cockpit-amber text-xs leading-relaxed">
+          <div className="mb-5 px-4 py-3 rounded-xl" style={{ border: `0.5px solid ${BRAND.hairlineStrong}`, background: "rgba(232,193,90,0.06)" }}>
+            <p className="text-xs leading-relaxed" style={{ color: BRAND.gold }}>
               <strong>Setup required.</strong> Copy{" "}
               <code className="font-mono">.env.local.example</code> →{" "}
               <code className="font-mono">.env.local</code> and add your Supabase credentials.
@@ -247,7 +249,7 @@ function LoginForm() {
           </div>
         )}
 
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-7">
+        <div className="rounded-2xl p-7" style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
 
           {/* ── Apple Sign In ────────────────────────────── */}
           <button
@@ -302,9 +304,9 @@ function LoginForm() {
 
           {/* ── OR divider ───────────────────────────────── */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px" style={{ background: "var(--cockpit-border, #1e2a38)" }} />
-            <span className="text-cockpit-muted text-xs tracking-widest uppercase">or</span>
-            <div className="flex-1 h-px" style={{ background: "var(--cockpit-border, #1e2a38)" }} />
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <span className="text-[#6B6B73] text-xs tracking-widest uppercase">or</span>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -312,30 +314,30 @@ function LoginForm() {
             {/* Display name — signup only */}
             {mode === "signup" && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-cockpit-dim text-xs tracking-widest uppercase">
+                <label className="text-[#A0A0A8] text-xs tracking-widest uppercase">
                   Display name
                 </label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+                  className="w-full bg-[#17181D] border border-white/[0.07] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73]"
                   placeholder="How you'll appear on the leaderboard"
                   maxLength={32}
                   autoComplete="nickname"
                 />
-                <p className="text-cockpit-muted text-xs">Shown publicly on the leaderboard.</p>
+                <p className="text-[#6B6B73] text-xs">Shown publicly on the leaderboard.</p>
               </div>
             )}
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-cockpit-dim text-xs tracking-widest uppercase">Email</label>
+              <label className="text-[#A0A0A8] text-xs tracking-widest uppercase">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+                className="w-full bg-[#17181D] border border-white/[0.07] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73]"
                 placeholder="you@example.com"
                 autoComplete="email"
               />
@@ -343,11 +345,11 @@ function LoginForm() {
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-cockpit-dim text-xs tracking-widest uppercase">Password</label>
+                <label className="text-[#A0A0A8] text-xs tracking-widest uppercase">Password</label>
                 {mode === "signin" && (
                   <Link
                     href="/forgot-password"
-                    className="text-cockpit-muted text-xs hover:text-cockpit-accent transition-colors"
+                    className="text-[#6B6B73] text-xs hover:text-[#F5F5F2] transition-colors"
                   >
                     Forgot password?
                   </Link>
@@ -359,38 +361,39 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+                className="w-full bg-[#17181D] border border-white/[0.07] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73]"
                 placeholder="••••••••"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
               />
               {mode === "signup" && (
-                <p className="text-cockpit-muted text-xs">Minimum 8 characters.</p>
+                <p className="text-[#6B6B73] text-xs">Minimum 8 characters.</p>
               )}
             </div>
 
-            {error   && <p className="text-cockpit-red   text-xs leading-relaxed">{error}</p>}
-            {success && <p className="text-cockpit-green text-xs leading-relaxed">{success}</p>}
+            {error   && <p className="text-[#FF6A3D]   text-xs leading-relaxed">{error}</p>}
+            {success && <p className="text-[#5FCF8B] text-xs leading-relaxed">{success}</p>}
 
             <button
               type="submit"
               disabled={busy || !isSupabaseConfigured}
-              className="btn-primary w-full justify-center flex items-center gap-2 mt-1"
+              className="w-full justify-center flex items-center gap-2 mt-1 py-3 rounded-full font-bold text-sm transition-transform active:scale-[0.98] disabled:opacity-60"
+              style={{ background: BRAND.gold, color: BRAND.goldInk, boxShadow: MATERIAL.shadowGold }}
             >
               {busy ? "…" : mode === "signin" ? "Sign In" : "Create Account"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-cockpit-muted text-sm mt-5">
+        <p className="text-center text-[#6B6B73] text-sm mt-5">
           {mode === "signin" ? (
             <>No account?{" "}
-              <button onClick={() => switchMode("signup")} className="text-cockpit-accent hover:underline">
+              <button onClick={() => switchMode("signup")} className="text-[#F5F5F2] hover:underline">
                 Sign up free
               </button>
             </>
           ) : (
             <>Already have an account?{" "}
-              <button onClick={() => switchMode("signin")} className="text-cockpit-accent hover:underline">
+              <button onClick={() => switchMode("signin")} className="text-[#F5F5F2] hover:underline">
                 Sign in
               </button>
             </>
@@ -404,8 +407,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen hud-grid flex items-center justify-center">
-        <p className="text-cockpit-dim text-sm animate-pulse">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: MATERIAL.vignette }}>
+        <p className="text-[#A0A0A8] text-sm animate-pulse">Loading…</p>
       </div>
     }>
       <LoginForm />

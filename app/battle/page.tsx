@@ -29,7 +29,7 @@ export default function BattlePage() {
   if (loading || !user || !profileReady || displayName === null) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-cockpit-muted animate-pulse text-sm">Loading…</p>
+        <p className="text-[#6B6B73] animate-pulse text-sm">Loading…</p>
       </div>
     );
   }

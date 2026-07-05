@@ -8,6 +8,9 @@ import {
   getDivision, eloProgress, DIVISIONS,
   type BattleProfile, type BattleMatch,
 } from "@/lib/battle";
+import { BRAND, MATERIAL } from "@/lib/brand";
+
+const EMBER = BRAND.battle; // #FF6A3D — battles run hot
 
 interface Props {
   userId:   string;
@@ -113,7 +116,7 @@ export default function BattleHub({ userId, userName, country }: Props) {
   if (phase === "loading" || !profile) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-cockpit-muted animate-pulse text-sm">Initializing battle profile…</p>
+        <p className="text-[#A0A0A8] animate-pulse text-sm">Initializing battle profile…</p>
       </div>
     );
   }
@@ -121,7 +124,7 @@ export default function BattleHub({ userId, userName, country }: Props) {
   if (phase === "error") {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-cockpit-red text-sm">Failed to load battle profile. Try refreshing.</p>
+        <p className="text-[#FF6A3D] text-sm">Failed to load battle profile. Try refreshing.</p>
       </div>
     );
   }
@@ -135,7 +138,7 @@ export default function BattleHub({ userId, userName, country }: Props) {
     <div className="flex flex-col gap-4 w-full max-w-lg mx-auto px-4 py-4 flex-1">
 
       {/* Player card */}
-      <div className="bg-cockpit-card border border-cockpit-border rounded-sm px-5 py-4">
+      <div className="rounded-2xl px-5 py-4" style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 shrink-0"
@@ -149,7 +152,7 @@ export default function BattleHub({ userId, userName, country }: Props) {
             <p className="text-white font-bold text-base truncate">{profile.display_name}</p>
             <p className="text-xs font-semibold mt-0.5" style={{ color: div.color }}>{div.name}</p>
             {/* Elo progress bar */}
-            <div className="mt-2 h-1 bg-cockpit-border rounded-full overflow-hidden">
+            <div className="mt-2 h-1 bg-white/[0.08] rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500"
                 style={{ width: `${progress}%`, background: div.color }} />
             </div>
@@ -157,12 +160,12 @@ export default function BattleHub({ userId, userName, country }: Props) {
 
           <div className="text-right shrink-0">
             <p className="text-2xl font-black number-display text-white">{profile.elo}</p>
-            <p className="text-cockpit-muted text-xs font-mono">ELO</p>
+            <p className="text-[#A0A0A8] text-xs font-mono">ELO</p>
           </div>
         </div>
 
         {/* Stats row */}
-        <div className="mt-4 pt-4 border-t border-cockpit-border grid grid-cols-4 gap-2 text-center">
+        <div className="mt-4 pt-4 border-t border-white/[0.07] grid grid-cols-4 gap-2 text-center">
           {[
             { label: "Wins",   value: profile.wins },
             { label: "Losses", value: profile.losses },
@@ -171,7 +174,7 @@ export default function BattleHub({ userId, userName, country }: Props) {
           ].map(({ label, value }) => (
             <div key={label}>
               <p className="text-white font-extrabold number-display text-lg">{value}</p>
-              <p className="text-cockpit-muted text-[10px] uppercase tracking-widest">{label}</p>
+              <p className="text-[#A0A0A8] text-[10px] uppercase tracking-widest">{label}</p>
             </div>
           ))}
         </div>
@@ -181,12 +184,12 @@ export default function BattleHub({ userId, userName, country }: Props) {
       {phase === "ready" && (
         <button
           onClick={handleFindMatch}
-          className="w-full py-5 rounded-sm border font-black text-lg tracking-widest uppercase transition-all active:scale-95"
+          className="w-full py-5 rounded-2xl font-black text-lg tracking-widest uppercase transition-transform active:scale-95"
           style={{
-            background:   "#00d4ff15",
-            borderColor:  "#00d4ff",
-            color:        "#00d4ff",
-            boxShadow:    "0 0 30px #00d4ff20",
+            background:  `linear-gradient(180deg, rgba(255,106,61,0.18), rgba(255,106,61,0.06)), ${MATERIAL.raise}`,
+            border:      `0.5px solid ${EMBER}`,
+            color:       EMBER,
+            boxShadow:   "0 10px 34px -12px rgba(255,106,61,0.5)",
           }}
         >
           ⚔ Find Match
@@ -194,36 +197,36 @@ export default function BattleHub({ userId, userName, country }: Props) {
       )}
 
       {phase === "searching" && (
-        <div className="w-full py-5 rounded-sm border text-center"
-          style={{ background: "#ffab0010", borderColor: "#ffab0060" }}>
-          <p className="text-white font-black text-lg tracking-widest uppercase mb-1">
+        <div className="w-full py-5 rounded-2xl text-center"
+          style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairlineStrong}` }}>
+          <p className="font-black text-lg tracking-widest uppercase mb-1" style={{ color: BRAND.ink }}>
             Searching{".".repeat(dotCount)}
           </p>
-          <p className="text-cockpit-muted text-xs mb-3">Looking for an opponent at your level</p>
+          <p className="text-[#A0A0A8] text-xs mb-3">Looking for an opponent at your level</p>
           <button onClick={handleCancel}
-            className="text-cockpit-muted hover:text-cockpit-red text-xs font-mono tracking-widest uppercase transition-colors">
+            className="text-[#A0A0A8] hover:text-[#FF6A3D] text-xs font-mono tracking-widest uppercase transition-colors">
             Cancel
           </button>
         </div>
       )}
 
-      {/* Division ladder */}
-      <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
-        <p className="text-cockpit-muted text-xs uppercase tracking-widest font-mono px-4 py-2.5 border-b border-cockpit-border">
+      {/* Division ladder — boxless */}
+      <div className="overflow-hidden">
+        <p className="text-[#6B6B73] text-xs uppercase tracking-[0.22em] px-1 py-2.5 border-b border-white/[0.07]">
           Division Ladder
         </p>
         {[...DIVISIONS].reverse().map((d) => {
           const isCurrent = d.name === div.name;
           return (
             <div key={d.name}
-              className="flex items-center gap-3 px-4 py-2.5 border-b border-cockpit-border last:border-0"
-              style={{ background: isCurrent ? `${d.color}08` : undefined }}>
+              className="flex items-center gap-3 px-1 py-2.5 border-b border-white/[0.07] last:border-0"
+              style={{ background: isCurrent ? `${d.color}0d` : undefined }}>
               <div className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: isCurrent ? d.color : "#1e2a38" }} />
-              <span className="text-sm font-semibold flex-1" style={{ color: isCurrent ? d.color : "#475569" }}>
+                style={{ background: isCurrent ? d.color : "rgba(255,255,255,0.14)" }} />
+              <span className="text-sm font-semibold flex-1" style={{ color: isCurrent ? d.color : BRAND.dim }}>
                 {d.name}
               </span>
-              <span className="text-cockpit-muted text-xs font-mono">
+              <span className="text-[#A0A0A8] text-xs font-mono">
                 {d.name === "Grandmaster" ? `${d.min}+` : `${d.min}–${d.max}`}
               </span>
               {isCurrent && (
@@ -239,8 +242,8 @@ export default function BattleHub({ userId, userName, country }: Props) {
 
       {/* Recent matches */}
       {recentMatches.length > 0 && (
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
-          <p className="text-cockpit-muted text-xs uppercase tracking-widest font-mono px-4 py-2.5 border-b border-cockpit-border">
+        <div className="overflow-hidden">
+          <p className="text-[#6B6B73] text-xs uppercase tracking-[0.22em] px-1 py-2.5 border-b border-white/[0.07]">
             Recent Matches
           </p>
           {recentMatches.map((m) => {
@@ -251,20 +254,20 @@ export default function BattleHub({ userId, userName, country }: Props) {
             const myScore = iP1 ? m.player1_score : m.player2_score;
             const opScore = iP1 ? m.player2_score : m.player1_score;
             const delta   = iP1 ? m.player1_elo_delta : m.player2_elo_delta;
-            const accent  = isDraw ? "#ffab00" : iWon ? "#00e676" : "#ff3d00";
+            const accent  = isDraw ? BRAND.muted : iWon ? "#5FCF8B" : EMBER;
             const label   = isDraw ? "DRAW"    : iWon ? "WIN"     : "LOSS";
             return (
               <div key={m.id}
-                className="flex items-center gap-3 px-4 py-3 border-b border-cockpit-border last:border-0">
+                className="flex items-center gap-3 px-1 py-3 border-b border-white/[0.07] last:border-0">
                 <span className="text-xs font-black w-10 shrink-0 text-center"
                   style={{ color: accent }}>{label}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium truncate">vs {opName}</p>
-                  <p className="text-cockpit-muted text-xs">{myScore}–{opScore} rounds</p>
+                  <p className="text-[#A0A0A8] text-xs">{myScore}–{opScore} rounds</p>
                 </div>
                 {delta !== null && (
                   <span className="text-sm font-bold number-display shrink-0"
-                    style={{ color: delta >= 0 ? "#00e676" : "#ff3d00" }}>
+                    style={{ color: delta >= 0 ? "#5FCF8B" : EMBER }}>
                     {delta >= 0 ? "+" : ""}{delta}
                   </span>
                 )}
