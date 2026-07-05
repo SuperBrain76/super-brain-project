@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { getPublicProfile, type PublicProfile } from "@/lib/publicProfile";
 import { BRAND, MATERIAL } from "@/lib/brand";
+import { IqInfoButton } from "@/components/IqInfoSheet";
 
 const INK = "#0B0B0D";           // deep base for gradients
 const GREEN = BRAND.sports;      // emerald accent (share, links)
@@ -133,10 +134,18 @@ export default function PublicProfilePage() {
             style={{ background: MATERIAL.goldGlow }} />
           {p.balance !== null && p.currency && (
             <>
-              <p className="text-xs uppercase tracking-[0.2em] relative" style={{ color: MUTED }}>{p.currency.name}</p>
+              <div className="flex items-center gap-1.5 relative">
+                <p className="text-xs uppercase tracking-[0.2em]" style={{ color: MUTED }}>{p.currency.name}</p>
+                <IqInfoButton size={14} />
+              </div>
               <p className="text-4xl font-black relative" style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
                 {p.currency.symbol} {fmt(p.balance)}
               </p>
+              {p.level && (
+                <p className="text-[11px] relative mt-0.5" style={{ color: MUTED }}>
+                  {fmt(p.level.lifetimeEarned)} earned all-time
+                </p>
+              )}
             </>
           )}
           {p.level && (
@@ -150,15 +159,27 @@ export default function PublicProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Rankings — shown clearly on the credential */}
+          {(p.leaderboard.contributionRank || p.leaderboard.predictorRank) && (
+            <div className="flex flex-wrap gap-2 mt-4 relative">
+              {p.leaderboard.contributionRank && (
+                <RankPill label="IQ" rank={p.leaderboard.contributionRank} />
+              )}
+              {p.leaderboard.predictorRank && (
+                <RankPill label="Predictor" rank={p.leaderboard.predictorRank} />
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Stat tiles */}
+      {/* Stat tiles — a career snapshot */}
       <div className="grid grid-cols-4 gap-2">
-        <Stat icon="🏆" value={p.leaderboard.contributionRank ? `#${fmt(p.leaderboard.contributionRank)}` : "—"} label="rank" />
         <Stat icon="🎖️" value={p.achievements ? `${p.achievements.unlocked}` : "—"} label="badges" />
         <Stat icon="⚽" value={p.predictions ? fmt(p.predictions.totalPoints) : "—"} label="pred pts" />
         <Stat icon="🧠" value={p.tests ? `${p.tests.completed}` : "—"} label="tests" />
+        <Stat icon="🤝" value={p.network ? fmt(p.network.active) : "—"} label="network" />
       </div>
 
       {/* Achievements */}
@@ -232,7 +253,7 @@ export default function PublicProfilePage() {
 
       {/* Recent activity */}
       {p.activity && p.activity.length > 0 && (
-        <Section title="Recent Activity">
+        <Section title="Contribution history">
           <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             {p.activity.map((a, i) => (
               <div key={`${a.created_at}-${i}`} className="flex items-center gap-3 px-4 py-3" style={{ borderTop: i === 0 ? "none" : `1px solid ${BORDER}` }}>
@@ -284,6 +305,17 @@ function Stat({ icon, value, label }: { icon: string; value: string; label: stri
       <div className="text-lg leading-none mb-1">{icon}</div>
       <div className="text-sm font-black" style={{ color: TEXT }}>{value}</div>
       <div className="text-[10px] uppercase tracking-wide" style={{ color: MUTED }}>{label}</div>
+    </div>
+  );
+}
+
+function RankPill({ label, rank }: { label: string; rank: number }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+      style={{ background: "rgba(255,255,255,0.04)", border: `0.5px solid ${BORDER}` }}>
+      <span className="text-base leading-none">🏆</span>
+      <span className="text-xs" style={{ color: MUTED }}>{label}</span>
+      <span className="text-sm font-black" style={{ color: TEXT }}>#{rank.toLocaleString()}</span>
     </div>
   );
 }

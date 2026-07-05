@@ -6,6 +6,7 @@ import ConditionalFooter  from "@/components/ConditionalFooter";
 import PWAInstallBanner   from "@/components/PWAInstallBanner";
 import MobileBottomNav    from "@/components/MobileBottomNav";
 import PostHogProvider from "@/components/PostHogProvider";
+import DailyHomeRedirect from "@/components/DailyHomeRedirect";
 
 const BASE_URL = "https://www.superbrain.social";
 const TITLE    = "SuperBrain — Test Your Mind Under Pressure";
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-cockpit-bg min-h-dvh antialiased flex flex-col">
         <PostHogProvider>
           <AuthProvider>
+            <DailyHomeRedirect />
             <Nav />
             <main className="flex-1 flex flex-col">{children}</main>
             <ConditionalFooter />

@@ -11,6 +11,7 @@ import { getMissions, claimMission, type Mission, type MissionsResult } from "@/
 import { useAuth } from "@/components/AuthProvider";
 import { getOnboardingStatus, type OnboardingStatus } from "@/lib/onboarding";
 import { MATERIAL } from "@/lib/brand";
+import { IqInfoButton } from "@/components/IqInfoSheet";
 
 // Palette — "Midnight Gold", sculpted. Gold = earned value only.
 const INK = "#2A2205";     // text on a gold fill
@@ -169,14 +170,25 @@ export default function PartnerDashboardPage() {
         </Link>
       )}
 
+      {/* Headline — the promise, near the top */}
+      <div className="text-center px-2 pt-1">
+        <h1 className="text-lg font-black leading-snug" style={{ color: TEXT }}>Build your SuperBrain.</h1>
+        <p className="text-[13px] mt-1 leading-relaxed" style={{ color: MUTED }}>
+          Earn <span style={{ color: GOLD, fontWeight: 700 }}>IQ</span> every time you play, predict, test and contribute.
+        </p>
+      </div>
+
       {/* ── Hero: IQ, sculpted (boxless) — value framed by the icon's ring ── */}
-      <div className="relative flex items-center justify-center pt-4 pb-1">
+      <div className="relative flex items-center justify-center pt-2 pb-1">
         <div className="absolute" style={{ width: 300, height: 300, background: MATERIAL.goldGlow }} />
         <div className="relative flex items-center justify-center" style={{ width: 236, height: 236 }}>
           <div className="absolute rounded-full" style={{ inset: 0, border: `1px solid ${MATERIAL.ringFaint}` }} />
           <div className="absolute rounded-full" style={{ inset: 0, border: "1.5px solid transparent", borderTopColor: MATERIAL.ring, borderRightColor: MATERIAL.ring, transform: "rotate(-38deg)" }} />
           <div className="relative text-center">
-            <p className="text-[11px]" style={{ letterSpacing: "0.34em", color: MUTED }}>{(currency.name || "IQ").toUpperCase()}</p>
+            <div className="flex items-center justify-center gap-1.5">
+              <p className="text-[11px]" style={{ letterSpacing: "0.34em", color: MUTED }}>{(currency.name || "IQ").toUpperCase()}</p>
+              <IqInfoButton size={15} />
+            </div>
             <p style={{
               fontSize: 64, lineHeight: 1, marginTop: 6, fontWeight: 600, letterSpacing: "-0.03em",
               background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text",
