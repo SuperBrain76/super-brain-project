@@ -10,18 +10,19 @@ import {
 import { getMissions, claimMission, type Mission, type MissionsResult } from "@/lib/missions";
 import { useAuth } from "@/components/AuthProvider";
 import { getOnboardingStatus, type OnboardingStatus } from "@/lib/onboarding";
+import { MATERIAL } from "@/lib/brand";
 
-// Palette (premium green + gold)
-const INK = "#0f2419";
-const GREEN = "#1a3a2a";
-const GREEN2 = "#24513a";
-const GOLD = "#c9a227";
-const GOLD_SOFT = "#e7cf7a";
-const MUTED = "#7a8f82";
-const TEXT = "#12251b";
-const BORDER = "#e3e9dd";
-const BG = "#f6f4ee";
-const CARD = "#ffffff";
+// Palette — "Midnight Gold", sculpted. Gold = earned value only.
+const INK = "#2A2205";     // text on a gold fill
+const GREEN = "#F5F5F2";   // primary ink (headings / text)
+const GREEN2 = "#1F1F25";  // dark elevated fill (secondary controls)
+const GOLD = "#E8C15A";
+const GOLD_SOFT = "#F0D98B";
+const MUTED = "#8B8B93";
+const TEXT = "#F5F5F2";
+const BORDER = "rgba(255,255,255,0.08)";
+const BG = "#17181D";      // inset / small surfaces
+const CARD = "#111116";    // card surface
 
 function fmt(n: number): string {
   return n.toLocaleString();
@@ -102,9 +103,9 @@ export default function PartnerDashboardPage() {
     return (
       <Shell>
         <div className="animate-pulse space-y-4">
-          <div className="h-44 rounded-3xl" style={{ background: "#e7ece4" }} />
-          <div className="h-24 rounded-2xl" style={{ background: "#e7ece4" }} />
-          <div className="h-40 rounded-2xl" style={{ background: "#e7ece4" }} />
+          <div className="h-44 rounded-3xl" style={{ background: "#17181D" }} />
+          <div className="h-24 rounded-2xl" style={{ background: "#17181D" }} />
+          <div className="h-40 rounded-2xl" style={{ background: "#17181D" }} />
         </div>
       </Shell>
     );
@@ -125,12 +126,13 @@ export default function PartnerDashboardPage() {
     return (
       <Shell>
         <div
-          className="rounded-3xl p-8 text-center"
-          style={{ background: `linear-gradient(160deg, ${GREEN2}, ${INK})`, color: "#fff" }}
+          className="rounded-3xl p-8 text-center relative overflow-hidden"
+          style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}
         >
-          <p className="text-4xl mb-3">🧠</p>
-          <h1 className="text-xl font-black mb-2">The SuperBrain Partner Economy</h1>
-          <p className="text-sm mb-6" style={{ color: "#cdd8cf" }}>
+          <div className="absolute left-1/2 -translate-x-1/2 -top-10" style={{ width: 220, height: 220, background: MATERIAL.goldGlow }} />
+          <p className="text-4xl mb-3 relative">🧠</p>
+          <h1 className="text-xl font-black mb-2 relative">The SuperBrain Partner Economy</h1>
+          <p className="text-sm mb-6 relative" style={{ color: MUTED }}>
             Earn, level up, and grow your network. Sign in to open your dashboard.
           </p>
           <Link
@@ -157,62 +159,46 @@ export default function PartnerDashboardPage() {
       {/* Resume onboarding */}
       {showResume && (
         <Link href="/welcome" className="flex items-center gap-3 rounded-2xl p-3.5"
-          style={{ background: "#fff6dc", border: `1px solid ${GOLD}` }}>
+          style={{ background: "rgba(232,193,90,0.07)", border: `0.5px solid rgba(232,193,90,0.28)` }}>
           <span className="text-xl">🚀</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold" style={{ color: "#8a6d12" }}>Finish setting up</p>
-            <p className="text-[11px]" style={{ color: "#a8862a" }}>{onbDone}/5 done — earn more IQ</p>
+            <p className="text-sm font-bold" style={{ color: GOLD }}>Finish setting up</p>
+            <p className="text-[11px]" style={{ color: MUTED }}>{onbDone}/5 done — earn more IQ</p>
           </div>
-          <span className="text-sm font-black" style={{ color: "#8a6d12" }}>Resume ›</span>
+          <span className="text-sm font-black" style={{ color: GOLD }}>Resume ›</span>
         </Link>
       )}
 
-      {/* ── Hero: balance + partner level ─────────────────────────────── */}
-      <div
-        className="rounded-3xl p-6 relative overflow-hidden"
-        style={{ background: `linear-gradient(160deg, ${GREEN2} 0%, ${INK} 100%)`, color: "#fff" }}
-      >
-        <div
-          className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-20"
-          style={{ background: `radial-gradient(circle, ${GOLD}, transparent 70%)` }}
-        />
-        <div className="flex items-center justify-between mb-1 relative">
-          <span className="text-xs uppercase tracking-widest" style={{ color: "#bfccc2" }}>
-            {currency.name} Balance
-          </span>
-          <span
-            className="text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
-            style={{ background: "rgba(255,255,255,0.12)", color: GOLD_SOFT }}
-          >
-            <span>{level.icon ?? "⭐"}</span>
-            {level.name ?? "Partner"}
-          </span>
+      {/* ── Hero: IQ, sculpted (boxless) — value framed by the icon's ring ── */}
+      <div className="relative flex items-center justify-center pt-4 pb-1">
+        <div className="absolute" style={{ width: 300, height: 300, background: MATERIAL.goldGlow }} />
+        <div className="relative flex items-center justify-center" style={{ width: 236, height: 236 }}>
+          <div className="absolute rounded-full" style={{ inset: 0, border: `1px solid ${MATERIAL.ringFaint}` }} />
+          <div className="absolute rounded-full" style={{ inset: 0, border: "1.5px solid transparent", borderTopColor: MATERIAL.ring, borderRightColor: MATERIAL.ring, transform: "rotate(-38deg)" }} />
+          <div className="relative text-center">
+            <p className="text-[11px]" style={{ letterSpacing: "0.34em", color: MUTED }}>{(currency.name || "IQ").toUpperCase()}</p>
+            <p style={{
+              fontSize: 64, lineHeight: 1, marginTop: 6, fontWeight: 600, letterSpacing: "-0.03em",
+              background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text",
+              WebkitTextFillColor: "transparent", color: "transparent",
+              filter: "drop-shadow(0 6px 14px rgba(232,193,90,0.28))", fontVariantNumeric: "tabular-nums",
+            }}>{fmt(dash.balance)}</p>
+            <p className="text-[13px]" style={{ marginTop: 10, color: MUTED }}>
+              <span style={{ color: GOLD, fontWeight: 600 }}>{level.name ?? "Partner"}</span> · Level {level.level ?? 1}
+            </p>
+          </div>
         </div>
-        <div className="flex items-end gap-2 relative">
-          <span className="text-5xl font-black leading-none" style={{ color: GOLD_SOFT }}>
-            {sym} {fmt(dash.balance)}
-          </span>
-        </div>
+      </div>
 
-        {/* progress to next level */}
-        <div className="mt-5 relative">
-          <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: "#bfccc2" }}>
-            <span>Lvl {level.level ?? 1} · {level.name ?? "Partner"}</span>
-            <span>
-              {level.nextName
-                ? `${fmt(dash.lifetimeEarned)} / ${fmt(level.nextAt ?? 0)} → ${level.nextName}`
-                : "Max level"}
-            </span>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min(100, Math.max(2, level.progressPct))}%`,
-                background: `linear-gradient(90deg, ${GOLD}, ${GOLD_SOFT})`,
-              }}
-            />
-          </div>
+      {/* progress — a drawn line of light, not a boxed bar */}
+      <div className="px-2">
+        <div className="relative" style={{ height: 1, background: BORDER }}>
+          <div className="absolute left-0 top-0" style={{ height: 1, width: `${Math.min(100, Math.max(2, level.progressPct))}%`, background: MATERIAL.goldFill }} />
+          <div className="absolute" style={{ left: `${Math.min(100, Math.max(2, level.progressPct))}%`, top: -2, width: 5, height: 5, borderRadius: "50%", background: GOLD_SOFT, boxShadow: MATERIAL.shadowGold, transform: "translateX(-50%)" }} />
+        </div>
+        <div className="flex justify-between mt-2 text-[11px]" style={{ color: MUTED }}>
+          <span>{fmt(dash.lifetimeEarned)}</span>
+          <span>{level.nextName ? `${fmt(Math.max(0, (level.nextAt ?? 0) - dash.lifetimeEarned))} to ${level.nextName}` : "Max level"}</span>
         </div>
       </div>
 
@@ -307,7 +293,7 @@ export default function PartnerDashboardPage() {
               <button
                 onClick={share}
                 className="px-4 py-2.5 rounded-xl text-sm font-bold shrink-0"
-                style={{ background: GREEN, color: "#fff" }}
+                style={{ background: GREEN2, color: TEXT, border: `0.5px solid ${BORDER}` }}
               >
                 {copied ? "Copied ✓" : "Share"}
               </button>
@@ -367,7 +353,7 @@ export default function PartnerDashboardPage() {
                 </div>
                 <span
                   className="text-sm font-black shrink-0"
-                  style={{ color: t.delta >= 0 ? "#2b7a4b" : "#b04a4a" }}
+                  style={{ color: t.delta >= 0 ? "#E8C15A" : "#b04a4a" }}
                 >
                   {t.delta >= 0 ? "+" : ""}{fmt(t.delta)}
                 </span>
@@ -454,7 +440,7 @@ function MissionsSection({
                         <p className="text-[11px] truncate" style={{ color: MUTED }}>{m.description}</p>
                       </div>
                       {m.claimed ? (
-                        <span className="text-xs font-bold px-3 py-1.5 rounded-full shrink-0" style={{ background: "#eef4ee", color: "#2b7a4b" }}>
+                        <span className="text-xs font-bold px-3 py-1.5 rounded-full shrink-0" style={{ background: "rgba(232,193,90,0.12)", color: "#E8C15A" }}>
                           Claimed ✓
                         </span>
                       ) : m.completed ? (
@@ -475,7 +461,7 @@ function MissionsSection({
                     {!m.claimed && (
                       <div className="mt-2.5 flex items-center gap-2">
                         <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: BG }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(2, pct)}%`, background: m.completed ? "#2b7a4b" : `linear-gradient(90deg, ${GREEN2}, ${GOLD})` }} />
+                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(2, pct)}%`, background: m.completed ? "#E8C15A" : `linear-gradient(90deg, ${GREEN2}, ${GOLD})` }} />
                         </div>
                         <span className="text-[10px] font-semibold shrink-0" style={{ color: MUTED }}>
                           {fmt(m.progress)}/{fmt(m.target)}
@@ -509,11 +495,11 @@ function HubRow({ href, icon, label, hint }: { href: string; icon: string; label
 // ── Small presentational helpers ──────────────────────────────────────────────
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex flex-col min-h-screen" style={{ background: BG }}>
-      <div className="sticky top-0 z-10 px-4 pt-4 pb-3" style={{ background: BG, borderBottom: `1px solid ${BORDER}` }}>
+    <div className="flex-1 flex flex-col min-h-screen" style={{ background: MATERIAL.vignette }}>
+      <div className="sticky top-0 z-10 px-4 pt-4 pb-3 backdrop-blur-md" style={{ background: "rgba(8,9,11,0.72)", borderBottom: `0.5px solid ${BORDER}` }}>
         <div className="max-w-md mx-auto flex items-center justify-between gap-3">
-          <span className="text-base font-black" style={{ color: GREEN }}>Partner Dashboard</span>
-          <Link href="/settings/public-profile" className="text-xs font-semibold" style={{ color: GOLD }}>
+          <span className="text-base font-semibold tracking-wide" style={{ color: TEXT }}>Partner Dashboard</span>
+          <Link href="/settings/public-profile" className="text-xs font-semibold" style={{ color: MUTED }}>
             Public profile ↗
           </Link>
         </div>
