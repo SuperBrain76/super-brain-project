@@ -11,17 +11,18 @@ import {
   type NetworkGrowthPoint,
   type ReferralInvitee,
 } from "@/lib/network";
+import { MATERIAL } from "@/lib/brand";
 
-const INK = "#0f2419";
-const GREEN = "#1a3a2a";
-const GREEN2 = "#24513a";
-const GOLD = "#c9a227";
-const GOLD_SOFT = "#e7cf7a";
-const MUTED = "#7a8f82";
-const TEXT = "#12251b";
-const BORDER = "#e3e9dd";
-const BG = "#f6f4ee";
-const CARD = "#ffffff";
+const INK = "#2A2205";     // text on gold
+const GREEN = "#F5F5F2";   // primary ink (headings/text)
+const GREEN2 = "#1F1F25";  // dark elevated (bars/gradients)
+const GOLD = "#E8C15A";
+const GOLD_SOFT = "#F0D98B";
+const MUTED = "#8B8B93";
+const TEXT = "#F5F5F2";
+const BORDER = "rgba(255,255,255,0.08)";
+const BG = "#17181D";      // inset
+const CARD = "#111116";    // card
 
 function fmt(n: number) { return n.toLocaleString(); }
 function weekLabel(iso: string) {
@@ -48,9 +49,9 @@ export default function NetworkPage() {
 
   if (d === undefined) {
     return <Shell><div className="animate-pulse space-y-4">
-      <div className="h-40 rounded-3xl" style={{ background: "#e7ece4" }} />
-      <div className="h-24 rounded-2xl" style={{ background: "#e7ece4" }} />
-      <div className="h-48 rounded-2xl" style={{ background: "#e7ece4" }} />
+      <div className="h-40 rounded-3xl" style={{ background: "#17181D" }} />
+      <div className="h-24 rounded-2xl" style={{ background: "#17181D" }} />
+      <div className="h-48 rounded-2xl" style={{ background: "#17181D" }} />
     </div></Shell>;
   }
   if (d === null) {
@@ -62,23 +63,26 @@ export default function NetworkPage() {
 
   const sym = d.currency.symbol || "";
   const qualityBand = d.qualityScore >= 66 ? "Elite" : d.qualityScore >= 33 ? "Growing" : "Early";
-  const qualityColor = d.qualityScore >= 66 ? "#2b7a4b" : d.qualityScore >= 33 ? GOLD : "#b0772a";
+  const qualityColor = d.qualityScore >= 66 ? "#E8C15A" : d.qualityScore >= 33 ? GOLD : "#b0772a";
 
   return (
     <Shell>
-      {/* Hero: quality-first framing */}
+      {/* Hero: quality-first — sculpted */}
       <div className="rounded-3xl p-6 relative overflow-hidden"
-        style={{ background: `linear-gradient(160deg, ${GREEN2} 0%, ${INK} 100%)`, color: "#fff" }}>
-        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-20"
-          style={{ background: `radial-gradient(circle, ${GOLD}, transparent 70%)` }} />
-        <p className="text-xs uppercase tracking-widest" style={{ color: "#bfccc2" }}>Active Network</p>
-        <div className="flex items-end gap-3">
-          <span className="text-5xl font-black leading-none" style={{ color: GOLD_SOFT }}>{fmt(d.activeMembers)}</span>
-          <span className="text-sm mb-1" style={{ color: "#bfccc2" }}>of {fmt(d.totalSize)} referred</span>
+        style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
+        <div className="absolute -top-16 -right-16" style={{ width: 240, height: 240, background: MATERIAL.goldGlow }} />
+        <p className="text-[11px] uppercase relative" style={{ letterSpacing: "0.28em", color: MUTED }}>Active network</p>
+        <div className="flex items-end gap-3 relative">
+          <span className="text-6xl leading-none" style={{
+            fontWeight: 600, letterSpacing: "-0.03em", background: MATERIAL.goldFill,
+            WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent",
+            filter: "drop-shadow(0 6px 14px rgba(232,193,90,0.28))", fontVariantNumeric: "tabular-nums",
+          }}>{fmt(d.activeMembers)}</span>
+          <span className="text-sm mb-1.5" style={{ color: MUTED }}>of {fmt(d.totalSize)} referred</span>
         </div>
-        <div className="flex items-center gap-4 mt-3 text-xs" style={{ color: "#cdd8cf" }}>
+        <div className="flex items-center gap-4 mt-3 text-xs relative" style={{ color: MUTED }}>
           <span>⚡ {d.engagedRecent} active in {d.activeWindowDays}d</span>
-          <span>{sym} {fmt(d.networkEarned)} earned</span>
+          <span style={{ color: GOLD }}>{sym} {fmt(d.networkEarned)} earned</span>
         </div>
       </div>
 
@@ -159,7 +163,7 @@ export default function NetworkPage() {
             <GrowthChart data={d.growth} />
             <div className="flex items-center gap-4 mt-3 text-[11px]" style={{ color: MUTED }}>
               <span className="flex items-center gap-1"><i className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: GOLD }} /> new / week</span>
-              <span className="flex items-center gap-1"><i className="inline-block w-3 h-0.5" style={{ background: GREEN2 }} /> cumulative</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-0.5" style={{ background: MUTED }} /> cumulative</span>
             </div>
           </div>
         </Section>
@@ -200,7 +204,7 @@ export default function NetworkPage() {
                     {c.display_name}
                     {c.country ? <span className="ml-1.5 text-xs" style={{ color: MUTED }}>{c.country}</span> : null}
                   </p>
-                  <p className="text-[11px]" style={{ color: c.active ? "#2b7a4b" : MUTED }}>
+                  <p className="text-[11px]" style={{ color: c.active ? "#E8C15A" : MUTED }}>
                     {c.active ? "● active" : "○ inactive"}{c.level_name ? ` · ${c.level_name}` : ""}
                   </p>
                 </div>
@@ -231,10 +235,11 @@ export default function NetworkPage() {
       )}
 
       {/* Grow CTA */}
-      <Link href="/settings/public-profile" className="block rounded-2xl p-4 text-center"
-        style={{ background: `linear-gradient(160deg, ${GREEN2}, ${INK})`, color: "#fff" }}>
-        <p className="text-sm font-bold">Grow your active network</p>
-        <p className="text-xs mt-0.5" style={{ color: "#bfccc2" }}>Share your profile & referral code →</p>
+      <Link href="/settings/public-profile" className="block rounded-2xl p-4 text-center relative overflow-hidden"
+        style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -top-10" style={{ width: 200, height: 200, background: MATERIAL.goldGlow }} />
+        <p className="text-sm font-bold relative">Grow your active network</p>
+        <p className="text-xs mt-0.5 relative" style={{ color: MUTED }}>Share your profile & referral code →</p>
       </Link>
 
       <div className="h-4" />
@@ -264,11 +269,11 @@ function GrowthChart({ data }: { data: NetworkGrowthPoint[] }) {
         const y = H - pad - bh;
         return <rect key={i} x={x} y={y} width={bw * 0.6} height={Math.max(0, bh)} rx={2} fill={GOLD} opacity={0.55} />;
       })}
-      <polyline points={linePts} fill="none" stroke={GREEN2} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={linePts} fill="none" stroke={MUTED} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
       {data.map((p, i) => {
         const x = pad + i * bw + bw / 2;
         const y = H - pad - (p.cumulative / maxCum) * (H - pad * 2);
-        return <circle key={i} cx={x} cy={y} r={2.5} fill={GREEN2} />;
+        return <circle key={i} cx={x} cy={y} r={2.5} fill={MUTED} />;
       })}
       {data.map((p, i) => (
         (i === 0 || i === n - 1) ? (
@@ -289,9 +294,9 @@ function joinDate(iso: string) {
 }
 function StatusBadge({ status }: { status: ReferralInvitee["status"] }) {
   const map = {
-    pending: { label: "Pending", bg: "#f0ede6", color: "#8a8578" },
-    active:  { label: "Active",  bg: "#e7f3ea", color: "#2b7a4b" },
-    elite:   { label: "Elite",   bg: "#fff6dc", color: "#8a6d12" },
+    pending: { label: "Pending", bg: "rgba(255,255,255,0.05)", color: "#8B8B93" },
+    active:  { label: "Active",  bg: "rgba(53,197,111,0.12)",  color: "#5FCF8B" },
+    elite:   { label: "Elite",   bg: "rgba(232,193,90,0.14)",  color: "#E8C15A" },
   } as const;
   const s = map[status];
   return (
@@ -304,7 +309,7 @@ function StatusBadge({ status }: { status: ReferralInvitee["status"] }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex flex-col min-h-screen" style={{ background: BG }}>
+    <div className="flex-1 flex flex-col min-h-screen" style={{ background: MATERIAL.vignette }}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3" style={{ background: BG, borderBottom: `1px solid ${BORDER}` }}>
         <div className="max-w-md mx-auto flex items-center justify-between gap-3">
           <Link href="/iq" className="text-sm font-medium" style={{ color: MUTED }}>← Dashboard</Link>

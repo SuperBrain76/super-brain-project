@@ -7,17 +7,18 @@ import { useAuth } from "@/components/AuthProvider";
 import { getOnboardingStatus, setOnboardingDone, type OnboardingStatus } from "@/lib/onboarding";
 import { dailyCheckin, getMyReferralCode } from "@/lib/economy";
 import { uploadProfileImage, updatePublicProfile } from "@/lib/publicProfile";
+import { MATERIAL } from "@/lib/brand";
 
-const INK = "#0f2419";
-const GREEN = "#1a3a2a";
-const GREEN2 = "#24513a";
-const GOLD = "#c9a227";
-const GOLD_SOFT = "#e7cf7a";
-const MUTED = "#7a8f82";
-const TEXT = "#12251b";
-const BORDER = "#e3e9dd";
-const BG = "#f6f4ee";
-const CARD = "#ffffff";
+const INK = "#2A2205";     // text on gold
+const GREEN = "#1F1F25";   // dark elevated fill (secondary buttons)
+const GREEN2 = "#1F1F25";
+const GOLD = "#E8C15A";
+const GOLD_SOFT = "#F0D98B";
+const MUTED = "#8B8B93";
+const TEXT = "#F5F5F2";
+const BORDER = "rgba(255,255,255,0.08)";
+const BG = "#17181D";      // inset
+const CARD = "#111116";    // card
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -73,9 +74,9 @@ export default function WelcomePage() {
 
   if (loading || st === undefined) {
     return <Shell><div className="animate-pulse space-y-3">
-      <div className="h-40 rounded-3xl" style={{ background: "#e7ece4" }} />
-      <div className="h-16 rounded-2xl" style={{ background: "#e7ece4" }} />
-      <div className="h-16 rounded-2xl" style={{ background: "#e7ece4" }} />
+      <div className="h-40 rounded-3xl" style={{ background: "#17181D" }} />
+      <div className="h-16 rounded-2xl" style={{ background: "#17181D" }} />
+      <div className="h-16 rounded-2xl" style={{ background: "#17181D" }} />
     </div></Shell>;
   }
   if (!st || !st.authenticated) {
@@ -94,21 +95,22 @@ export default function WelcomePage() {
         <button onClick={finish} className="text-xs font-semibold" style={{ color: MUTED }}>Skip for now</button>
       </div>
 
-      {/* Welcome + one-sentence IQ explanation */}
-      <div className="rounded-3xl p-6 relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${GREEN2} 0%, ${INK} 100%)`, color: "#fff" }}>
-        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-20" style={{ background: `radial-gradient(circle, ${GOLD}, transparent 70%)` }} />
-        <p className="text-3xl mb-1">👋</p>
-        <h1 className="text-2xl font-black mb-1">Welcome to SuperBrain</h1>
-        <p className="text-sm" style={{ color: "#cdd8cf" }}>
-          <span style={{ color: GOLD_SOFT, fontWeight: 600 }}>IQ</span> is the reward you earn for everything you do here — play, predict, and climb the ranks.
+      {/* Welcome + one-sentence IQ explanation — sculpted */}
+      <div className="rounded-3xl p-6 relative overflow-hidden" style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
+        <div className="absolute -top-16 -right-16" style={{ width: 240, height: 240, background: MATERIAL.goldGlow }} />
+        <p className="text-3xl mb-1 relative">👋</p>
+        <h1 className="text-2xl font-black mb-1 relative">Welcome to SuperBrain</h1>
+        <p className="text-sm relative" style={{ color: MUTED }}>
+          <span style={{ color: GOLD, fontWeight: 600 }}>IQ</span> is the reward you earn for everything you do here — play, predict, and climb the ranks.
         </p>
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: "#bfccc2" }}>
+        <div className="mt-5 relative">
+          <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: MUTED }}>
             <span>{coreDone} of 5 done</span>
             <span>{sym} {st.iqEarned.toLocaleString()} earned</span>
           </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(3, pct)}%`, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_SOFT})` }} />
+          <div className="relative" style={{ height: 1, background: BORDER }}>
+            <div className="absolute left-0 top-0" style={{ height: 1, width: `${Math.max(3, pct)}%`, background: MATERIAL.goldFill }} />
+            <div className="absolute" style={{ left: `${Math.max(3, pct)}%`, top: -2, width: 5, height: 5, borderRadius: "50%", background: GOLD_SOFT, boxShadow: MATERIAL.shadowGold, transform: "translateX(-50%)" }} />
           </div>
         </div>
       </div>
@@ -161,7 +163,7 @@ export default function WelcomePage() {
 // ── helpers ───────────────────────────────────────────────────────────────────
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex flex-col min-h-screen" style={{ background: BG }}>
+    <div className="flex-1 flex flex-col min-h-screen" style={{ background: MATERIAL.vignette }}>
       <div className="flex-1 px-4 py-5">
         <div className="max-w-md mx-auto space-y-3">{children}</div>
       </div>
@@ -174,7 +176,7 @@ function StepCard({ done, highlight, icon, title, subtitle, children }: {
 }) {
   return (
     <div className="rounded-2xl p-3.5 flex items-center gap-3" style={{
-      background: done ? "#f2f7f2" : CARD,
+      background: done ? "#15161A" : CARD,
       border: `1px solid ${highlight ? GOLD : BORDER}`,
       opacity: done ? 0.85 : 1,
     }}>
