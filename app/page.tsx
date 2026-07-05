@@ -4,6 +4,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import HomepageAnalytics from "@/components/HomepageAnalytics";
 import HeroSection from "@/components/HeroSection";
 import { WhatsAppHeroCard } from "@/components/WhatsAppChannelCard";
+import { BRAND } from "@/lib/brand";
 
 const FEATURES = [
   {
@@ -84,46 +85,41 @@ export default function LandingPage() {
       <HeroSection>
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 90% 55% at 50% -10%, rgba(0,212,255,0.12) 0%, transparent 65%)",
-          }}
+          style={{ background: "radial-gradient(ellipse 90% 55% at 50% -10%, rgba(232,193,90,0.10) 0%, transparent 62%)" }}
         />
         <div
           className="absolute bottom-0 inset-x-0 h-32 pointer-events-none"
-          style={{ background: "linear-gradient(to bottom, transparent, #080b0f)" }}
+          style={{ background: `linear-gradient(to bottom, transparent, ${BRAND.black})` }}
         />
 
         <div className="relative max-w-5xl mx-auto px-5 pt-16 pb-20 text-center">
 
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2.5 border border-cockpit-accent border-opacity-25 bg-cockpit-surface px-4 py-2 rounded-sm mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-cockpit-green animate-pulse" />
-            <span className="text-cockpit-green text-xs tracking-widest uppercase font-mono">
-              Free to Play · World Cup 2026
+          {/* Badge — Sports module accent (emerald), inside the black shell */}
+          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-8"
+            style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BRAND.sports }} />
+            <span className="text-xs tracking-[0.2em] uppercase" style={{ color: BRAND.sports }}>
+              Free to play · World Cup 2026
             </span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.04] mb-6">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.04] mb-6" style={{ color: BRAND.ink }}>
             The World Cup<br />
-            <span
-              className="text-cockpit-accent"
-              style={{ textShadow: "0 0 80px rgba(0,212,255,0.4)" }}
-            >
+            <span style={{ color: BRAND.sports, textShadow: "0 0 90px rgba(53,197,111,0.35)" }}>
               Predictor
             </span>
           </h1>
 
-          <p className="text-cockpit-dim text-base sm:text-xl max-w-lg mx-auto leading-relaxed mb-10">
+          <p className="text-base sm:text-xl max-w-lg mx-auto leading-relaxed mb-10" style={{ color: BRAND.muted }}>
             Predict every match. Earn points. Beat your friends. Compete for the{" "}
-            <span className="text-white font-semibold">SB Champion Watch</span>.
+            <span style={{ color: BRAND.gold, fontWeight: 600 }}>SB Champion Watch</span>.
           </p>
 
           {/* Countdown */}
           <div className="mb-10">
-            <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-4">
-              First Kickoff · June 11, 2026
+            <p className="text-xs tracking-[0.2em] uppercase mb-4" style={{ color: BRAND.dim }}>
+              First kickoff · June 11, 2026
             </p>
             <div className="flex justify-center">
               <CountdownTimer />
@@ -133,13 +129,15 @@ export default function LandingPage() {
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/predict" className="w-full sm:w-auto relative z-10">
-              <button className="btn-primary text-sm sm:text-base px-10 py-4 w-full sm:w-auto">
-                Join Free — Start Predicting →
+              <button className="text-sm sm:text-base font-bold px-10 py-4 w-full sm:w-auto rounded-full transition-transform active:scale-95"
+                style={{ background: BRAND.sports, color: "#04140B" }}>
+                Join free — start predicting →
               </button>
             </Link>
             <Link href="/predict/leaderboard" className="w-full sm:w-auto relative z-10">
-              <button className="btn-ghost text-sm px-8 py-4 w-full sm:w-auto">
-                View Leaderboard
+              <button className="text-sm px-8 py-4 w-full sm:w-auto rounded-full transition-colors"
+                style={{ background: "transparent", color: BRAND.muted, border: `0.5px solid ${BRAND.hairline}` }}>
+                View leaderboard
               </button>
             </Link>
           </div>
@@ -154,12 +152,12 @@ export default function LandingPage() {
             {[
               { v: "104", l: "Matches" },
               { v: "48",  l: "Teams" },
-              { v: "7",   l: "Bonus Questions" },
+              { v: "7",   l: "Bonus questions" },
               { v: "Free", l: "Always" },
             ].map((s) => (
               <div key={s.l} className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold number-display text-cockpit-accent">{s.v}</div>
-                <div className="text-cockpit-muted text-xs tracking-widest uppercase mt-1">{s.l}</div>
+                <div className="text-2xl sm:text-3xl font-semibold" style={{ color: BRAND.ink, fontVariantNumeric: "tabular-nums" }}>{s.v}</div>
+                <div className="text-xs tracking-[0.14em] uppercase mt-1" style={{ color: BRAND.dim }}>{s.l}</div>
               </div>
             ))}
           </div>
