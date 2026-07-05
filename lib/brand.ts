@@ -35,6 +35,23 @@ export const BRAND = {
   neutral: "#F5F5F2",    // cross-module (Rankings, generic)
 } as const;
 
+// ── Material & light (sculpted, from the app icon: metallic gold on luminous
+// black, a fine gold ring, a neural glow). Use as inline CSS values. ──────────
+export const MATERIAL = {
+  // Polished-gold fill (catches light top-left → deepens bottom-right).
+  goldFill: "linear-gradient(140deg, #F6E6A8 0%, #E8C15A 42%, #B8972A 78%, #8A6D12 100%)",
+  // Luminous-black elevation — lit from above, not a flat card.
+  raise: "linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 12%, rgba(255,255,255,0) 40%), #101116",
+  // The icon's glow — light source behind value.
+  goldGlow: "radial-gradient(closest-side, rgba(232,193,90,0.22), rgba(232,193,90,0.06) 55%, transparent 75%)",
+  // Ambient page vignette so black reads sculpted, not painted.
+  vignette: "radial-gradient(120% 90% at 50% -10%, rgba(232,193,90,0.06), transparent 45%), radial-gradient(100% 100% at 50% 120%, rgba(0,0,0,0.6), transparent 55%), #08090B",
+  ring: "rgba(232,193,90,0.55)",
+  ringFaint: "rgba(232,193,90,0.22)",
+  shadowSoft: "0 24px 60px -24px rgba(0,0,0,0.85)",
+  shadowGold: "0 10px 30px -10px rgba(232,193,90,0.35)",
+} as const;
+
 export type ModuleKey = "iq" | "sports" | "tests" | "battle" | "neutral";
 
 /** Accent for a module — gold for the economy/identity (value), colour elsewhere. */
