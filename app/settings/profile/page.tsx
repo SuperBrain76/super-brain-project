@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { loadMyProfile, saveProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { COUNTRIES } from "@/lib/countries";
+import { BRAND, MATERIAL } from "@/lib/brand";
 
 // ── Option lists ──────────────────────────────────────────────
 
@@ -62,10 +63,10 @@ function Field({
 }: { label: string; hint?: string; error?: string | null; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-cockpit-dim text-xs tracking-widest uppercase font-mono">{label}</label>
+      <label className="text-[#A0A0A8] text-xs tracking-widest uppercase font-mono">{label}</label>
       {children}
       {error   && <p className="text-red-400 text-xs mt-0.5">{error}</p>}
-      {!error && hint && <p className="text-cockpit-muted text-xs">{hint}</p>}
+      {!error && hint && <p className="text-[#6B6B73] text-xs">{hint}</p>}
     </div>
   );
 }
@@ -74,7 +75,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-5">
       <h2 className="text-white font-semibold text-sm whitespace-nowrap">{children}</h2>
-      <div className="flex-1 h-px bg-cockpit-border" />
+      <div className="flex-1 h-px" style={{ background: BRAND.hairline }} />
     </div>
   );
 }
@@ -102,17 +103,17 @@ function CountrySelect({ value, onChange }: { value: string; onChange: (v: strin
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search country…"
-        className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+        className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73]"
       />
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full bg-cockpit-card border border-cockpit-border rounded-sm max-h-48 overflow-y-auto shadow-xl">
+        <ul className="absolute z-50 mt-1 w-full bg-[#141418] border border-[#23232B] rounded-sm max-h-48 overflow-y-auto shadow-xl">
           {filtered.map((c) => (
             <li key={c.code}>
               <button
                 type="button"
                 onMouseDown={() => select(c.name)}
-                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors hover:bg-cockpit-surface ${
-                  value === c.name ? "text-cockpit-accent" : "text-cockpit-text"
+                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors hover:bg-[#17181D] ${
+                  value === c.name ? "text-[#F5F5F2] font-semibold" : "text-[#F5F5F2]"
                 }`}
               >
                 <span className="w-5 text-base shrink-0">
@@ -181,8 +182,8 @@ export default function ProfileSettingsPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen hud-grid flex items-center justify-center">
-        <p className="text-cockpit-dim text-sm animate-pulse">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: MATERIAL.vignette }}>
+        <p className="text-[#A0A0A8] text-sm animate-pulse">Loading…</p>
       </div>
     );
   }
@@ -252,24 +253,24 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen hud-grid">
+    <div className="min-h-screen" style={{ background: MATERIAL.vignette }}>
       <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 w-full">
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 mb-6 text-xs text-cockpit-muted font-mono">
-          <Link href="/iq" className="hover:text-cockpit-dim transition-colors">You</Link>
-          <span className="text-cockpit-border">/</span>
-          <span className="text-cockpit-dim">Profile settings</span>
+        <div className="flex items-center gap-2 mb-6 text-xs text-[#6B6B73] font-mono">
+          <Link href="/iq" className="hover:text-[#A0A0A8] transition-colors">You</Link>
+          <span className="text-[#3A3A42]">/</span>
+          <span className="text-[#A0A0A8]">Profile settings</span>
         </div>
 
         <h1 className="text-xl font-bold text-white mb-0.5">Profile settings</h1>
-        <p className="text-cockpit-muted text-xs mb-7 leading-relaxed">
+        <p className="text-[#6B6B73] text-xs mb-7 leading-relaxed">
           Display name and country are visible on the leaderboard.
-          Birth year, gender, and industry are <span className="text-cockpit-dim">never</span> shown publicly.
+          Birth year, gender, and industry are <span className="text-[#A0A0A8]">never</span> shown publicly.
         </p>
 
         {/* ── Avatar & identity ────────────────────────────── */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 mb-4">
+        <div className="bg-[#141418] border border-[#23232B] rounded-sm p-5 mb-4">
           <SectionHeading>Identity</SectionHeading>
 
           {/* Avatar preview */}
@@ -282,7 +283,7 @@ export default function ProfileSettingsPage() {
             </div>
             <div>
               <p className="text-white font-semibold text-sm leading-tight mb-2">
-                {displayName.trim() || <span className="text-cockpit-muted italic">No display name</span>}
+                {displayName.trim() || <span className="text-[#6B6B73] italic">No display name</span>}
               </p>
               <div className="flex gap-1.5 flex-wrap">
                 {AVATAR_COLORS.map((c) => (
@@ -306,7 +307,7 @@ export default function ProfileSettingsPage() {
           {/* Account email — read-only */}
           <div className="mb-5">
             <Field label="Account email" hint="To change your email, contact support.">
-              <div className="w-full bg-cockpit-surface border border-cockpit-border rounded-sm px-4 py-2.5 text-sm text-cockpit-muted font-mono select-all">
+              <div className="w-full bg-[#17181D] border border-[#23232B] rounded-sm px-4 py-2.5 text-sm text-[#6B6B73] font-mono select-all">
                 {user.email}
               </div>
             </Field>
@@ -321,9 +322,9 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => { setDisplayName(e.target.value); setNameError(null); }}
                 maxLength={24}
                 placeholder="Your public name"
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted pr-14"
+                className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73] pr-14"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-cockpit-border text-xs font-mono">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#3A3A42] text-xs font-mono">
                 {displayName.length}/24
               </span>
             </div>
@@ -331,7 +332,7 @@ export default function ProfileSettingsPage() {
         </div>
 
         {/* ── Public profile ───────────────────────────────── */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 mb-4">
+        <div className="bg-[#141418] border border-[#23232B] rounded-sm p-5 mb-4">
           <SectionHeading>Public info</SectionHeading>
           <div className="flex flex-col gap-5">
             <Field label="Country" hint="Shown next to your name on the leaderboard.">
@@ -341,9 +342,9 @@ export default function ProfileSettingsPage() {
         </div>
 
         {/* ── Private info ─────────────────────────────────── */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5 mb-4">
+        <div className="bg-[#141418] border border-[#23232B] rounded-sm p-5 mb-4">
           <SectionHeading>Private info</SectionHeading>
-          <p className="text-cockpit-muted text-xs -mt-2 mb-5 leading-relaxed">
+          <p className="text-[#6B6B73] text-xs -mt-2 mb-5 leading-relaxed">
             Never shown publicly. Used only for leaderboard filters and test improvement.
           </p>
           <div className="flex flex-col gap-5">
@@ -352,7 +353,7 @@ export default function ProfileSettingsPage() {
               <select
                 value={birthYear}
                 onChange={(e) => setBirthYear(e.target.value)}
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+                className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors"
               >
                 <option value="">— Select year —</option>
                 {BIRTH_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -368,8 +369,8 @@ export default function ProfileSettingsPage() {
                     onClick={() => setGender(gender === g.value ? "" : g.value)}
                     className={`px-3 py-2.5 rounded-sm border text-sm text-left transition-all duration-150 ${
                       gender === g.value
-                        ? "border-cockpit-accent text-cockpit-accent bg-cockpit-accent bg-opacity-10"
-                        : "border-cockpit-border text-cockpit-dim hover:border-cockpit-dim"
+                        ? "border-white/25 text-[#F5F5F2] bg-white/5"
+                        : "border-[#23232B] text-[#A0A0A8] hover:border-white/25"
                     }`}
                   >
                     {g.label}
@@ -382,7 +383,7 @@ export default function ProfileSettingsPage() {
               <select
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors"
+                className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors"
               >
                 <option value="">— Select industry —</option>
                 {INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
@@ -403,12 +404,13 @@ export default function ProfileSettingsPage() {
           <button
             onClick={handleSaveProfile}
             disabled={saving}
-            className="btn-primary flex items-center gap-2"
+            className="flex items-center gap-2 font-bold text-sm px-8 py-3 rounded-full transition-transform active:scale-[0.98] disabled:opacity-60"
+            style={{ background: BRAND.ink, color: BRAND.black }}
           >
             {saving ? "Saving…" : "Save changes"}
           </button>
           {saved && (
-            <span className="text-green-400 text-sm flex items-center gap-1.5">
+            <span className="text-sm flex items-center gap-1.5" style={{ color: BRAND.sports }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -418,9 +420,9 @@ export default function ProfileSettingsPage() {
         </div>
 
         {/* ── Change password ───────────────────────────────── */}
-        <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-5">
+        <div className="bg-[#141418] border border-[#23232B] rounded-sm p-5">
           <SectionHeading>Change password</SectionHeading>
-          <p className="text-cockpit-muted text-xs -mt-2 mb-5">
+          <p className="text-[#6B6B73] text-xs -mt-2 mb-5">
             Must be at least 8 characters. Leave blank to keep your current password.
           </p>
 
@@ -432,7 +434,7 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => { setNewPw(e.target.value); setPwError(null); }}
                 placeholder="Minimum 8 characters"
                 autoComplete="new-password"
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+                className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73]"
               />
             </Field>
 
@@ -443,7 +445,7 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => { setConfirmPw(e.target.value); setPwError(null); }}
                 placeholder="Repeat new password"
                 autoComplete="new-password"
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-cockpit-accent transition-colors placeholder:text-cockpit-muted"
+                className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-white/30 transition-colors placeholder:text-[#6B6B73]"
               />
             </Field>
 
@@ -451,7 +453,7 @@ export default function ProfileSettingsPage() {
               <p className="text-red-400 text-xs">{pwError}</p>
             )}
             {pwDone && (
-              <p className="text-green-400 text-xs flex items-center gap-1.5">
+              <p className="text-xs flex items-center gap-1.5" style={{ color: BRAND.sports }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -463,7 +465,8 @@ export default function ProfileSettingsPage() {
               <button
                 type="submit"
                 disabled={pwBusy || !newPw}
-                className="btn-ghost"
+                className="px-6 py-2 rounded-full border text-sm font-semibold transition-colors disabled:opacity-40"
+                style={{ borderColor: "#23232B", color: BRAND.muted }}
               >
                 {pwBusy ? "Updating…" : "Update password"}
               </button>
@@ -472,9 +475,9 @@ export default function ProfileSettingsPage() {
         </div>
 
         {/* ── Danger Zone — account deletion ───────────── */}
-        <div className="bg-cockpit-card border border-red-500 border-opacity-30 rounded-sm p-5 mt-6">
+        <div className="bg-[#141418] border border-red-500 border-opacity-30 rounded-sm p-5 mt-6">
           <SectionHeading>Danger Zone</SectionHeading>
-          <p className="text-cockpit-muted text-xs -mt-2 mb-5 leading-relaxed">
+          <p className="text-[#6B6B73] text-xs -mt-2 mb-5 leading-relaxed">
             Permanently deletes your account and all associated data — predictions, results, league memberships, and profile. This cannot be undone.
           </p>
           <div className="flex flex-col gap-3">
@@ -484,7 +487,7 @@ export default function ProfileSettingsPage() {
                 value={deleteConfirm}
                 onChange={(e) => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
                 placeholder="DELETE"
-                className="w-full bg-cockpit-surface border border-cockpit-border text-cockpit-text rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-cockpit-muted font-mono"
+                className="w-full bg-[#17181D] border border-[#23232B] text-[#F5F5F2] rounded-sm px-4 py-2.5 text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-[#6B6B73] font-mono"
               />
             </Field>
             {deleteError && <p className="text-red-400 text-xs">{deleteError}</p>}
@@ -501,8 +504,8 @@ export default function ProfileSettingsPage() {
           </div>
         </div>
 
-        <p className="text-cockpit-muted text-xs text-center mt-6">
-          <Link href="/iq" className="hover:text-cockpit-dim transition-colors">
+        <p className="text-[#6B6B73] text-xs text-center mt-6">
+          <Link href="/iq" className="hover:text-[#A0A0A8] transition-colors">
             ← Back to You
           </Link>
         </p>

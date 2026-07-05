@@ -11,6 +11,7 @@ import { getContributionLeaderboard } from "@/lib/economy";
 import { getNetworkLeaderboard } from "@/lib/network";
 import { getBattleLeaderboard } from "@/lib/battle";
 import { getPredictorLeaderboard, getCompetition } from "@/lib/predictor";
+import { BRAND, MATERIAL } from "@/lib/brand";
 
 type Segment = "predictions" | "iq" | "network" | "battles" | "tests";
 const SEGMENTS: { key: Segment; label: string }[] = [
@@ -33,23 +34,23 @@ const TESTS = [
 ] as const;
 
 function RankBadge({ rank }: { rank: number }) {
-  const styles: Record<number, { bg: string; color: string; border: string }> = {
-    1: { bg: "#ffab0020", color: "#ffab00", border: "#ffab0040" },
-    2: { bg: "#94a3b820", color: "#94a3b8", border: "#94a3b840" },
-    3: { bg: "#cd7c3220", color: "#cd7c32", border: "#cd7c3240" },
+  const styles: Record<number, { bg: string; color: string; border: string; glow?: string }> = {
+    1: { bg: "rgba(232,193,90,0.14)", color: BRAND.gold, border: "rgba(232,193,90,0.4)", glow: MATERIAL.shadowGold },
+    2: { bg: "rgba(200,205,215,0.10)", color: "#C8CDD7", border: "rgba(200,205,215,0.28)" },
+    3: { bg: "rgba(205,140,90,0.12)", color: "#CD8C5A", border: "rgba(205,140,90,0.3)" },
   };
   const s = styles[rank];
   if (s)
     return (
       <div
-        className="w-8 h-8 rounded-sm flex items-center justify-center text-sm font-black"
-        style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+        className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black"
+        style={{ background: s.bg, color: s.color, border: `0.5px solid ${s.border}`, boxShadow: s.glow }}
       >
         {rank}
       </div>
     );
   return (
-    <div className="w-8 h-8 flex items-center justify-center text-sm font-mono text-cockpit-muted">
+    <div className="w-8 h-8 flex items-center justify-center text-sm font-mono" style={{ color: BRAND.dim }}>
       {rank}
     </div>
   );
@@ -57,13 +58,13 @@ function RankBadge({ rank }: { rank: number }) {
 
 function SkeletonRow({ i }: { i: number }) {
   return (
-    <div className="flex items-center gap-4 px-5 py-4 border-b border-cockpit-border last:border-0">
-      <div className="w-8 h-8 rounded-sm bg-cockpit-border animate-pulse" />
+    <div className="flex items-center gap-4 px-2 py-4 border-b border-white/[0.07] last:border-0">
+      <div className="w-8 h-8 rounded-sm bg-white/[0.07] animate-pulse" />
       <div className="flex-1 flex flex-col gap-2">
-        <div className="h-3 w-28 bg-cockpit-border rounded animate-pulse" style={{ animationDelay: `${i * 60}ms` }} />
-        <div className="h-2.5 w-16 bg-cockpit-border rounded animate-pulse opacity-60" style={{ animationDelay: `${i * 80}ms` }} />
+        <div className="h-3 w-28 bg-white/[0.07] rounded animate-pulse" style={{ animationDelay: `${i * 60}ms` }} />
+        <div className="h-2.5 w-16 bg-white/[0.07] rounded animate-pulse opacity-60" style={{ animationDelay: `${i * 80}ms` }} />
       </div>
-      <div className="h-5 w-8 bg-cockpit-border rounded animate-pulse" />
+      <div className="h-5 w-8 bg-white/[0.07] rounded animate-pulse" />
     </div>
   );
 }
@@ -126,27 +127,26 @@ export default function LeaderboardPage() {
   );
 
   return (
-    <div className="min-h-screen hud-grid">
-      <div className="max-w-3xl mx-auto px-5 py-6">
+    <div className="min-h-screen" style={{ background: MATERIAL.vignette }}>
+      <div className="max-w-3xl mx-auto px-5 py-8">
 
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="mb-8">
-          <p className="text-cockpit-muted text-xs tracking-widest uppercase mb-2 font-mono">Global Rankings</p>
-          <h1 className="text-3xl font-extrabold text-white">Leaderboard</h1>
-          <p className="text-cockpit-dim text-sm mt-1">Best score per player · sorted highest first.</p>
+          <p className="text-xs tracking-[0.28em] uppercase mb-2" style={{ color: BRAND.dim }}>Global Rankings</p>
+          <h1 className="text-4xl font-extrabold" style={{ color: BRAND.ink }}>Leaderboard</h1>
+          <p className="text-sm mt-1.5" style={{ color: BRAND.muted }}>Best score per player · sorted highest first.</p>
         </div>
 
-        {/* ── Segment switcher — all leaderboards in one home ── */}
-        <div className="flex gap-1 mb-5 p-1 bg-cockpit-surface border border-cockpit-border rounded-sm overflow-x-auto scrollbar-none">
+        {/* ── Segment switcher — boxless, pill-lit ──────────── */}
+        <div className="flex gap-1.5 mb-7 overflow-x-auto scrollbar-none">
           {SEGMENTS.map((s) => (
             <button
               key={s.key}
               onClick={() => setSegment(s.key)}
-              className={`shrink-0 px-3.5 py-2 rounded-sm text-xs font-bold tracking-wide transition-all duration-150 ${
-                segment === s.key
-                  ? "bg-cockpit-card text-white border border-cockpit-border"
-                  : "text-cockpit-muted hover:text-cockpit-dim"
-              }`}
+              className="shrink-0 px-4 py-2 rounded-full text-xs font-bold tracking-wide transition-all duration-150 active:scale-95"
+              style={segment === s.key
+                ? { background: BRAND.ink, color: BRAND.black }
+                : { background: "transparent", color: BRAND.dim, border: `0.5px solid ${BRAND.hairline}` }}
             >
               {s.label}
             </button>
@@ -157,16 +157,15 @@ export default function LeaderboardPage() {
 
         {segment === "tests" && (<>
         {/* ── Test filter tabs ───────────────────────────────── */}
-        <div className="flex gap-1 mb-4 p-1 bg-cockpit-surface border border-cockpit-border rounded-sm overflow-x-auto scrollbar-none">
+        <div className="flex gap-1.5 mb-5 overflow-x-auto scrollbar-none">
           {TESTS.map((t, i) => (
             <button
               key={t.name}
               onClick={() => { setTestIdx(i); setCountry(""); }}
-              className={`shrink-0 px-3 py-2 rounded-sm text-xs font-semibold tracking-wide transition-all duration-150 ${
-                i === testIdx
-                  ? "bg-cockpit-card text-white border border-cockpit-border"
-                  : "text-cockpit-muted hover:text-cockpit-dim"
-              }`}
+              className="shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-150 active:scale-95"
+              style={i === testIdx
+                ? { background: "rgba(255,255,255,0.08)", color: BRAND.ink, border: `0.5px solid ${BRAND.hairlineStrong}` }
+                : { background: "transparent", color: BRAND.dim, border: `0.5px solid ${BRAND.hairline}` }}
             >
               {t.label}
             </button>
@@ -177,22 +176,22 @@ export default function LeaderboardPage() {
         {isSupabaseConfigured && stats && !hasError && (
           <div className="flex items-center gap-5 mb-3 px-1 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <div className="w-1 h-1 rounded-full bg-cockpit-accent" />
-              <span className="text-cockpit-muted text-xs">
-                <span className="text-cockpit-dim font-medium">{stats.totalAttempts.toLocaleString()}</span>{" "}
+              <div className="w-1 h-1 rounded-full bg-white/40" />
+              <span className="text-[#6B6B73] text-xs">
+                <span className="text-[#A0A0A8] font-medium">{stats.totalAttempts.toLocaleString()}</span>{" "}
                 {stats.totalAttempts === 1 ? "attempt" : "attempts"}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-1 h-1 rounded-full bg-cockpit-green" />
-              <span className="text-cockpit-muted text-xs">
-                <span className="text-cockpit-dim font-medium">{stats.totalPlayers.toLocaleString()}</span>{" "}
+              <div className="w-1 h-1 rounded-full bg-[#35C56F]" />
+              <span className="text-[#6B6B73] text-xs">
+                <span className="text-[#A0A0A8] font-medium">{stats.totalPlayers.toLocaleString()}</span>{" "}
                 {stats.totalPlayers === 1 ? "player" : "players"}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-1 h-1 rounded-full bg-cockpit-border" />
-              <span className="text-cockpit-muted text-xs">Best score per player shown</span>
+              <div className="w-1 h-1 rounded-full bg-white/[0.07]" />
+              <span className="text-[#6B6B73] text-xs">Best score per player shown</span>
             </div>
           </div>
         )}
@@ -200,11 +199,11 @@ export default function LeaderboardPage() {
         {/* ── Country filter ─────────────────────────────────── */}
         {countries.length > 0 && (
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-cockpit-muted text-xs">Filter:</span>
+            <span className="text-[#6B6B73] text-xs">Filter:</span>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="bg-cockpit-card border border-cockpit-border text-cockpit-dim rounded-sm px-2 py-1 text-xs focus:outline-none focus:border-cockpit-accent transition-colors"
+              className="bg-[#111116] border border-white/[0.07] text-[#A0A0A8] rounded-sm px-2 py-1 text-xs focus:outline-none focus:border-white/30 transition-colors"
             >
               <option value="">All countries</option>
               {countries.map((c) => (
@@ -216,7 +215,7 @@ export default function LeaderboardPage() {
             {country && (
               <button
                 onClick={() => setCountry("")}
-                className="text-cockpit-muted text-xs hover:text-cockpit-accent transition-colors"
+                className="text-[#6B6B73] text-xs hover:text-[#F5F5F2] transition-colors"
               >
                 ✕ Clear
               </button>
@@ -226,12 +225,12 @@ export default function LeaderboardPage() {
 
         {/* ── Not configured ─────────────────────────────────── */}
         {!isSupabaseConfigured && (
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-10 text-center">
-            <p className="text-cockpit-dim mb-2">Leaderboard requires Supabase.</p>
-            <p className="text-cockpit-muted text-xs">
+          <div className="bg-[#111116] border border-white/[0.07] rounded-sm p-10 text-center">
+            <p className="text-[#A0A0A8] mb-2">Leaderboard requires Supabase.</p>
+            <p className="text-[#6B6B73] text-xs">
               Add{" "}
-              <code className="font-mono text-cockpit-accent">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-              <code className="font-mono text-cockpit-accent">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to{" "}
+              <code className="font-mono text-[#F5F5F2]">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+              <code className="font-mono text-[#F5F5F2]">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to{" "}
               <code className="font-mono">.env.local</code>.
             </p>
           </div>
@@ -239,10 +238,10 @@ export default function LeaderboardPage() {
 
         {/* ── Error state ────────────────────────────────────── */}
         {isSupabaseConfigured && hasError && (
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-10 text-center">
-            <p className="text-cockpit-dim mb-1">Could not load the leaderboard.</p>
-            <p className="text-cockpit-muted text-xs mb-6">Check your connection and try again.</p>
-            <button onClick={fetchData} className="btn-primary">
+          <div className="bg-[#111116] border border-white/[0.07] rounded-sm p-10 text-center">
+            <p className="text-[#A0A0A8] mb-1">Could not load the leaderboard.</p>
+            <p className="text-[#6B6B73] text-xs mb-6">Check your connection and try again.</p>
+            <button onClick={fetchData} className="rounded-full bg-[#F5F5F2] text-[#0B0B0D] font-bold px-6 py-2.5 text-sm transition-transform active:scale-95">
               Retry
             </button>
           </div>
@@ -250,16 +249,16 @@ export default function LeaderboardPage() {
 
         {/* ── Table ──────────────────────────────────────────── */}
         {isSupabaseConfigured && !hasError && (
-          <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
+          <div className="overflow-hidden">
 
             {/* Column headers */}
-            <div className="flex items-center gap-4 px-5 py-3 border-b border-cockpit-border bg-cockpit-surface">
+            <div className="flex items-center gap-4 px-2 py-3 border-b border-white/[0.07]">
               <div className="w-8 shrink-0" />
               <div className="flex-1 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center">
-                <span className="text-cockpit-muted text-xs tracking-widest uppercase">Player</span>
-                <span className="text-cockpit-muted text-xs tracking-widest uppercase w-14 text-right">Score</span>
-                <span className="text-cockpit-muted text-xs tracking-widest uppercase w-20 text-right hidden sm:block">Percentile</span>
-                <span className="text-cockpit-muted text-xs tracking-widest uppercase w-28 text-right hidden md:block">Title</span>
+                <span className="text-[#6B6B73] text-xs tracking-widest uppercase">Player</span>
+                <span className="text-[#6B6B73] text-xs tracking-widest uppercase w-14 text-right">Score</span>
+                <span className="text-[#6B6B73] text-xs tracking-widest uppercase w-20 text-right hidden sm:block">Percentile</span>
+                <span className="text-[#6B6B73] text-xs tracking-widest uppercase w-28 text-right hidden md:block">Title</span>
               </div>
             </div>
 
@@ -269,12 +268,12 @@ export default function LeaderboardPage() {
             {/* Empty */}
             {!fetching && entries.length === 0 && (
               <div className="py-6 text-center">
-                <p className="text-cockpit-dim mb-1">No entries yet.</p>
-                <p className="text-cockpit-muted text-xs mb-6">
+                <p className="text-[#A0A0A8] mb-1">No entries yet.</p>
+                <p className="text-[#6B6B73] text-xs mb-6">
                   Be first — take the test and save your result.
                 </p>
                 <Link href={activeTest.href}>
-                  <button className="btn-primary">Take the {activeTest.label} Test →</button>
+                  <button className="rounded-full bg-[#F5F5F2] text-[#0B0B0D] font-bold px-6 py-2.5 text-sm transition-transform active:scale-95">Take the {activeTest.label} Test →</button>
                 </Link>
               </div>
             )}
@@ -288,7 +287,7 @@ export default function LeaderboardPage() {
                 return (
                   <div
                     key={`${entry.displayName}-${entry.rank}`}
-                    className="flex items-center gap-4 px-5 py-4 border-b border-cockpit-border last:border-0 hover:bg-cockpit-surface transition-colors"
+                    className="flex items-center gap-4 px-2 py-4 border-b border-white/[0.07] last:border-0 hover:bg-white/[0.03] transition-colors"
                   >
                     <div className="shrink-0">
                       <RankBadge rank={entry.rank} />
@@ -299,7 +298,7 @@ export default function LeaderboardPage() {
                       <div className="min-w-0">
                         <p className="text-white text-sm font-semibold truncate">{entry.displayName}</p>
                         {entry.country && (
-                          <p className="text-cockpit-muted text-xs mt-0.5">
+                          <p className="text-[#6B6B73] text-xs mt-0.5">
                             {flag && <span className="mr-1">{flag}</span>}
                             {entry.country}
                           </p>
@@ -315,8 +314,8 @@ export default function LeaderboardPage() {
 
                       {/* Percentile */}
                       <div className="w-20 text-right hidden sm:block">
-                        <span className="text-cockpit-dim text-xs">
-                          Top <span className="text-cockpit-accent font-semibold number-display">{topPct}%</span>
+                        <span className="text-[#A0A0A8] text-xs">
+                          Top <span className="text-[#F5F5F2] font-semibold number-display">{topPct}%</span>
                         </span>
                       </div>
 
@@ -335,13 +334,13 @@ export default function LeaderboardPage() {
 
         {/* ── CTA ────────────────────────────────────────────── */}
         {isSupabaseConfigured && !fetching && !hasError && (
-          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border border-cockpit-border rounded-sm">
-            <p className="text-cockpit-dim text-sm">
+          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border border-white/[0.07] rounded-sm">
+            <p className="text-[#A0A0A8] text-sm">
               Not on the board?{" "}
-              <span className="text-cockpit-muted">Sign in to save results.</span>
+              <span className="text-[#6B6B73]">Sign in to save results.</span>
             </p>
             <Link href={activeTest.href}>
-              <button className="btn-primary shrink-0">Take the Test →</button>
+              <button className="rounded-full bg-[#F5F5F2] text-[#0B0B0D] font-bold px-6 py-2.5 text-sm transition-transform active:scale-95 shrink-0">Take the Test →</button>
             </Link>
           </div>
         )}
@@ -396,8 +395,8 @@ function EconomyBoard({ kind }: { kind: Exclude<Segment, "tests"> }) {
 
   if (!isSupabaseConfigured) {
     return (
-      <div className="bg-cockpit-card border border-cockpit-border rounded-sm p-10 text-center">
-        <p className="text-cockpit-dim mb-2">Rankings require Supabase.</p>
+      <div className="bg-[#111116] border border-white/[0.07] rounded-sm p-10 text-center">
+        <p className="text-[#A0A0A8] mb-2">Rankings require Supabase.</p>
       </div>
     );
   }
@@ -405,39 +404,39 @@ function EconomyBoard({ kind }: { kind: Exclude<Segment, "tests"> }) {
   const meta = BOARD_META[kind];
 
   return (
-    <div className="bg-cockpit-card border border-cockpit-border rounded-sm overflow-hidden">
-      <div className="flex items-center gap-4 px-5 py-3 border-b border-cockpit-border bg-cockpit-surface">
+    <div className="overflow-hidden">
+      <div className="flex items-center gap-4 px-2 py-3 border-b border-white/[0.07]">
         <div className="w-8 shrink-0" />
-        <span className="flex-1 text-cockpit-muted text-xs tracking-widest uppercase">Player</span>
-        <span className="text-cockpit-muted text-xs tracking-widest uppercase text-right">{meta.metric}</span>
+        <span className="flex-1 text-[#6B6B73] text-xs tracking-widest uppercase">Player</span>
+        <span className="text-[#6B6B73] text-xs tracking-widest uppercase text-right">{meta.metric}</span>
       </div>
 
       {rows === null && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} i={i} />)}
 
       {rows !== null && err && (
-        <div className="py-8 text-center"><p className="text-cockpit-dim text-sm">Could not load this leaderboard.</p></div>
+        <div className="py-8 text-center"><p className="text-[#A0A0A8] text-sm">Could not load this leaderboard.</p></div>
       )}
 
       {rows !== null && !err && rows.length === 0 && (
-        <div className="py-8 text-center"><p className="text-cockpit-dim text-sm">{meta.empty}</p></div>
+        <div className="py-8 text-center"><p className="text-[#A0A0A8] text-sm">{meta.empty}</p></div>
       )}
 
       {rows !== null && !err && rows.map((r) => {
         const flag = nameToFlag(r.country);
         return (
-          <div key={`${r.name}-${r.rank}`} className="flex items-center gap-4 px-5 py-4 border-b border-cockpit-border last:border-0 hover:bg-cockpit-surface transition-colors">
+          <div key={`${r.name}-${r.rank}`} className="flex items-center gap-4 px-2 py-4 border-b border-white/[0.07] last:border-0 hover:bg-white/[0.03] transition-colors">
             <div className="shrink-0"><RankBadge rank={r.rank} /></div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-semibold truncate">{r.name}</p>
               {r.country && (
-                <p className="text-cockpit-muted text-xs mt-0.5">
+                <p className="text-[#6B6B73] text-xs mt-0.5">
                   {flag && <span className="mr-1">{flag}</span>}{r.country}
                 </p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-white text-sm font-extrabold number-display">{r.value}</p>
-              {r.sub && <p className="text-cockpit-muted text-xs mt-0.5">{r.sub}</p>}
+              <p className="text-base font-extrabold number-display" style={{ color: kind === "iq" ? BRAND.gold : BRAND.ink }}>{r.value}</p>
+              {r.sub && <p className="text-[#6B6B73] text-xs mt-0.5">{r.sub}</p>}
             </div>
           </div>
         );

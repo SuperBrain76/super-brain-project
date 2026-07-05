@@ -4,17 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { getPublicProfile, type PublicProfile } from "@/lib/publicProfile";
+import { BRAND, MATERIAL } from "@/lib/brand";
 
-const INK = "#0f2419";
-const GREEN = "#1a3a2a";
-const GREEN2 = "#24513a";
-const GOLD = "#c9a227";
-const GOLD_SOFT = "#e7cf7a";
-const MUTED = "#7a8f82";
-const TEXT = "#12251b";
-const BORDER = "#e3e9dd";
-const BG = "#f6f4ee";
-const CARD = "#ffffff";
+const INK = "#0B0B0D";           // deep base for gradients
+const GREEN = BRAND.sports;      // emerald accent (share, links)
+const GREEN_INK = "#04140B";     // text on emerald
+const GREEN2 = "#141418";        // dark elevated
+const GOLD = BRAND.gold;
+const GOLD_SOFT = BRAND.goldSoft;
+const MUTED = BRAND.muted;
+const TEXT = BRAND.ink;
+const BORDER = BRAND.hairline;
+const BG = BRAND.black;
+const CARD = BRAND.surface;
 
 const TEST_LABELS: Record<string, string> = {
   reaction: "Reaction", memory: "Memory", "verbal-memory": "Verbal Memory",
@@ -62,9 +64,9 @@ export default function PublicProfilePage() {
 
   if (p === undefined) {
     return <Shell><div className="animate-pulse space-y-4">
-      <div className="h-40 rounded-3xl" style={{ background: "#e7ece4" }} />
-      <div className="h-24 rounded-2xl" style={{ background: "#e7ece4" }} />
-      <div className="h-40 rounded-2xl" style={{ background: "#e7ece4" }} />
+      <div className="h-40 rounded-3xl" style={{ background: BRAND.elevated }} />
+      <div className="h-24 rounded-2xl" style={{ background: BRAND.elevated }} />
+      <div className="h-40 rounded-2xl" style={{ background: BRAND.elevated }} />
     </div></Shell>;
   }
   if (p === null || !p.found) {
@@ -101,8 +103,8 @@ export default function PublicProfilePage() {
       <div className="px-1 -mt-10">
         <div className="flex items-end justify-between">
           <Avatar name={name} url={p.avatarUrl} color={avatarColor} />
-          <button onClick={share} className="mb-1 px-4 py-2 rounded-full text-sm font-bold"
-            style={{ background: GREEN, color: "#fff" }}>
+          <button onClick={share} className="mb-1 px-4 py-2 rounded-full text-sm font-bold transition-transform active:scale-95"
+            style={{ background: GREEN, color: GREEN_INK }}>
             {copied ? "Copied ✓" : "Share"}
           </button>
         </div>
@@ -110,7 +112,7 @@ export default function PublicProfilePage() {
           <h1 className="text-xl font-black" style={{ color: TEXT }}>{name}</h1>
           {p.level?.name && (
             <span className="text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
-              style={{ background: "#fff6dc", color: "#8a6d12" }}>
+              style={{ background: "rgba(232,193,90,0.12)", color: GOLD, border: `0.5px solid ${MATERIAL.ringFaint}` }}>
               <span>{p.level.icon ?? "⭐"}</span>{p.level.name}
             </span>
           )}
@@ -126,25 +128,25 @@ export default function PublicProfilePage() {
       {/* Balance + level progress */}
       {(p.balance !== null || p.level) && (
         <div className="rounded-3xl p-5 relative overflow-hidden"
-          style={{ background: `linear-gradient(160deg, ${GREEN2} 0%, ${INK} 100%)`, color: "#fff" }}>
-          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-20"
-            style={{ background: `radial-gradient(circle, ${GOLD}, transparent 70%)` }} />
+          style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
+          <div className="absolute -top-16 -right-16 w-56 h-56 pointer-events-none"
+            style={{ background: MATERIAL.goldGlow }} />
           {p.balance !== null && p.currency && (
             <>
-              <p className="text-xs uppercase tracking-widest" style={{ color: "#bfccc2" }}>{p.currency.name}</p>
-              <p className="text-4xl font-black" style={{ color: GOLD_SOFT }}>
+              <p className="text-xs uppercase tracking-[0.2em] relative" style={{ color: MUTED }}>{p.currency.name}</p>
+              <p className="text-4xl font-black relative" style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
                 {p.currency.symbol} {fmt(p.balance)}
               </p>
             </>
           )}
           {p.level && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: "#bfccc2" }}>
+            <div className="mt-4 relative">
+              <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: MUTED }}>
                 <span>Lvl {p.level.level ?? 1} · {p.level.name ?? "Partner"}</span>
                 <span>{p.level.nextName ? `${fmt(p.level.lifetimeEarned)} / ${fmt(p.level.nextAt ?? 0)} → ${p.level.nextName}` : "Max level"}</span>
               </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
-                <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, p.level.progressPct))}%`, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_SOFT})` }} />
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, p.level.progressPct))}%`, background: MATERIAL.goldFill }} />
               </div>
             </div>
           )}
@@ -197,8 +199,8 @@ export default function PublicProfilePage() {
                   <span className="font-semibold" style={{ color: TEXT }}>{testLabel(t.test_name)}</span>
                   <span style={{ color: MUTED }}>{t.score}/100 · {t.percentile}th</span>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: BG }}>
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, t.score))}%`, background: `linear-gradient(90deg, ${GREEN2}, ${GOLD})` }} />
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, t.score))}%`, background: `linear-gradient(90deg, ${GREEN}, ${GOLD})` }} />
                 </div>
               </div>
             ))}
@@ -218,10 +220,11 @@ export default function PublicProfilePage() {
 
       {/* Referral CTA */}
       {p.referral?.code && (
-        <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(160deg, ${GREEN2}, ${INK})`, color: "#fff" }}>
-          <p className="text-sm font-bold mb-1">Join {name} on SuperBrain</p>
-          <p className="text-xs mb-3" style={{ color: "#bfccc2" }}>Use partner code <span style={{ color: GOLD_SOFT }}>{p.referral.code}</span></p>
-          <Link href={`/?ref=${encodeURIComponent(p.referral.code)}`} className="inline-block px-5 py-2.5 rounded-full text-sm font-bold" style={{ background: GOLD, color: INK }}>
+        <div className="rounded-2xl p-4 text-center relative overflow-hidden" style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-24 pointer-events-none" style={{ background: MATERIAL.goldGlow }} />
+          <p className="text-sm font-bold mb-1 relative">Join {name} on SuperBrain</p>
+          <p className="text-xs mb-3 relative" style={{ color: MUTED }}>Use partner code <span style={{ color: GOLD }}>{p.referral.code}</span></p>
+          <Link href={`/?ref=${encodeURIComponent(p.referral.code)}`} className="relative inline-block px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95" style={{ background: GOLD, color: BRAND.goldInk }}>
             Get started
           </Link>
         </div>
@@ -237,7 +240,7 @@ export default function PublicProfilePage() {
                   <p className="text-sm font-medium truncate" style={{ color: TEXT }}>{a.label}</p>
                   <p className="text-[11px]" style={{ color: MUTED }}>{timeAgo(a.created_at)}</p>
                 </div>
-                <span className="text-sm font-black shrink-0" style={{ color: "#2b7a4b" }}>+{fmt(a.delta)}</span>
+                <span className="text-sm font-black shrink-0" style={{ color: "#5FCF8B" }}>+{fmt(a.delta)}</span>
               </div>
             ))}
           </div>
@@ -296,7 +299,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2.5">
-        <h2 className="text-sm font-black" style={{ color: GREEN }}>{title}</h2>
+        <h2 className="text-sm font-black" style={{ color: TEXT }}>{title}</h2>
         {hint && <span className="text-[11px]" style={{ color: MUTED }}>{hint}</span>}
       </div>
       {children}

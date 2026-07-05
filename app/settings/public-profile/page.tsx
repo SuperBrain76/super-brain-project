@@ -9,14 +9,19 @@ import {
   uploadProfileImage,
   type ProfileSettings,
 } from "@/lib/publicProfile";
+import { BRAND } from "@/lib/brand";
 
-const GREEN = "#1a3a2a";
-const GOLD = "#c9a227";
-const MUTED = "#7a8f82";
-const TEXT = "#12251b";
-const BORDER = "#e3e9dd";
-const BG = "#f6f4ee";
-const CARD = "#ffffff";
+const GREEN = BRAND.sports;      // emerald — the "active / positive" accent
+const GREEN_INK = "#04140B";     // text on emerald
+const GOLD = BRAND.gold;         // value only → the Save action
+const GOLD_INK = BRAND.goldInk;
+const MUTED = BRAND.muted;
+const TEXT = BRAND.ink;
+const BORDER = BRAND.hairline;
+const BG = BRAND.black;
+const CARD = BRAND.surface;
+const OK = "#5FCF8B";
+const ERR = "#E5806B";
 
 // Sections users can toggle. Labels are UI-only; keys match the privacy JSONB.
 const PRIVACY_SECTIONS: { key: string; label: string; hint: string }[] = [
@@ -82,7 +87,7 @@ export default function PublicProfileSettings() {
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3" style={{ background: BG, borderBottom: `1px solid ${BORDER}` }}>
         <div className="max-w-md mx-auto flex items-center justify-between">
           <Link href="/iq" className="text-sm font-medium" style={{ color: MUTED }}>← Dashboard</Link>
-          <span className="text-sm font-black" style={{ color: GREEN }}>Public Profile</span>
+          <span className="text-sm font-black" style={{ color: TEXT }}>Public Profile</span>
         </div>
       </div>
 
@@ -90,8 +95,8 @@ export default function PublicProfileSettings() {
         <div className="max-w-md mx-auto space-y-5">
           {s === undefined ? (
             <div className="animate-pulse space-y-3">
-              <div className="h-24 rounded-2xl" style={{ background: "#e7ece4" }} />
-              <div className="h-40 rounded-2xl" style={{ background: "#e7ece4" }} />
+              <div className="h-24 rounded-2xl" style={{ background: BRAND.elevated }} />
+              <div className="h-40 rounded-2xl" style={{ background: BRAND.elevated }} />
             </div>
           ) : s === null ? (
             <Card><p className="text-sm" style={{ color: MUTED }}>Sign in to manage your public profile.</p></Card>
@@ -192,7 +197,7 @@ export default function PublicProfileSettings() {
               </div>
 
               {msg && (
-                <p className="text-sm text-center font-medium" style={{ color: msg.ok ? "#2b7a4b" : "#b04a4a" }}>
+                <p className="text-sm text-center font-medium" style={{ color: msg.ok ? OK : ERR }}>
                   {msg.text}
                 </p>
               )}
@@ -201,7 +206,7 @@ export default function PublicProfileSettings() {
                 onClick={save}
                 disabled={saving}
                 className="w-full py-3 rounded-full font-bold text-sm disabled:opacity-60"
-                style={{ background: GOLD, color: "#0f2419" }}
+                style={{ background: GOLD, color: GOLD_INK }}
               >
                 {saving ? "Saving…" : "Save profile"}
               </button>
@@ -266,7 +271,7 @@ function ImageField({
           <div className="flex-1 h-16 rounded-xl overflow-hidden"
             style={url
               ? { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", border: `1px solid ${BORDER}` }
-              : { background: `linear-gradient(120deg, ${GREEN}, #0f2419 60%, ${GOLD})`, border: `1px solid ${BORDER}` }} />
+              : { background: `linear-gradient(120deg, ${GREEN}, #0B0B0D 60%, ${GOLD})`, border: `1px solid ${BORDER}` }} />
         )}
 
         <div className="flex flex-col gap-1.5">
@@ -275,18 +280,18 @@ function ImageField({
             onClick={() => inputRef.current?.click()}
             disabled={busy}
             className="px-4 py-2 rounded-full text-sm font-bold disabled:opacity-60"
-            style={{ background: GREEN, color: "#fff" }}
+            style={{ background: GREEN, color: GREEN_INK }}
           >
             {busy ? "Uploading…" : url ? "Change" : "Upload image"}
           </button>
           {url && (
-            <button type="button" onClick={onRemove} className="text-xs font-semibold" style={{ color: "#b04a4a" }}>
+            <button type="button" onClick={onRemove} className="text-xs font-semibold" style={{ color: ERR }}>
               Remove
             </button>
           )}
         </div>
       </div>
-      {err && <p className="text-[11px] mt-1.5" style={{ color: "#b04a4a" }}>{err}</p>}
+      {err && <p className="text-[11px] mt-1.5" style={{ color: ERR }}>{err}</p>}
       <p className="text-[11px] mt-1.5" style={{ color: MUTED }}>
         {kind === "avatar" ? "Square works best. JPG, PNG or WebP." : "Wide image works best (about 3:1)."}
       </p>
@@ -308,11 +313,11 @@ function Toggle({ label, hint, checked, onChange, disabled }: {
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className="w-11 h-6 rounded-full shrink-0 transition-colors disabled:opacity-50"
-        style={{ background: checked ? GREEN : "#cdd5c9" }}
+        style={{ background: checked ? GREEN : "rgba(255,255,255,0.14)" }}
       >
         <span
-          className="block w-5 h-5 bg-white rounded-full transition-transform"
-          style={{ transform: checked ? "translateX(22px)" : "translateX(2px)" }}
+          className="block w-5 h-5 rounded-full transition-transform"
+          style={{ background: "#fff", transform: checked ? "translateX(22px)" : "translateX(2px)" }}
         />
       </button>
     </div>
