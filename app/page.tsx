@@ -4,7 +4,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import HomepageAnalytics from "@/components/HomepageAnalytics";
 import HeroSection from "@/components/HeroSection";
 import { WhatsAppHeroCard } from "@/components/WhatsAppChannelCard";
-import { BRAND } from "@/lib/brand";
+import { BRAND, MATERIAL } from "@/lib/brand";
 
 const FEATURES = [
   {
@@ -78,7 +78,7 @@ const HOW_IT_WORKS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ background: BRAND.black }}>
       <HomepageAnalytics />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
@@ -164,80 +164,56 @@ export default function LandingPage() {
         </div>
       </HeroSection>
 
-      {/* ── TWO-PATH SECTION ──────────────────────────────────────────────── */}
-      <section className="border-b border-cockpit-border" style={{ background: "#0a0f16" }}>
-        <div className="max-w-5xl mx-auto px-5 py-12">
-          <p className="text-center text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-8">
+      {/* ── TWO-PATH SECTION — sculpted glass panels ─────────────────────── */}
+      <section style={{ background: BRAND.black, borderBottom: `0.5px solid ${BRAND.hairline}` }}>
+        <div className="max-w-5xl mx-auto px-5 py-14">
+          <p className="text-center text-xs tracking-[0.28em] uppercase mb-8" style={{ color: BRAND.dim }}>
             Choose your game
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-            {/* ── World Cup Predictor ── */}
-            <Link
-              href="/predict"
-              className="group relative overflow-hidden rounded-sm border flex flex-col p-7 transition-all duration-200 hover:-translate-y-0.5"
-              style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 100%)", borderColor: "#16a34a40" }}
-            >
-              <div
-                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(22,163,74,0.12), transparent)" }}
-              />
+            {/* ── World Cup Predictor — Sports (emerald) ── */}
+            <Link href="/predict"
+              className="group relative overflow-hidden rounded-3xl flex flex-col p-8 transition-transform duration-300 hover:-translate-y-1"
+              style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 opacity-70 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ width: 260, height: 200, background: "radial-gradient(closest-side, rgba(53,197,111,0.18), transparent 72%)" }} />
               <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-5">
                   <span className="text-3xl">⚽</span>
-                  <span
-                    className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
-                    style={{ background: "#16a34a20", color: "#4ade80", border: "1px solid #16a34a40" }}
-                  >
-                    Live Now
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full"
+                    style={{ background: "rgba(53,197,111,0.12)", color: BRAND.sports }}>Live now</span>
                 </div>
-                <h3 className="text-white text-xl font-extrabold mb-2 leading-tight">
-                  World Cup Predictor
-                </h3>
-                <p className="text-green-300 text-sm leading-relaxed mb-6 opacity-90">
-                  Predict every match · earn points · beat friends · win the Champion Watch
+                <h3 className="text-2xl font-extrabold mb-2 leading-tight" style={{ color: BRAND.ink }}>World Cup Predictor</h3>
+                <p className="text-sm leading-relaxed mb-7" style={{ color: BRAND.muted }}>
+                  Predict every match, earn points, beat friends — win the <span style={{ color: BRAND.gold, fontWeight: 600 }}>Champion Watch</span>.
                 </p>
-                <span
-                  className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-sm transition-all"
-                  style={{ background: "#16a34a", color: "#fff" }}
-                >
-                  Play World Cup Predictor →
+                <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: BRAND.sports }}>
+                  Play now
+                  <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
                 </span>
               </div>
             </Link>
 
-            {/* ── Brain Tests ── */}
-            <Link
-              href="/tests"
-              className="group relative overflow-hidden rounded-sm border flex flex-col p-7 transition-all duration-200 hover:-translate-y-0.5"
-              style={{ background: "linear-gradient(135deg, #0a1628 0%, #0f1f3a 100%)", borderColor: "#00d4ff25" }}
-            >
-              <div
-                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,212,255,0.08), transparent)" }}
-              />
+            {/* ── Brain Tests — restrained cyan accent ── */}
+            <Link href="/tests"
+              className="group relative overflow-hidden rounded-3xl flex flex-col p-8 transition-transform duration-300 hover:-translate-y-1"
+              style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 opacity-70 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ width: 260, height: 200, background: "radial-gradient(closest-side, rgba(51,214,214,0.14), transparent 72%)" }} />
               <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-5">
                   <span className="text-3xl">🧠</span>
-                  <span
-                    className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm"
-                    style={{ background: "#00d4ff10", color: "#00d4ff", border: "1px solid #00d4ff25" }}
-                  >
-                    6 Tests
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full"
+                    style={{ background: "rgba(51,214,214,0.1)", color: BRAND.tests }}>6 tests</span>
                 </div>
-                <h3 className="text-white text-xl font-extrabold mb-2 leading-tight">
-                  Brain Tests
-                </h3>
-                <p className="text-cockpit-dim text-sm leading-relaxed mb-6">
-                  Reaction speed · memory · focus · decision-making. Find your real cognitive edge.
+                <h3 className="text-2xl font-extrabold mb-2 leading-tight" style={{ color: BRAND.ink }}>Brain Tests</h3>
+                <p className="text-sm leading-relaxed mb-7" style={{ color: BRAND.muted }}>
+                  Reaction, memory, focus, decision-making. Find your real cognitive edge.
                 </p>
-                <span
-                  className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-sm border transition-all"
-                  style={{ borderColor: "#00d4ff40", color: "#00d4ff", background: "transparent" }}
-                >
-                  Take Brain Tests →
+                <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: BRAND.tests }}>
+                  Take the tests
+                  <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
                 </span>
               </div>
             </Link>
@@ -246,71 +222,56 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FEATURES ──────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-5 py-16">
-        <div className="text-center mb-10">
-          <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-2">Why SuperBrain</p>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Everything you need to dominate</h2>
+      {/* ── FEATURES — boxless, divided by light ──────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-5 py-20">
+        <div className="text-center mb-12">
+          <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Why SuperBrain</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: BRAND.ink }}>Everything you need to dominate</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="relative bg-cockpit-card border rounded-sm overflow-hidden transition-all duration-200"
-              style={{ borderColor: `${f.color}20` }}
-            >
-              <div
-                className="h-px w-full"
-                style={{ background: `linear-gradient(90deg, ${f.color}, transparent)` }}
-              />
-              <div
-                className="absolute top-0 inset-x-0 h-24 pointer-events-none"
-                style={{ background: `radial-gradient(ellipse 80% 100% at 50% 0%, ${f.color}08, transparent)` }}
-              />
-              <div className="relative px-6 py-7">
-                <div className="mb-4" style={{ color: f.color }}>{f.icon}</div>
-                <h3 className="text-white font-bold text-base mb-2">{f.title}</h3>
-                <p className="text-cockpit-dim text-sm leading-relaxed">{f.body}</p>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3">
+          {FEATURES.map((f, i) => (
+            <div key={f.title} className="px-6 py-6 sm:py-2"
+              style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderLeft: i === 0 ? "none" : undefined }}>
+              <div className="mb-4" style={{ color: BRAND.muted }}>{f.icon}</div>
+              <h3 className="font-semibold text-base mb-2" style={{ color: BRAND.ink }}>{f.title}</h3>
+              <p className="text-sm leading-relaxed" style={{ color: BRAND.muted }}>{f.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── BONUS QUESTIONS ───────────────────────────────────────────────── */}
-      <section className="border-y border-cockpit-border bg-cockpit-surface">
-        <div className="max-w-5xl mx-auto px-5 py-16">
-          <div className="flex flex-col md:flex-row items-start gap-12">
+      {/* ── BONUS QUESTIONS — value moment, gold earns its place ──────────── */}
+      <section style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderBottom: `0.5px solid ${BRAND.hairline}` }}>
+        <div className="max-w-5xl mx-auto px-5 py-20">
+          <div className="flex flex-col md:flex-row items-start gap-14">
             <div className="flex-1">
-              <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-3">Bonus Predictions</p>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight mb-4">
-                Seven questions.<br />Massive points.
+              <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Bonus Predictions</p>
+              <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight mb-4" style={{ color: BRAND.ink }}>
+                Seven questions.<br />
+                <span style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>Massive points.</span>
               </h2>
-              <p className="text-cockpit-dim text-sm sm:text-base leading-relaxed mb-6">
+              <p className="text-sm sm:text-base leading-relaxed mb-7" style={{ color: BRAND.muted }}>
                 Beyond match scores, predict the tournament&apos;s biggest individual awards.
                 Nail these and you can leap the leaderboard overnight.
               </p>
-              <Link href="/predict">
-                <button className="btn-primary text-sm px-8 py-3">
-                  Make Your Picks →
-                </button>
+              <Link href="/predict" className="group inline-flex items-center gap-2 text-sm font-semibold" style={{ color: BRAND.sports }}>
+                Make your picks
+                <span className="transition-transform group-hover:translate-x-1">→</span>
               </Link>
             </div>
 
-            <div className="w-full md:w-80 shrink-0">
-              <div className="bg-cockpit-card border rounded-sm overflow-hidden" style={{ borderColor: "#ffab0025" }}>
-                <div className="h-px w-full" style={{ background: "linear-gradient(90deg, #ffab00, transparent)" }} />
-                <div className="px-5 py-5">
-                  <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-4">Bonus Questions</p>
-                  <div className="space-y-2.5">
-                    {BONUS_QUESTIONS.map((q) => (
-                      <div key={q} className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-cockpit-amber shrink-0" />
-                        <span className="text-cockpit-text text-sm">{q}</span>
-                      </div>
-                    ))}
-                  </div>
+            <div className="w-full md:w-80 shrink-0 relative">
+              <div className="absolute -top-10 -right-8 pointer-events-none" style={{ width: 200, height: 200, background: MATERIAL.goldGlow }} />
+              <div className="relative rounded-3xl p-6" style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
+                <p className="text-xs tracking-[0.28em] uppercase mb-5" style={{ color: BRAND.dim }}>Bonus Questions</p>
+                <div className="space-y-3.5">
+                  {BONUS_QUESTIONS.map((q) => (
+                    <div key={q} className="flex items-center gap-3">
+                      <span className="w-1 h-1 rounded-full shrink-0" style={{ background: BRAND.gold }} />
+                      <span className="text-sm" style={{ color: BRAND.ink }}>{q}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -318,80 +279,89 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-5 py-16">
-        <div className="text-center mb-10">
-          <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-2">Get Started</p>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">How it works</h2>
+      {/* ── HOW IT WORKS — boxless, a line of light through the steps ──────── */}
+      <section className="max-w-5xl mx-auto px-5 py-20">
+        <div className="text-center mb-14">
+          <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Get Started</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: BRAND.ink }}>How it works</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-10 gap-x-6">
+          <div className="hidden md:block absolute top-4 left-0 right-0 h-px pointer-events-none"
+            style={{ background: `linear-gradient(90deg, transparent, ${BRAND.hairlineStrong} 12%, ${BRAND.hairlineStrong} 88%, transparent)` }} />
           {HOW_IT_WORKS.map((step, i) => (
             <div key={step.step} className="relative">
-              {i < HOW_IT_WORKS.length - 1 && (
-                <div className="hidden md:block absolute top-5 left-[calc(100%-0.5rem)] w-full h-px bg-cockpit-border z-0" />
-              )}
-              <div className="relative bg-cockpit-card border border-cockpit-border rounded-sm p-5 z-10">
-                <div className="text-xs font-mono font-bold mb-3 tracking-widest text-cockpit-accent">
-                  {step.step}
-                </div>
-                <h3 className="text-white font-semibold text-sm mb-2">{step.title}</h3>
-                <p className="text-cockpit-muted text-xs leading-relaxed">{step.body}</p>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{ background: BRAND.black, border: `0.5px solid ${BRAND.hairlineStrong}`, color: BRAND.ink }}>
+                  {i + 1}
+                </span>
               </div>
+              <h3 className="font-semibold text-sm mb-2" style={{ color: BRAND.ink }}>{step.title}</h3>
+              <p className="text-xs leading-relaxed" style={{ color: BRAND.muted }}>{step.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── GRAND PRIZE SECTION ───────────────────────────────────────────── */}
-      <section className="border-y border-cockpit-border" style={{ background: "#ffffff" }}>
-        <div className="max-w-5xl mx-auto px-5 py-14 sm:py-16">
-          <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
+      {/* ── GRAND PRIZE — the gold moment. Luminous black, the watch glows. ── */}
+      <section className="relative overflow-hidden" style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderBottom: `0.5px solid ${BRAND.hairline}`, background: MATERIAL.vignette }}>
+        <div
+          className="absolute pointer-events-none"
+          style={{ top: "50%", right: "8%", width: 520, height: 520, transform: "translateY(-50%)", background: MATERIAL.goldGlow, opacity: 0.9 }}
+        />
+        <div className="relative max-w-5xl mx-auto px-5 py-20 sm:py-24">
+          <div className="flex flex-col md:flex-row items-center gap-12 md:gap-16">
 
-            {/* Watch image */}
+            {/* Watch image — framed as a gallery print so the asset reads sculpted */}
             <div className="w-full md:w-80 shrink-0 flex justify-center order-1 md:order-2">
               <div className="relative w-64 h-64 sm:w-80 sm:h-80">
                 <div
-                  className="absolute inset-0 rounded-full blur-3xl opacity-25 pointer-events-none"
-                  style={{ background: "radial-gradient(ellipse at center, #b8972a, transparent 70%)" }}
+                  className="absolute -inset-6 rounded-full blur-3xl opacity-50 pointer-events-none"
+                  style={{ background: "radial-gradient(ellipse at center, rgba(232,193,90,0.55), transparent 70%)" }}
                 />
-                <Image
-                  src="/watch-prize.png"
-                  alt="Grand Prize: Custom Champion Watch — assembled in Sweden, Swiss movement"
-                  fill
-                  className="relative object-contain drop-shadow-2xl"
-                  priority
-                />
+                <div
+                  className="relative w-full h-full rounded-[28px] overflow-hidden"
+                  style={{ border: `0.5px solid ${MATERIAL.ringFaint}`, boxShadow: `${MATERIAL.shadowSoft}, ${MATERIAL.shadowGold}` }}
+                >
+                  <Image
+                    src="/watch-prize.png"
+                    alt="Grand Prize: Custom Champion Watch — assembled in Sweden, Swiss movement"
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                </div>
               </div>
             </div>
 
             {/* Copy */}
             <div className="flex-1 order-2 md:order-1 text-center md:text-left flex flex-col gap-5">
               <div className="flex items-center gap-2 justify-center md:justify-start">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b8972a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={BRAND.gold} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
                   <path d="M4 22h16"/>
                   <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
                   <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
                   <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
                 </svg>
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#b8972a" }}>
+                <span className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: BRAND.gold }}>
                   Grand Prize · SuperBrain World Cup 2026
                 </span>
               </div>
 
               <div>
-                <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight" style={{ color: "#0f1f17" }}>
+                <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight" style={{ color: BRAND.ink }}>
                   Win the Custom<br />
-                  <span style={{ color: "#b8972a" }}>Champion Watch</span>
+                  <span style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>Champion Watch</span>
                 </h2>
-                <p className="text-sm sm:text-base mt-3 leading-relaxed" style={{ color: "#2e4a37" }}>
+                <p className="text-sm sm:text-base mt-3 leading-relaxed" style={{ color: BRAND.muted }}>
                   Awarded to the overall SuperBrain World Cup Prediction 2026 Champion.
                   One winner. One watch. Your name engraved on it forever.
                 </p>
               </div>
 
-              <ul className="flex flex-col gap-2 items-center md:items-start">
+              <ul className="flex flex-col gap-2.5 items-center md:items-start">
                 {[
                   "Custom-built luxury watch",
                   "Assembled in Sweden",
@@ -401,33 +371,29 @@ export default function LandingPage() {
                   <li key={item} className="flex items-center gap-2.5">
                     <span
                       className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: "rgba(184,151,42,0.15)", border: "1px solid rgba(184,151,42,0.35)" }}
+                      style={{ background: "rgba(232,193,90,0.12)", border: `0.5px solid ${MATERIAL.ringFaint}` }}
                     >
                       <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                        <polyline points="2,5 4.5,7.5 8,3" stroke="#b8972a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points="2,5 4.5,7.5 8,3" stroke={BRAND.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </span>
-                    <span className="text-sm" style={{ color: "#2e4a37" }}>{item}</span>
+                    <span className="text-sm" style={{ color: BRAND.ink }}>{item}</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="flex flex-col sm:flex-row items-center md:items-start gap-3 pt-1">
+              <div className="flex flex-col sm:flex-row items-center md:items-start gap-3 pt-2">
                 <Link href="/predict" className="w-full sm:w-auto">
                   <button
-                    className="w-full sm:w-auto font-bold px-8 py-3.5 rounded-lg text-sm transition-all active:scale-[0.98]"
-                    style={{ background: "#1a3a2a", color: "#ffffff" }}
+                    className="w-full sm:w-auto font-bold px-8 py-3.5 rounded-full text-sm transition-transform active:scale-[0.98]"
+                    style={{ background: BRAND.gold, color: BRAND.goldInk, boxShadow: MATERIAL.shadowGold }}
                   >
                     Start Predicting →
                   </button>
                 </Link>
-                <Link href="/predict/prize" className="w-full sm:w-auto">
-                  <button
-                    className="w-full sm:w-auto font-semibold px-8 py-3.5 rounded-lg text-sm transition-all active:scale-[0.98]"
-                    style={{ background: "rgba(184,151,42,0.1)", color: "#b8972a", border: "1px solid rgba(184,151,42,0.3)" }}
-                  >
-                    Prize Details →
-                  </button>
+                <Link href="/predict/prize" className="w-full sm:w-auto group inline-flex items-center justify-center gap-2 font-semibold px-6 py-3.5 text-sm" style={{ color: BRAND.muted }}>
+                  Prize details
+                  <span className="transition-transform group-hover:translate-x-1">→</span>
                 </Link>
               </div>
             </div>
@@ -435,80 +401,58 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRIVATE LEAGUES ───────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-5 py-16">
-        <div className="text-center mb-10">
-          <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-2">Play with friends</p>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-4">Create a private league</h2>
-          <Link href="/predict">
-            <button className="btn-primary text-sm px-10 py-3">
-              Create or Join a League →
-            </button>
+      {/* ── PRIVATE LEAGUES — boxless, divided by light ───────────────────── */}
+      <section className="max-w-5xl mx-auto px-5 py-20">
+        <div className="text-center mb-12">
+          <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Play with friends</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold mb-6" style={{ color: BRAND.ink }}>Create a private league</h2>
+          <Link href="/predict" className="group inline-flex items-center gap-2 text-sm font-semibold" style={{ color: BRAND.sports }}>
+            Create or join a league
+            <span className="transition-transform group-hover:translate-x-1">→</span>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3">
           {[
-            {
-              icon: "🔒",
-              title: "Invite Only",
-              body: "Share a code or link. Only people you invite can join your league.",
-            },
-            {
-              icon: "🏆",
-              title: "Your Own Leaderboard",
-              body: "See exactly how you rank against your friends throughout the tournament.",
-            },
-            {
-              icon: "📲",
-              title: "Share via WhatsApp",
-              body: "One tap to send your league invite directly to your group chat.",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="bg-cockpit-card border border-cockpit-border rounded-sm p-6 text-center"
-            >
-              <div className="text-3xl mb-4">{item.icon}</div>
-              <h3 className="text-white font-semibold text-sm mb-2">{item.title}</h3>
-              <p className="text-cockpit-muted text-xs leading-relaxed">{item.body}</p>
+            { icon: "🔒", title: "Invite Only", body: "Share a code or link. Only people you invite can join your league." },
+            { icon: "🏆", title: "Your Own Leaderboard", body: "See exactly how you rank against your friends throughout the tournament." },
+            { icon: "📲", title: "Share via WhatsApp", body: "One tap to send your league invite directly to your group chat." },
+          ].map((item, i) => (
+            <div key={item.title} className="px-6 py-6 sm:py-2 text-center sm:text-left"
+              style={{ borderTop: `0.5px solid ${BRAND.hairline}` }}>
+              <div className="text-2xl mb-4">{item.icon}</div>
+              <h3 className="font-semibold text-sm mb-2" style={{ color: BRAND.ink }}>{item.title}</h3>
+              <p className="text-xs leading-relaxed" style={{ color: BRAND.muted }}>{item.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
-      <section className="border-t border-cockpit-border bg-cockpit-surface">
-        <div className="relative overflow-hidden">
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(ellipse 80% 80% at 50% 120%, rgba(0,212,255,0.08) 0%, transparent 65%)",
-            }}
-          />
-          <div className="relative max-w-5xl mx-auto px-5 py-16 sm:py-20 text-center">
-            <p className="text-cockpit-muted text-xs tracking-widest uppercase font-mono mb-4">
-              Tournament starts June 11
-            </p>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
-              Your predictions.<br />
-              <span
-                className="text-cockpit-accent"
-                style={{ textShadow: "0 0 60px rgba(0,212,255,0.35)" }}
-              >
-                Your glory.
-              </span>
-            </h2>
-            <p className="text-cockpit-dim text-base sm:text-lg mb-10 max-w-md mx-auto">
-              Free to play. Predictions lock at kickoff. The leaderboard never lies.
-            </p>
-            <Link href="/predict">
-              <button className="btn-primary text-sm sm:text-base px-12 py-4 w-full sm:w-auto">
-                Join Free Now →
-              </button>
-            </Link>
-          </div>
+      {/* ── FINAL CTA — quiet, confident, one light source ────────────────── */}
+      <section className="relative overflow-hidden" style={{ borderTop: `0.5px solid ${BRAND.hairline}`, background: MATERIAL.vignette }}>
+        <div
+          className="absolute inset-x-0 bottom-0 pointer-events-none"
+          style={{ height: 320, background: "radial-gradient(ellipse 70% 100% at 50% 120%, rgba(53,197,111,0.10), transparent 65%)" }}
+        />
+        <div className="relative max-w-5xl mx-auto px-5 py-20 sm:py-24 text-center">
+          <p className="text-xs tracking-[0.28em] uppercase mb-4" style={{ color: BRAND.dim }}>
+            Tournament starts June 11
+          </p>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-5 leading-tight" style={{ color: BRAND.ink }}>
+            Your predictions.<br />
+            <span style={{ color: BRAND.ink }}>Your glory.</span>
+          </h2>
+          <p className="text-base sm:text-lg mb-10 max-w-md mx-auto" style={{ color: BRAND.muted }}>
+            Free to play. Predictions lock at kickoff. The leaderboard never lies.
+          </p>
+          <Link href="/predict">
+            <button
+              className="text-sm sm:text-base font-bold px-12 py-4 rounded-full w-full sm:w-auto transition-transform active:scale-[0.98]"
+              style={{ background: BRAND.ink, color: BRAND.black }}
+            >
+              Join Free Now →
+            </button>
+          </Link>
         </div>
       </section>
 
