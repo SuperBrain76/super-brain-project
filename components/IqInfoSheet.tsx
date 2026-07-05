@@ -20,33 +20,35 @@ const EARN = [
 ];
 
 const COMING = [
-  { icon: "🎁", label: "Partner Rewards" },
+  { icon: "🎁", label: "Rewards Store" },
   { icon: "💎", label: "Premium Features" },
   { icon: "🎟️", label: "Prize Entries" },
   { icon: "🔑", label: "Exclusive Events" },
   { icon: "🛍️", label: "Marketplace" },
 ];
 
-export function IqInfoButton({ size = 16, className = "" }: { size?: number; className?: string }) {
+export function IqInfoButton({ size = 22, className = "" }: { size?: number; className?: string }) {
   const [open, setOpen] = useState(false);
+  const glyph = Math.round(size * 0.6);
   return (
     <>
       <button
         type="button"
         aria-label="What is IQ?"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}
-        className={`inline-flex items-center justify-center rounded-full shrink-0 transition-colors hover:opacity-80 active:scale-90 ${className}`}
+        className={`inline-flex items-center justify-center rounded-full shrink-0 transition-transform hover:opacity-90 active:scale-90 ${className}`}
         style={{
           width: size, height: size,
+          background: "rgba(255,255,255,0.06)",
           border: `0.5px solid ${BRAND.hairlineStrong}`,
           color: BRAND.muted,
-          fontSize: Math.round(size * 0.62),
-          fontStyle: "italic",
-          fontFamily: "Georgia, 'Times New Roman', serif",
-          lineHeight: 1,
         }}
       >
-        i
+        <svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="11" x2="12" y2="16" />
+          <circle cx="12" cy="7.6" r="0.7" fill="currentColor" stroke="none" />
+        </svg>
       </button>
       <IqInfoSheet open={open} onClose={() => setOpen(false)} />
     </>

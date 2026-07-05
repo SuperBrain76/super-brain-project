@@ -12,6 +12,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { getOnboardingStatus, type OnboardingStatus } from "@/lib/onboarding";
 import { MATERIAL } from "@/lib/brand";
 import { IqInfoButton } from "@/components/IqInfoSheet";
+import { PrestigeStatusLine, IqUnlocksLadder } from "@/components/IqUnlocks";
 
 // Palette — "Midnight Gold", sculpted. Gold = earned value only.
 const INK = "#2A2205";     // text on a gold fill
@@ -85,7 +86,7 @@ export default function PartnerDashboardPage() {
     if (!dash || !dash.authenticated || !dash.referral.code) return;
     const code = dash.referral.code;
     const url = `${window.location.origin}/?ref=${encodeURIComponent(code)}`;
-    const text = `Join me on SuperBrain — use my partner code ${code}`;
+    const text = `Join me on SuperBrain — use my invite code ${code}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: "SuperBrain", text, url });
@@ -117,7 +118,7 @@ export default function PartnerDashboardPage() {
       <Shell>
         <EmptyCard
           title="Economy not connected"
-          body="The Partner Economy needs Supabase configured to load your dashboard."
+          body="The SuperBrain Economy needs Supabase configured to load your dashboard."
         />
       </Shell>
     );
@@ -132,7 +133,7 @@ export default function PartnerDashboardPage() {
         >
           <div className="absolute left-1/2 -translate-x-1/2 -top-10" style={{ width: 220, height: 220, background: MATERIAL.goldGlow }} />
           <p className="text-4xl mb-3 relative">🧠</p>
-          <h1 className="text-xl font-black mb-2 relative">The SuperBrain Partner Economy</h1>
+          <h1 className="text-xl font-black mb-2 relative">Your SuperBrain</h1>
           <p className="text-sm mb-6 relative" style={{ color: MUTED }}>
             Earn, level up, and grow your network. Sign in to open your dashboard.
           </p>
@@ -187,7 +188,7 @@ export default function PartnerDashboardPage() {
           <div className="relative text-center">
             <div className="flex items-center justify-center gap-1.5">
               <p className="text-[11px]" style={{ letterSpacing: "0.34em", color: MUTED }}>{(currency.name || "IQ").toUpperCase()}</p>
-              <IqInfoButton size={15} />
+              <IqInfoButton size={22} />
             </div>
             <p style={{
               fontSize: 64, lineHeight: 1, marginTop: 6, fontWeight: 600, letterSpacing: "-0.03em",
@@ -196,7 +197,7 @@ export default function PartnerDashboardPage() {
               filter: "drop-shadow(0 6px 14px rgba(232,193,90,0.28))", fontVariantNumeric: "tabular-nums",
             }}>{fmt(dash.balance)}</p>
             <p className="text-[13px]" style={{ marginTop: 10, color: MUTED }}>
-              <span style={{ color: GOLD, fontWeight: 600 }}>{level.name ?? "Partner"}</span> · Level {level.level ?? 1}
+              <span style={{ color: GOLD, fontWeight: 600 }}>{level.name ?? "Rookie"}</span> · Level {level.level ?? 1}
             </p>
           </div>
         </div>
@@ -213,6 +214,9 @@ export default function PartnerDashboardPage() {
           <span>{level.nextName ? `${fmt(Math.max(0, (level.nextAt ?? 0) - dash.lifetimeEarned))} to ${level.nextName}` : "Max level"}</span>
         </div>
       </div>
+
+      {/* Prestige status — the "so what" of your IQ, in one line */}
+      <PrestigeStatusLine iq={dash.lifetimeEarned} />
 
       {/* ── Quick stats ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-2">
@@ -266,11 +270,16 @@ export default function PartnerDashboardPage() {
         </div>
       </Section>
 
+      {/* ── Unlocks: what your IQ earns you (prestige, no cash value) ──── */}
+      <Section title="Unlocks" hint="What your IQ earns you">
+        <IqUnlocksLadder iq={dash.lifetimeEarned} />
+      </Section>
+
       {/* ── Daily Missions ────────────────────────────────────────────── */}
       <MissionsSection data={missions} claimingCode={claimingMission} onClaim={claimReward} />
 
       {/* ── Referral / network ────────────────────────────────────────── */}
-      <Section title="Your Network" hint="Earn when partners get active">
+      <Section title="Your Network" hint="Earn when friends get active">
         <div className="rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
           {referral.code ? (
             <div className="flex items-center gap-2 mb-4">
@@ -289,7 +298,7 @@ export default function PartnerDashboardPage() {
               </button>
             </div>
           ) : (
-            <p className="text-xs mb-4" style={{ color: MUTED }}>Your partner code will appear once available.</p>
+            <p className="text-xs mb-4" style={{ color: MUTED }}>Your invite code will appear once available.</p>
           )}
           <div className="grid grid-cols-3 gap-2 text-center">
             <NetStat value={fmt(referral.total)} label="Referrals" />
@@ -507,7 +516,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex-1 flex flex-col min-h-screen" style={{ background: MATERIAL.vignette }}>
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3 backdrop-blur-md" style={{ background: "rgba(8,9,11,0.72)", borderBottom: `0.5px solid ${BORDER}` }}>
         <div className="max-w-md mx-auto flex items-center justify-between gap-3">
-          <span className="text-base font-semibold tracking-wide" style={{ color: TEXT }}>Partner Dashboard</span>
+          <span className="text-base font-semibold tracking-wide" style={{ color: TEXT }}>My SuperBrain</span>
           <Link href="/settings/public-profile" className="text-xs font-semibold" style={{ color: MUTED }}>
             Public profile ↗
           </Link>

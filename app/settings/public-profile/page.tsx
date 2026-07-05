@@ -25,7 +25,7 @@ const ERR = "#E5806B";
 
 // Sections users can toggle. Labels are UI-only; keys match the privacy JSONB.
 const PRIVACY_SECTIONS: { key: string; label: string; hint: string }[] = [
-  { key: "level", label: "Partner Level", hint: "Your tier and progress" },
+  { key: "level", label: "Level", hint: "Your tier and progress" },
   { key: "balance", label: "Currency Balance", hint: "Your balance & rank" },
   { key: "achievements", label: "Achievements", hint: "Badges you've unlocked" },
   { key: "predictions", label: "Prediction Stats", hint: "Points, accuracy, rank" },

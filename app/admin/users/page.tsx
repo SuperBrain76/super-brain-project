@@ -34,7 +34,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || user.email !== ADMIN_EMAIL) { router.replace("/predict"); return; }
+    if (!user || user.email !== ADMIN_EMAIL) { router.replace("/iq"); return; }
     loadUsers();
   }, [user, authLoading, router]); // eslint-disable-line react-hooks/exhaustive-deps
 

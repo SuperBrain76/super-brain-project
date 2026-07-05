@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BRAND, MATERIAL } from "@/lib/brand";
+import { PRESTIGE_TIERS } from "@/lib/prestige";
 
 export const metadata: Metadata = {
   title: "The SuperBrain Economy — IQ, Levels & Rewards",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 const COMING = [
-  { icon: "🎁", title: "Partner Rewards", body: "Redeem IQ for rewards from SuperBrain and its partners." },
+  { icon: "🎁", title: "Rewards Store", body: "Redeem IQ for rewards and perks from SuperBrain." },
   { icon: "💎", title: "Premium Features", body: "Unlock advanced tools, insights and customisation." },
   { icon: "🎟️", title: "Prize Entries", body: "Put your IQ toward entries for prize draws and giveaways." },
   { icon: "🔑", title: "Exclusive Events", body: "Get access to members-only tournaments and events." },
@@ -102,7 +103,7 @@ export default function EconomyPage() {
         {/* ── Referrals ──────────────────────────────────────────────────── */}
         <Block eyebrow="Network" title="Referrals & your network">
           <p style={p}>
-            Share your partner code and invite friends. When the people you invite get active, you earn — and
+            Share your invite code and invite friends. When the people you invite get active, you earn — and
             your network becomes part of your SuperBrain story. Build a circle of sharp minds and grow together.
           </p>
         </Block>
@@ -123,6 +124,38 @@ export default function EconomyPage() {
             further rewards, perks and recognition. We&apos;ll always tell you clearly when something new arrives.
           </p>
         </Block>
+
+        {/* ── What IQ unlocks now (prestige) ─────────────────────────────── */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: BRAND.dim }}>Status</p>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full tracking-[0.14em]"
+              style={{ background: "rgba(53,197,111,0.12)", color: BRAND.sports, border: `0.5px solid rgba(53,197,111,0.35)` }}>
+              LIVE NOW
+            </span>
+          </div>
+          <h2 className="text-2xl font-extrabold mb-2" style={{ color: BRAND.ink }}>What your IQ unlocks now</h2>
+          <p className="text-sm leading-relaxed mb-5" style={{ color: BRAND.muted }}>
+            IQ already earns you prestige. Cross each milestone and your profile levels up — visible to everyone.
+            Pure status, no monetary value.
+          </p>
+          <div className="rounded-2xl overflow-hidden" style={{ border: `0.5px solid ${BRAND.hairline}` }}>
+            {PRESTIGE_TIERS.map((t, i) => (
+              <div key={t.id} className="flex items-center gap-3.5 px-4 py-3.5"
+                style={{ borderTop: i === 0 ? "none" : `0.5px solid ${BRAND.hairline}` }}>
+                <span className="text-xl w-7 text-center shrink-0">{t.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[15px]" style={{ color: BRAND.ink }}>{t.name}</p>
+                  <p className="text-xs" style={{ color: BRAND.muted }}>{t.reward}</p>
+                </div>
+                <span className="text-sm font-black shrink-0"
+                  style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>
+                  {t.threshold.toLocaleString()} IQ
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* ── Coming soon ────────────────────────────────────────────────── */}
         <section>

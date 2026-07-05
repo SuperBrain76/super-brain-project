@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { getPublicProfile, type PublicProfile } from "@/lib/publicProfile";
 import { BRAND, MATERIAL } from "@/lib/brand";
 import { IqInfoButton } from "@/components/IqInfoSheet";
+import { PrestigeAvatar } from "@/components/PrestigeAvatar";
 
 const INK = "#0B0B0D";           // deep base for gradients
 const GREEN = BRAND.sports;      // emerald accent (share, links)
@@ -28,9 +29,6 @@ function testLabel(k: string) {
   return TEST_LABELS[k] ?? k.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 function fmt(n: number) { return n.toLocaleString(); }
-function initials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "SB";
-}
 function joinLabel(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
@@ -74,7 +72,7 @@ export default function PublicProfilePage() {
     return <Shell><Empty title="Profile not found" body={`No SuperBrain profile exists at /u/${username}.`} /></Shell>;
   }
 
-  const name = p.displayName ?? p.username ?? "Partner";
+  const name = p.displayName ?? p.username ?? "Member";
   const avatarColor = p.avatarColor ?? "#1a3a2a";
 
   // Private profile — minimal card only.
@@ -83,13 +81,13 @@ export default function PublicProfilePage() {
       <Shell>
         <Banner url={p.bannerUrl} />
         <div className="px-1 -mt-10">
-          <Avatar name={name} url={p.avatarUrl} color={avatarColor} />
+          <PrestigeAvatar name={name} url={p.avatarUrl} color={avatarColor} iq={p.level?.lifetimeEarned ?? p.balance ?? 0} />
           <h1 className="text-xl font-black mt-3" style={{ color: TEXT }}>{name}</h1>
           {p.username && <p className="text-sm" style={{ color: MUTED }}>@{p.username}</p>}
           <div className="mt-6 rounded-2xl p-6 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <p className="text-2xl mb-2">🔒</p>
             <p className="text-sm font-bold" style={{ color: TEXT }}>This profile is private</p>
-            <p className="text-xs mt-1" style={{ color: MUTED }}>The partner has chosen to keep their stats hidden.</p>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>This member has chosen to keep their stats hidden.</p>
           </div>
         </div>
       </Shell>
@@ -103,7 +101,7 @@ export default function PublicProfilePage() {
       {/* Identity */}
       <div className="px-1 -mt-10">
         <div className="flex items-end justify-between">
-          <Avatar name={name} url={p.avatarUrl} color={avatarColor} />
+          <PrestigeAvatar name={name} url={p.avatarUrl} color={avatarColor} iq={p.level?.lifetimeEarned ?? p.balance ?? 0} />
           <button onClick={share} className="mb-1 px-4 py-2 rounded-full text-sm font-bold transition-transform active:scale-95"
             style={{ background: GREEN, color: GREEN_INK }}>
             {copied ? "Copied ✓" : "Share"}
@@ -136,7 +134,7 @@ export default function PublicProfilePage() {
             <div className="relative text-center">
               <div className="flex items-center justify-center gap-1.5">
                 <p className="text-[11px]" style={{ letterSpacing: "0.34em", color: MUTED }}>{(p.currency.name || "IQ").toUpperCase()}</p>
-                <IqInfoButton size={14} />
+                <IqInfoButton size={22} />
               </div>
               <p style={{
                 fontSize: 58, lineHeight: 1, marginTop: 6, fontWeight: 600, letterSpacing: "-0.03em",
@@ -146,7 +144,7 @@ export default function PublicProfilePage() {
               }}>{fmt(p.balance)}</p>
               {p.level && (
                 <p className="text-[12px]" style={{ marginTop: 8, color: MUTED }}>
-                  <span style={{ color: GOLD, fontWeight: 600 }}>{p.level.name ?? "Partner"}</span> · Level {p.level.level ?? 1}
+                  <span style={{ color: GOLD, fontWeight: 600 }}>{p.level.name ?? "Rookie"}</span> · Level {p.level.level ?? 1}
                 </p>
               )}
             </div>
@@ -170,7 +168,7 @@ export default function PublicProfilePage() {
 
       {/* ── Level · Rank · Achievements — the dominant credential band ── */}
       <div className="grid grid-cols-3 gap-2">
-        <BigStat label="Level" value={`${p.level?.level ?? 1}`} sub={p.level?.name ?? "Partner"} />
+        <BigStat label="Level" value={`${p.level?.level ?? 1}`} sub={p.level?.name ?? "Rookie"} />
         <BigStat label="Global rank" value={p.leaderboard.contributionRank ? `#${fmt(p.leaderboard.contributionRank)}` : "—"} sub="by IQ" gold />
         <BigStat label="Badges" value={p.achievements ? `${p.achievements.unlocked}` : "—"} sub={p.achievements ? `of ${p.achievements.total}` : ""} />
       </div>
@@ -235,7 +233,7 @@ export default function PublicProfilePage() {
         <Section title="Network">
           <div className="grid grid-cols-2 gap-2">
             <MiniStat value={fmt(p.network.total)} label="Referrals" />
-            <MiniStat value={fmt(p.network.active)} label="Active partners" accent />
+            <MiniStat value={fmt(p.network.active)} label="Active friends" accent />
           </div>
         </Section>
       )}
@@ -245,7 +243,7 @@ export default function PublicProfilePage() {
         <div className="rounded-2xl p-4 text-center relative overflow-hidden" style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-24 pointer-events-none" style={{ background: MATERIAL.goldGlow }} />
           <p className="text-sm font-bold mb-1 relative">Join {name} on SuperBrain</p>
-          <p className="text-xs mb-3 relative" style={{ color: MUTED }}>Use partner code <span style={{ color: GOLD }}>{p.referral.code}</span></p>
+          <p className="text-xs mb-3 relative" style={{ color: MUTED }}>Use invite code <span style={{ color: GOLD }}>{p.referral.code}</span></p>
           <Link href={`/?ref=${encodeURIComponent(p.referral.code)}`} className="relative inline-block px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95" style={{ background: GOLD, color: BRAND.goldInk }}>
             Get started
           </Link>
@@ -289,15 +287,6 @@ function Banner({ url }: { url: string | null | undefined }) {
     <div className="h-32 rounded-3xl relative overflow-hidden"
       style={url ? { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" }
         : { background: `linear-gradient(120deg, ${GREEN2}, ${INK} 60%, ${GOLD})` }} />
-  );
-}
-function Avatar({ name, url, color }: { name: string; url: string | null; color: string }) {
-  return (
-    <div className="w-20 h-20 rounded-2xl border-4 flex items-center justify-center text-2xl font-black overflow-hidden"
-      style={{ borderColor: BG, background: url ? "transparent" : color, color: "#fff" }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url ? <img src={url} alt={name} className="w-full h-full object-cover" /> : initials(name)}
-    </div>
   );
 }
 function Stat({ icon, value, label }: { icon: string; value: string; label: string }) {

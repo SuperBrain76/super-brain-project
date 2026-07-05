@@ -141,7 +141,7 @@ export default function NetworkPage() {
             ))}
           </div>
           <p className="text-[11px] mt-2" style={{ color: MUTED }}>
-            You earn when an invitee becomes active. Elite = an active partner who's earned {sym}1,000+ IQ.
+            You earn when an invitee becomes active. Elite = an active friend who's earned {sym}1,000+ IQ.
           </p>
         </Section>
       )}
@@ -336,7 +336,7 @@ function RankCard({ label, rank, pool }: { label: string; rank: number | null; p
     <div className="rounded-2xl p-4 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
       <div className="text-2xl font-black" style={{ color: rank ? GOLD : MUTED }}>{rank ? `#${fmt(rank)}` : "—"}</div>
       <div className="text-[11px] mt-0.5" style={{ color: MUTED }}>{label}</div>
-      {pool > 0 && <div className="text-[10px]" style={{ color: MUTED }}>of {fmt(pool)} partners</div>}
+      {pool > 0 && <div className="text-[10px]" style={{ color: MUTED }}>of {fmt(pool)} friends</div>}
     </div>
   );
 }

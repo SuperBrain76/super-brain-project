@@ -182,7 +182,7 @@ export async function fetchProfileOG(username: string): Promise<ProfileOGData | 
     if (!d || !d.found) return null;
 
     return {
-      displayName: (d.display_name as string) || "SuperBrain Partner",
+      displayName: (d.display_name as string) || "SuperBrain Member",
       username: (d.username as string) || username,
       levelName: d.level?.name ?? null,
       levelIcon: d.level?.icon ?? null,

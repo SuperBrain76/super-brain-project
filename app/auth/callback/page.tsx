@@ -95,7 +95,7 @@ function CallbackHandler() {
 
       // Google / OAuth users are fully authenticated without email verification.
       if (isOAuthUser) {
-        router.replace("/predict");
+        router.replace("/iq");
         return;
       }
 
@@ -106,7 +106,7 @@ function CallbackHandler() {
         .single();
 
       // New users (incomplete profile) start in the onboarding flow.
-      router.replace(profile?.profile_complete ? "/predict" : "/welcome");
+      router.replace(profile?.profile_complete ? "/iq" : "/welcome");
     }
 
     resolve();

@@ -8,15 +8,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!d) {
     return {
-      title: "SuperBrain — Partner Profile",
-      description: "Discover partners on the SuperBrain contribution economy.",
+      title: "SuperBrain — Profile",
+      description: "Discover members on the SuperBrain economy.",
     };
   }
 
   const title = `${d.displayName} (@${d.username}) — SuperBrain`;
   const parts: string[] = [];
   if (d.isPublic) {
-    if (d.levelName) parts.push(`${d.levelName} partner`);
+    if (d.levelName) parts.push(`${d.levelName}`);
     if (d.balance != null && d.currencyCode) parts.push(`${d.balance.toLocaleString()} ${d.currencyCode}`);
     if (d.achievements != null) parts.push(`${d.achievements} badges`);
   }

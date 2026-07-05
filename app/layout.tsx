@@ -7,6 +7,7 @@ import PWAInstallBanner   from "@/components/PWAInstallBanner";
 import MobileBottomNav    from "@/components/MobileBottomNav";
 import PostHogProvider from "@/components/PostHogProvider";
 import DailyHomeRedirect from "@/components/DailyHomeRedirect";
+import OnboardingGate from "@/components/OnboardingGate";
 
 const BASE_URL = "https://www.superbrain.social";
 const TITLE    = "SuperBrain — Test Your Mind Under Pressure";
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PostHogProvider>
           <AuthProvider>
             <DailyHomeRedirect />
+            <OnboardingGate />
             <Nav />
             <main className="flex-1 flex flex-col">{children}</main>
             <ConditionalFooter />

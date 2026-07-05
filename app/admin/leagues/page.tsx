@@ -324,7 +324,7 @@ export default function AdminLeaguesPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || user.email !== ADMIN_EMAIL) { router.replace("/predict"); return; }
+    if (!user || user.email !== ADMIN_EMAIL) { router.replace("/iq"); return; }
     loadLeagues();
   }, [user, authLoading, router]); // eslint-disable-line react-hooks/exhaustive-deps
 

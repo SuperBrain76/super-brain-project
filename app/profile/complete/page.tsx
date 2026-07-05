@@ -145,7 +145,7 @@ export default function ProfileCompletePage() {
 
     setSaving(false);
     if (err) { setError(err); return; }
-    router.push("/predict");
+    router.push("/iq");
   };
 
   return (

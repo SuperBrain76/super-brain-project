@@ -7,7 +7,7 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: { username: string } }) {
   const d = await fetchProfileOG(params.username);
-  const name = d?.displayName ?? "SuperBrain Partner";
+  const name = d?.displayName ?? "SuperBrain Member";
   const handle = d?.username ?? params.username;
   const isPublic = d?.isPublic !== false;
 
@@ -51,7 +51,7 @@ export default async function Image({ params }: { params: { username: string } }
         {isPublic && d ? (
           <div style={{ display: "flex", gap: "20px" }}>
             {d.levelName && (
-              <Badge label="Partner Level" value={`${d.levelIcon ?? "⭐"} ${d.levelName}`} />
+              <Badge label="Level" value={`${d.levelIcon ?? "⭐"} ${d.levelName}`} />
             )}
             {d.balance != null && (
               <Badge label={d.currencyCode ?? "Balance"} value={d.balance.toLocaleString()} />
