@@ -172,9 +172,9 @@ export default function PartnerDashboardPage() {
 
       {/* Headline — the promise, near the top */}
       <div className="text-center px-2 pt-1">
-        <h1 className="text-lg font-black leading-snug" style={{ color: TEXT }}>Build your SuperBrain.</h1>
+        <h1 className="text-lg font-black leading-snug" style={{ color: TEXT }}>Build your SuperBrain profile.</h1>
         <p className="text-[13px] mt-1 leading-relaxed" style={{ color: MUTED }}>
-          Earn <span style={{ color: GOLD, fontWeight: 700 }}>IQ</span> every time you play, predict, test and contribute.
+          Every prediction, brain test, battle and contribution earns permanent <span style={{ color: GOLD, fontWeight: 700 }}>IQ</span>.
         </p>
       </div>
 
@@ -222,74 +222,52 @@ export default function PartnerDashboardPage() {
         <Stat icon="🎖️" value={`${achievements.unlocked}/${achievements.total}`} label="badges" />
       </div>
 
-      {/* ── Daily reward ──────────────────────────────────────────────── */}
-      <div
-        className="rounded-2xl p-4 flex items-center gap-4"
-        style={{ background: CARD, border: `1px solid ${BORDER}` }}
-      >
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-          style={{ background: dailyReward.available ? "#fff6dc" : "#eef1ea" }}
-        >
-          {dailyReward.available ? "🎁" : "✅"}
+      {/* ── Today: the one question — what to do to grow your SuperBrain ── */}
+      <Section title="Today" hint="Grow your SuperBrain">
+        <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <TodayRow
+            first
+            icon="🎁"
+            label="Claim daily reward"
+            sub={dailyReward.available ? `Day ${dailyReward.streakDay} · +${fmt(dailyReward.total)} ${currency.code}` : "Claimed today"}
+            done={!dailyReward.available}
+            action={dailyReward.available ? (
+              <button onClick={claim} disabled={claiming}
+                className="px-3.5 py-1.5 rounded-full text-xs font-black shrink-0 disabled:opacity-60"
+                style={{ background: GOLD, color: INK }}>
+                {claiming ? "…" : `Claim +${fmt(dailyReward.total)}`}
+              </button>
+            ) : undefined}
+          />
+          <TodayRow
+            icon="🔥"
+            label="Keep your streak alive"
+            sub={dailyReward.available ? `${streak.current}-day streak — check in to extend` : `${streak.current}-day streak · safe today`}
+            done={!dailyReward.available}
+            action={dailyReward.available ? (
+              <button onClick={claim} disabled={claiming} className="text-xs font-bold shrink-0" style={{ color: GOLD }}>
+                Check in ›
+              </button>
+            ) : undefined}
+          />
+          <TodayRow icon="⚽" label="Make predictions" sub="Call today's matches" href="/predict" />
+          <TodayRow icon="🧠" label="Complete a brain test" sub="Beat a personal best" href="/tests" />
+          <TodayRow icon="⚔️" label="Win a battle" sub="Climb the Elo ladder" href="/battle" />
+          <TodayRow
+            icon="🤝"
+            label="Invite a friend"
+            sub="Earn when they get active"
+            action={
+              <button onClick={share} className="text-xs font-bold shrink-0" style={{ color: GREEN }}>
+                {copied ? "Copied ✓" : "Share ›"}
+              </button>
+            }
+          />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold" style={{ color: TEXT }}>
-            {dailyReward.available ? "Daily reward ready" : "Reward claimed today"}
-          </p>
-          <p className="text-xs" style={{ color: MUTED }}>
-            {dailyReward.available
-              ? `Day ${dailyReward.streakDay} · +${fmt(dailyReward.total)} ${currency.code}`
-              : `Come back tomorrow to grow your ${streak.current}-day streak`}
-          </p>
-        </div>
-        {dailyReward.available && (
-          <button
-            onClick={claim}
-            disabled={claiming}
-            className="px-4 py-2 rounded-full text-sm font-bold shrink-0 disabled:opacity-60"
-            style={{ background: GOLD, color: INK }}
-          >
-            {claiming ? "…" : `Claim +${fmt(dailyReward.total)}`}
-          </button>
-        )}
-      </div>
+      </Section>
 
       {/* ── Daily Missions ────────────────────────────────────────────── */}
       <MissionsSection data={missions} claimingCode={claimingMission} onClaim={claimReward} />
-
-      {/* ── Next Actions ──────────────────────────────────────────────── */}
-      {dash.nextActions.length > 0 && (
-        <Section title="Next Actions" hint="Highest-value moves today">
-          <div className="space-y-2">
-            {dash.nextActions.map((a) => (
-              <Link
-                key={a.code}
-                href={a.href}
-                className="flex items-center gap-3 rounded-2xl p-3.5 transition-transform active:scale-[0.99]"
-                style={{ background: CARD, border: `1px solid ${BORDER}` }}
-              >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-                  style={{ background: BG }}
-                >
-                  {a.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: TEXT }}>{a.title}</p>
-                  <p className="text-xs truncate" style={{ color: MUTED }}>{a.subtitle}</p>
-                </div>
-                <span
-                  className="text-sm font-black px-2.5 py-1 rounded-full shrink-0"
-                  style={{ background: "#fff6dc", color: "#8a6d12" }}
-                >
-                  +{fmt(a.iq)}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </Section>
-      )}
 
       {/* ── Referral / network ────────────────────────────────────────── */}
       <Section title="Your Network" hint="Earn when partners get active">
@@ -489,6 +467,25 @@ function MissionsSection({
       </div>
     </div>
   );
+}
+
+function TodayRow({ first, icon, label, sub, href, action, done }: {
+  first?: boolean; icon: string; label: string; sub: string; href?: string; action?: React.ReactNode; done?: boolean;
+}) {
+  const inner = (
+    <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderTop: first ? "none" : `1px solid ${BORDER}`, opacity: done && !action ? 0.72 : 1 }}>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: BG }}>{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold truncate" style={{ color: TEXT }}>{label}</p>
+        <p className="text-[11px] truncate" style={{ color: MUTED }}>{sub}</p>
+      </div>
+      {action ? action : (done
+        ? <span className="text-sm font-black shrink-0" style={{ color: "#5FCF8B" }}>✓</span>
+        : <span className="shrink-0" style={{ color: MUTED }}>›</span>)}
+    </div>
+  );
+  if (href) return <Link href={href} className="block transition-transform active:scale-[0.99]">{inner}</Link>;
+  return inner;
 }
 
 function HubRow({ href, icon, label, hint }: { href: string; icon: string; label: string; hint: string }) {

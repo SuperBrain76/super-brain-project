@@ -126,58 +126,59 @@ export default function PublicProfilePage() {
         {p.bio && <p className="text-sm mt-2" style={{ color: TEXT }}>{p.bio}</p>}
       </div>
 
-      {/* Balance + level progress */}
-      {(p.balance !== null || p.level) && (
-        <div className="rounded-3xl p-5 relative overflow-hidden"
-          style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
-          <div className="absolute -top-16 -right-16 w-56 h-56 pointer-events-none"
-            style={{ background: MATERIAL.goldGlow }} />
-          {p.balance !== null && p.currency && (
-            <>
-              <div className="flex items-center gap-1.5 relative">
-                <p className="text-xs uppercase tracking-[0.2em]" style={{ color: MUTED }}>{p.currency.name}</p>
+      {/* ── IQ hero — the star of the profile ─────────────────────────── */}
+      {p.balance !== null && p.currency && (
+        <div className="relative flex items-center justify-center pt-3 pb-1">
+          <div className="absolute" style={{ width: 300, height: 300, background: MATERIAL.goldGlow }} />
+          <div className="relative flex items-center justify-center" style={{ width: 222, height: 222 }}>
+            <div className="absolute rounded-full" style={{ inset: 0, border: `1px solid ${MATERIAL.ringFaint}` }} />
+            <div className="absolute rounded-full" style={{ inset: 0, border: "1.5px solid transparent", borderTopColor: MATERIAL.ring, borderRightColor: MATERIAL.ring, transform: "rotate(-38deg)" }} />
+            <div className="relative text-center">
+              <div className="flex items-center justify-center gap-1.5">
+                <p className="text-[11px]" style={{ letterSpacing: "0.34em", color: MUTED }}>{(p.currency.name || "IQ").toUpperCase()}</p>
                 <IqInfoButton size={14} />
               </div>
-              <p className="text-4xl font-black relative" style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
-                {p.currency.symbol} {fmt(p.balance)}
-              </p>
+              <p style={{
+                fontSize: 58, lineHeight: 1, marginTop: 6, fontWeight: 600, letterSpacing: "-0.03em",
+                background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text",
+                WebkitTextFillColor: "transparent", color: "transparent",
+                filter: "drop-shadow(0 6px 14px rgba(232,193,90,0.28))", fontVariantNumeric: "tabular-nums",
+              }}>{fmt(p.balance)}</p>
               {p.level && (
-                <p className="text-[11px] relative mt-0.5" style={{ color: MUTED }}>
-                  {fmt(p.level.lifetimeEarned)} earned all-time
+                <p className="text-[12px]" style={{ marginTop: 8, color: MUTED }}>
+                  <span style={{ color: GOLD, fontWeight: 600 }}>{p.level.name ?? "Partner"}</span> · Level {p.level.level ?? 1}
                 </p>
               )}
-            </>
-          )}
-          {p.level && (
-            <div className="mt-4 relative">
-              <div className="flex items-center justify-between text-[11px] mb-1.5" style={{ color: MUTED }}>
-                <span>Lvl {p.level.level ?? 1} · {p.level.name ?? "Partner"}</span>
-                <span>{p.level.nextName ? `${fmt(p.level.lifetimeEarned)} / ${fmt(p.level.nextAt ?? 0)} → ${p.level.nextName}` : "Max level"}</span>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-                <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(2, p.level.progressPct))}%`, background: MATERIAL.goldFill }} />
-              </div>
             </div>
-          )}
-
-          {/* Rankings — shown clearly on the credential */}
-          {(p.leaderboard.contributionRank || p.leaderboard.predictorRank) && (
-            <div className="flex flex-wrap gap-2 mt-4 relative">
-              {p.leaderboard.contributionRank && (
-                <RankPill label="IQ" rank={p.leaderboard.contributionRank} />
-              )}
-              {p.leaderboard.predictorRank && (
-                <RankPill label="Predictor" rank={p.leaderboard.predictorRank} />
-              )}
-            </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* Stat tiles — a career snapshot */}
+      {/* Level progress — a line of light */}
+      {p.level && (
+        <div className="px-2">
+          <div className="relative" style={{ height: 1, background: BORDER }}>
+            <div className="absolute left-0 top-0" style={{ height: 1, width: `${Math.min(100, Math.max(2, p.level.progressPct))}%`, background: MATERIAL.goldFill }} />
+            <div className="absolute" style={{ left: `${Math.min(100, Math.max(2, p.level.progressPct))}%`, top: -2, width: 5, height: 5, borderRadius: "50%", background: GOLD_SOFT, boxShadow: MATERIAL.shadowGold, transform: "translateX(-50%)" }} />
+          </div>
+          <div className="flex justify-between mt-2 text-[11px]" style={{ color: MUTED }}>
+            <span>{fmt(p.level.lifetimeEarned)} earned all-time</span>
+            <span>{p.level.nextName ? `Next: ${p.level.nextName}` : "Max level"}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Level · Rank · Achievements — the dominant credential band ── */}
+      <div className="grid grid-cols-3 gap-2">
+        <BigStat label="Level" value={`${p.level?.level ?? 1}`} sub={p.level?.name ?? "Partner"} />
+        <BigStat label="Global rank" value={p.leaderboard.contributionRank ? `#${fmt(p.leaderboard.contributionRank)}` : "—"} sub="by IQ" gold />
+        <BigStat label="Badges" value={p.achievements ? `${p.achievements.unlocked}` : "—"} sub={p.achievements ? `of ${p.achievements.total}` : ""} />
+      </div>
+
+      {/* Secondary snapshot — smaller, supporting */}
       <div className="grid grid-cols-4 gap-2">
-        <Stat icon="🎖️" value={p.achievements ? `${p.achievements.unlocked}` : "—"} label="badges" />
         <Stat icon="⚽" value={p.predictions ? fmt(p.predictions.totalPoints) : "—"} label="pred pts" />
+        <Stat icon="🎯" value={p.leaderboard.predictorRank ? `#${fmt(p.leaderboard.predictorRank)}` : "—"} label="predictor" />
         <Stat icon="🧠" value={p.tests ? `${p.tests.completed}` : "—"} label="tests" />
         <Stat icon="🤝" value={p.network ? fmt(p.network.active) : "—"} label="network" />
       </div>
@@ -309,13 +310,18 @@ function Stat({ icon, value, label }: { icon: string; value: string; label: stri
   );
 }
 
-function RankPill({ label, rank }: { label: string; rank: number }) {
+function BigStat({ label, value, sub, gold }: { label: string; value: string; sub?: string; gold?: boolean }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-      style={{ background: "rgba(255,255,255,0.04)", border: `0.5px solid ${BORDER}` }}>
-      <span className="text-base leading-none">🏆</span>
-      <span className="text-xs" style={{ color: MUTED }}>{label}</span>
-      <span className="text-sm font-black" style={{ color: TEXT }}>#{rank.toLocaleString()}</span>
+    <div className="rounded-2xl p-4 text-center relative overflow-hidden" style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}` }}>
+      {gold && <div className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none" style={{ width: 120, height: 70, background: MATERIAL.goldGlow }} />}
+      <p className="text-[10px] uppercase tracking-[0.16em] mb-1.5 relative" style={{ color: MUTED }}>{label}</p>
+      <p className="text-2xl font-black leading-none relative"
+        style={gold
+          ? { background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }
+          : { color: TEXT }}>
+        {value}
+      </p>
+      {sub && <p className="text-[10px] mt-1.5 truncate relative" style={{ color: MUTED }}>{sub}</p>}
     </div>
   );
 }

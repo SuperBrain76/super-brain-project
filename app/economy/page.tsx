@@ -8,6 +8,14 @@ export const metadata: Metadata = {
     "How IQ works on SuperBrain: earn it by playing, predicting, testing and contributing. Learn about levels, achievements, referrals, fair play and future rewards.",
 };
 
+const COMING = [
+  { icon: "🎁", title: "Partner Rewards", body: "Redeem IQ for rewards from SuperBrain and its partners." },
+  { icon: "💎", title: "Premium Features", body: "Unlock advanced tools, insights and customisation." },
+  { icon: "🎟️", title: "Prize Entries", body: "Put your IQ toward entries for prize draws and giveaways." },
+  { icon: "🔑", title: "Exclusive Events", body: "Get access to members-only tournaments and events." },
+  { icon: "🛍️", title: "Marketplace", body: "Spend IQ on merch, boosts and collectibles." },
+];
+
 const EARN = [
   { icon: "🧠", title: "Brain tests", body: "Beat your personal bests across reaction, memory, focus and reasoning tests." },
   { icon: "⚽", title: "Predictions", body: "Call match results and tournament outcomes. Accuracy earns IQ." },
@@ -115,6 +123,32 @@ export default function EconomyPage() {
             further rewards, perks and recognition. We&apos;ll always tell you clearly when something new arrives.
           </p>
         </Block>
+
+        {/* ── Coming soon ────────────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: BRAND.dim }}>Coming soon</p>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full tracking-[0.14em]"
+              style={{ background: "rgba(232,193,90,0.12)", color: BRAND.gold, border: `0.5px solid ${MATERIAL.ringFaint}` }}>
+              PLANNED
+            </span>
+          </div>
+          <h2 className="text-2xl font-extrabold mb-4" style={{ color: BRAND.ink }}>Where IQ is headed</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-1">
+            {COMING.map((c) => (
+              <div key={c.title} className="flex gap-3.5">
+                <span className="text-2xl shrink-0 leading-none mt-0.5" style={{ opacity: 0.9 }}>{c.icon}</span>
+                <div>
+                  <p className="font-semibold text-[15px] mb-0.5" style={{ color: BRAND.ink }}>{c.title}</p>
+                  <p className="text-sm leading-relaxed" style={{ color: BRAND.muted }}>{c.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs mt-5" style={{ color: BRAND.dim }}>
+            These are planned directions, not promises — we&apos;ll confirm details as each one arrives.
+          </p>
+        </section>
 
         {/* ── Legal / disclaimer ─────────────────────────────────────────── */}
         <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: `0.5px solid ${BRAND.hairline}` }}>

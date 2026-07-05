@@ -19,6 +19,14 @@ const EARN = [
   { icon: "🎖️", label: "Unlock achievements" },
 ];
 
+const COMING = [
+  { icon: "🎁", label: "Partner Rewards" },
+  { icon: "💎", label: "Premium Features" },
+  { icon: "🎟️", label: "Prize Entries" },
+  { icon: "🔑", label: "Exclusive Events" },
+  { icon: "🛍️", label: "Marketplace" },
+];
+
 export function IqInfoButton({ size = 16, className = "" }: { size?: number; className?: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -132,6 +140,20 @@ function IqInfoSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
           <div className="space-y-3 mb-6">
             <Line title="What it does now" body="Builds your level and status, ranks you on the leaderboards, and tracks everything you contribute." />
             <Line title="What it may unlock later" body="Future rewards, perks and recognition as the SuperBrain community grows." />
+          </div>
+
+          {/* Coming soon */}
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: BRAND.dim }}>Coming soon</p>
+            <div className="flex-1 h-px" style={{ background: BRAND.hairline }} />
+          </div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {COMING.map((c) => (
+              <span key={c.label} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs"
+                style={{ background: "rgba(255,255,255,0.03)", border: `0.5px solid ${BRAND.hairline}`, color: BRAND.muted }}>
+                <span className="text-sm leading-none">{c.icon}</span>{c.label}
+              </span>
+            ))}
           </div>
 
           {/* Disclaimer */}
