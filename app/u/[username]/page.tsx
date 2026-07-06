@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getPublicProfile, type PublicProfile } from "@/lib/publicProfile";
+import { getPublicProfile, getMyProfileSettings, type PublicProfile } from "@/lib/publicProfile";
 import { BRAND, MATERIAL } from "@/lib/brand";
 import { IqInfoButton } from "@/components/IqInfoSheet";
 import { PrestigeAvatar } from "@/components/PrestigeAvatar";
+import { currentTier } from "@/lib/prestige";
+import { useAuth } from "@/components/AuthProvider";
 
 const INK = "#0B0B0D";           // deep base for gradients
 const GREEN = BRAND.sports;      // emerald accent (share, links)
@@ -46,10 +48,19 @@ export default function PublicProfilePage() {
   const username = String(params?.username ?? "");
   const [p, setP] = useState<PublicProfile | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
+  const { user } = useAuth();
+  const [selfUsername, setSelfUsername] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => setP(await getPublicProfile(username)))();
   }, [username]);
+
+  useEffect(() => {
+    if (!user) { setSelfUsername(null); return; }
+    getMyProfileSettings().then((s) => setSelfUsername(s?.username ?? null));
+  }, [user]);
+
+  const isSelf = !!selfUsername && selfUsername.toLowerCase() === username.toLowerCase();
 
   const share = useCallback(async () => {
     if (!p || !p.username) return;
@@ -74,6 +85,8 @@ export default function PublicProfilePage() {
 
   const name = p.displayName ?? p.username ?? "Member";
   const avatarColor = p.avatarColor ?? "#1a3a2a";
+  const tier = currentTier(p.level?.lifetimeEarned ?? p.balance ?? 0);
+  const tierLabel = tier ? tier.id[0].toUpperCase() + tier.id.slice(1) : "";
 
   // Private profile — minimal card only.
   if (!p.isPublic) {
@@ -98,25 +111,34 @@ export default function PublicProfilePage() {
     <Shell>
       <Banner url={p.bannerUrl} />
 
-      {/* Identity */}
+      {/* ── Identity — the player card ────────────────────────────────── */}
       <div className="px-1 -mt-10">
         <div className="flex items-end justify-between">
           <PrestigeAvatar name={name} url={p.avatarUrl} color={avatarColor} iq={p.level?.lifetimeEarned ?? p.balance ?? 0} />
-          <button onClick={share} className="mb-1 px-4 py-2 rounded-full text-sm font-bold transition-transform active:scale-95"
-            style={{ background: GREEN, color: GREEN_INK }}>
-            {copied ? "Copied ✓" : "Share"}
-          </button>
+          <div className="flex items-center gap-2 mb-1">
+            {isSelf && (
+              <Link href="/settings/public-profile"
+                className="px-3.5 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95"
+                style={{ color: MUTED, border: `0.5px solid ${BORDER}` }}>
+                Edit
+              </Link>
+            )}
+            <button onClick={share} className="px-4 py-2 rounded-full text-sm font-bold transition-transform active:scale-95"
+              style={{ background: GREEN, color: GREEN_INK }}>
+              {copied ? "Copied ✓" : "Share"}
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2 mt-3 flex-wrap">
-          <h1 className="text-xl font-black" style={{ color: TEXT }}>{name}</h1>
-          {p.level?.name && (
+          <h1 className="text-2xl font-black leading-tight" style={{ color: TEXT }}>{name}</h1>
+          {tier && (
             <span className="text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
               style={{ background: "rgba(232,193,90,0.12)", color: GOLD, border: `0.5px solid ${MATERIAL.ringFaint}` }}>
-              <span>{p.level.icon ?? "⭐"}</span>{p.level.name}
+              <span>{tier.emblem ?? tier.icon}</span>{tierLabel}
             </span>
           )}
         </div>
-        <p className="text-sm" style={{ color: MUTED }}>
+        <p className="text-sm mt-0.5" style={{ color: MUTED }}>
           {p.username ? `@${p.username}` : ""}
           {p.country ? ` · ${p.country}` : ""}
           {p.joinDate ? ` · Joined ${joinLabel(p.joinDate)}` : ""}
@@ -166,19 +188,11 @@ export default function PublicProfilePage() {
         </div>
       )}
 
-      {/* ── Level · Rank · Achievements — the dominant credential band ── */}
+      {/* ── Highlights — three headline numbers (no duplication) ──────── */}
       <div className="grid grid-cols-3 gap-2">
-        <BigStat label="Level" value={`${p.level?.level ?? 1}`} sub={p.level?.name ?? "Rookie"} />
         <BigStat label="Global rank" value={p.leaderboard.contributionRank ? `#${fmt(p.leaderboard.contributionRank)}` : "—"} sub="by IQ" gold />
-        <BigStat label="Badges" value={p.achievements ? `${p.achievements.unlocked}` : "—"} sub={p.achievements ? `of ${p.achievements.total}` : ""} />
-      </div>
-
-      {/* Secondary snapshot — smaller, supporting */}
-      <div className="grid grid-cols-4 gap-2">
-        <Stat icon="⚽" value={p.predictions ? fmt(p.predictions.totalPoints) : "—"} label="pred pts" />
-        <Stat icon="🎯" value={p.leaderboard.predictorRank ? `#${fmt(p.leaderboard.predictorRank)}` : "—"} label="predictor" />
-        <Stat icon="🧠" value={p.tests ? `${p.tests.completed}` : "—"} label="tests" />
-        <Stat icon="🤝" value={p.network ? fmt(p.network.active) : "—"} label="network" />
+        <BigStat label="Badges" value={p.achievements ? `${p.achievements.unlocked}` : "—"} sub={p.achievements ? `of ${p.achievements.total}` : "unlocked"} />
+        <BigStat label="Best test" value={p.tests?.avgPercentile != null ? `${p.tests.avgPercentile}th` : "—"} sub="avg pct" />
       </div>
 
       {/* Achievements */}
@@ -238,15 +252,23 @@ export default function PublicProfilePage() {
         </Section>
       )}
 
-      {/* Referral CTA */}
+      {/* Referral CTA — invite others (or share your own code if it's you) */}
       {p.referral?.code && (
         <div className="rounded-2xl p-4 text-center relative overflow-hidden" style={{ background: MATERIAL.raise, border: `0.5px solid ${BORDER}`, color: TEXT }}>
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-24 pointer-events-none" style={{ background: MATERIAL.goldGlow }} />
-          <p className="text-sm font-bold mb-1 relative">Join {name} on SuperBrain</p>
-          <p className="text-xs mb-3 relative" style={{ color: MUTED }}>Use invite code <span style={{ color: GOLD }}>{p.referral.code}</span></p>
-          <Link href={`/?ref=${encodeURIComponent(p.referral.code)}`} className="relative inline-block px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95" style={{ background: GOLD, color: BRAND.goldInk }}>
-            Get started
-          </Link>
+          <p className="text-sm font-bold mb-1 relative">{isSelf ? "Invite friends to SuperBrain" : `Join ${name} on SuperBrain`}</p>
+          <p className="text-xs mb-3 relative" style={{ color: MUTED }}>
+            {isSelf ? "Your invite code" : "Use invite code"} <span style={{ color: GOLD }}>{p.referral.code}</span>
+          </p>
+          {isSelf ? (
+            <button onClick={share} className="relative inline-block px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95" style={{ background: GOLD, color: BRAND.goldInk }}>
+              {copied ? "Copied ✓" : "Share your invite"}
+            </button>
+          ) : (
+            <Link href={`/?ref=${encodeURIComponent(p.referral.code)}`} className="relative inline-block px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95" style={{ background: GOLD, color: BRAND.goldInk }}>
+              Get started
+            </Link>
+          )}
         </div>
       )}
 
@@ -287,15 +309,6 @@ function Banner({ url }: { url: string | null | undefined }) {
     <div className="h-32 rounded-3xl relative overflow-hidden"
       style={url ? { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" }
         : { background: `linear-gradient(120deg, ${GREEN2}, ${INK} 60%, ${GOLD})` }} />
-  );
-}
-function Stat({ icon, value, label }: { icon: string; value: string; label: string }) {
-  return (
-    <div className="rounded-2xl py-3 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-      <div className="text-lg leading-none mb-1">{icon}</div>
-      <div className="text-sm font-black" style={{ color: TEXT }}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wide" style={{ color: MUTED }}>{label}</div>
-    </div>
   );
 }
 
