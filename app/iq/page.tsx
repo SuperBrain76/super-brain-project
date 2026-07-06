@@ -13,6 +13,8 @@ import { getOnboardingStatus, type OnboardingStatus } from "@/lib/onboarding";
 import { MATERIAL } from "@/lib/brand";
 import { IqInfoButton } from "@/components/IqInfoSheet";
 import { PrestigeStatusLine, IqUnlocksLadder } from "@/components/IqUnlocks";
+import { detectCelebrations, type CelebrationEvent } from "@/lib/celebrate";
+import { CelebrationModal } from "@/components/CelebrationModal";
 
 // Palette — "Midnight Gold", sculpted. Gold = earned value only.
 const INK = "#2A2205";     // text on a gold fill
@@ -51,6 +53,7 @@ export default function PartnerDashboardPage() {
   const [claiming, setClaiming] = useState(false);
   const [copied, setCopied] = useState(false);
   const [onb, setOnb] = useState<OnboardingStatus | null>(null);
+  const [cels, setCels] = useState<CelebrationEvent[]>([]);
 
   const load = useCallback(async () => {
     setDash(await getPartnerDashboard());
@@ -65,6 +68,20 @@ export default function PartnerDashboardPage() {
     load();
     loadMissions();
   }, [load, loadMissions]);
+
+  // Detect and celebrate the moments worth celebrating (level-ups, new status
+  // tiers, fresh achievements). Idempotent via localStorage snapshots.
+  useEffect(() => {
+    if (!dash || !dash.authenticated) return;
+    const ev = detectCelebrations({
+      level: dash.level.level,
+      levelName: dash.level.name,
+      levelIcon: dash.level.icon,
+      lifetimeEarned: dash.lifetimeEarned,
+      recentAchievements: dash.achievements.recent.map((a) => ({ code: a.code, name: a.name, icon: a.icon })),
+    });
+    if (ev.length) setCels(ev);
+  }, [dash]);
 
   const claimReward = useCallback(async (code: string) => {
     setClaimingMission(code);
@@ -158,6 +175,10 @@ export default function PartnerDashboardPage() {
 
   return (
     <Shell>
+      {cels.length > 0 && (
+        <CelebrationModal events={cels} referralCode={referral.code} onClose={() => setCels([])} />
+      )}
+
       {/* Resume onboarding */}
       {showResume && (
         <Link href="/welcome" className="flex items-center gap-3 rounded-2xl p-3.5"
@@ -334,6 +355,11 @@ export default function PartnerDashboardPage() {
         ) : (
           <p className="text-xs" style={{ color: MUTED }}>No badges yet — complete a Next Action to earn your first.</p>
         )}
+        <Link href="/achievements" className="block text-center mt-3 text-xs font-bold" style={{ color: GOLD }}>
+          {achievements.total - achievements.unlocked > 0
+            ? `${fmt(achievements.total - achievements.unlocked)} more to unlock →`
+            : "View all achievements →"}
+        </Link>
       </Section>
 
       {/* ── Recent transactions ───────────────────────────────────────── */}
@@ -367,6 +393,7 @@ export default function PartnerDashboardPage() {
       {/* ── You hub: everything about your account in one place ────────── */}
       <Section title="More">
         <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <HubRow href="/achievements" icon="🎖️" label="Achievements" hint="Your badge collection" />
           <HubRow href="/network" icon="🌐" label="Network" hint="Your referral network" />
           <HubRow href="/results" icon="📊" label="Statistics" hint="Your test history & scores" />
           <HubRow href="/settings/public-profile" icon="🪪" label="Public profile" hint="Username, bio, privacy" />
