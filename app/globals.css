@@ -90,6 +90,20 @@ html, body {
   }
 }
 
+/* Global page transition — a quick, premium fade on every navigation.
+   Opacity-only on purpose: no transform, so `position: fixed` overlays
+   (modals, sheets) stay anchored to the viewport. */
+@keyframes pageEnter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.page-enter {
+  animation: pageEnter 0.26s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+}
+
 /* Scan line effect */
 .scanlines::after {
   content: '';
