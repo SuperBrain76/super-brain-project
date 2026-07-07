@@ -166,8 +166,9 @@ export default function PartnerDashboardPage() {
     );
   }
 
-  const { currency, level, streak, dailyReward, referral, leaderboard, achievements } = dash;
+  const { currency, level, streak, referral, leaderboard, achievements } = dash;
   const sym = currency.symbol || "";
+  const cont = resolveContinue(dash, missions);
 
   const onbSteps = onb?.steps;
   const onbDone = onbSteps ? [onbSteps.avatar, onbSteps.profile, onbSteps.reward, onbSteps.test, onbSteps.prediction].filter(Boolean).length : 5;
@@ -239,6 +240,14 @@ export default function PartnerDashboardPage() {
       {/* Prestige status — the "so what" of your IQ, in one line */}
       <PrestigeStatusLine iq={dash.lifetimeEarned} />
 
+      {/* ── Continue — the one thing to do right now ──────────────────── */}
+      <ContinueHero
+        cont={cont}
+        busy={claiming || claimingMission !== null}
+        onClaimDaily={claim}
+        onClaimMission={claimReward}
+      />
+
       {/* ── Quick stats ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-2">
         <Stat icon="🔥" value={`${streak.current}`} label="streak" />
@@ -247,35 +256,10 @@ export default function PartnerDashboardPage() {
         <Stat icon="🎖️" value={`${achievements.unlocked}/${achievements.total}`} label="badges" />
       </div>
 
-      {/* ── Today: the one question — what to do to grow your SuperBrain ── */}
-      <Section title="Today" hint="Grow your SuperBrain">
+      {/* ── Ways to earn — the menu beneath the one Continue action ────── */}
+      <Section title="Earn more today" hint="Every play grows your IQ">
         <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-          <TodayRow
-            first
-            icon="🎁"
-            label="Claim daily reward"
-            sub={dailyReward.available ? `Day ${dailyReward.streakDay} · +${fmt(dailyReward.total)} ${currency.code}` : "Claimed today"}
-            done={!dailyReward.available}
-            action={dailyReward.available ? (
-              <button onClick={claim} disabled={claiming}
-                className="px-3.5 py-1.5 rounded-full text-xs font-black shrink-0 disabled:opacity-60"
-                style={{ background: GOLD, color: INK }}>
-                {claiming ? "…" : `Claim +${fmt(dailyReward.total)}`}
-              </button>
-            ) : undefined}
-          />
-          <TodayRow
-            icon="🔥"
-            label="Keep your streak alive"
-            sub={dailyReward.available ? `${streak.current}-day streak — check in to extend` : `${streak.current}-day streak · safe today`}
-            done={!dailyReward.available}
-            action={dailyReward.available ? (
-              <button onClick={claim} disabled={claiming} className="text-xs font-bold shrink-0" style={{ color: GOLD }}>
-                Check in ›
-              </button>
-            ) : undefined}
-          />
-          <TodayRow icon="⚽" label="Make predictions" sub="Call today's matches" href="/predict" />
+          <TodayRow first icon="⚽" label="Make predictions" sub="Call today's matches" href="/predict" />
           <TodayRow icon="🧠" label="Complete a brain test" sub="Beat a personal best" href="/tests" />
           <TodayRow icon="⚔️" label="Win a battle" sub="Climb the Elo ladder" href="/battle" />
           <TodayRow
@@ -502,6 +486,58 @@ function MissionsSection({
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Continue: the single "what to do right now", resolved from dashboard data ──
+type ContinueAction = {
+  icon: string; label: string; sub: string;
+  action: { type: "claimDaily" } | { type: "claimMission"; code: string } | { type: "link"; href: string };
+};
+
+function resolveContinue(dash: PartnerDashboard, missions: MissionsResult | null): ContinueAction {
+  const code = dash.currency.code || "IQ";
+  if (dash.dailyReward.available) {
+    const s = dash.streak.current;
+    return s >= 2
+      ? { icon: "🔥", label: "Keep your streak alive", sub: `${s}-day streak · claim +${fmt(dash.dailyReward.total)} ${code} before midnight`, action: { type: "claimDaily" } }
+      : { icon: "🎁", label: "Claim your daily reward", sub: `+${fmt(dash.dailyReward.total)} ${code} is waiting`, action: { type: "claimDaily" } };
+  }
+  const m = missions?.missions.find((x) => x.completed && !x.claimed);
+  if (m) return { icon: m.icon || "🎯", label: "Claim your mission reward", sub: m.title, action: { type: "claimMission", code: m.code } };
+  const na = dash.nextActions?.[0];
+  if (na) return { icon: na.icon || "▶️", label: na.title, sub: `${na.subtitle} · +${fmt(na.iq)} ${code}`, action: { type: "link", href: na.href } };
+  return { icon: "🧠", label: "Take a brain test", sub: "Beat a personal best", action: { type: "link", href: "/tests" } };
+}
+
+function ContinueHero({ cont, busy, onClaimDaily, onClaimMission }: {
+  cont: ContinueAction; busy: boolean; onClaimDaily: () => void; onClaimMission: (code: string) => void;
+}) {
+  const isLink = cont.action.type === "link";
+  const body = (
+    <div className="flex items-center gap-3.5 w-full">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+        style={{ background: "rgba(232,193,90,0.12)", border: `0.5px solid ${MATERIAL.ringFaint}` }}>{cont.icon}</div>
+      <div className="flex-1 min-w-0 text-left">
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: GOLD }}>Continue</p>
+        <p className="text-[15px] font-black leading-tight line-clamp-2" style={{ color: TEXT }}>{cont.label}</p>
+        <p className="text-[11px] truncate" style={{ color: MUTED }}>{cont.sub}</p>
+      </div>
+      {isLink
+        ? <span className="shrink-0 text-lg" style={{ color: GOLD }}>→</span>
+        : <span className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-black" style={{ background: GOLD, color: INK }}>{busy ? "…" : "Claim"}</span>}
+    </div>
+  );
+  const style: React.CSSProperties = { background: MATERIAL.raise, border: "0.5px solid rgba(232,193,90,0.4)", boxShadow: MATERIAL.shadowGold };
+  if (cont.action.type === "link") {
+    return <Link href={cont.action.href} className="block w-full rounded-2xl p-3.5 transition-transform active:scale-[0.99]" style={style}>{body}</Link>;
+  }
+  const missionCode = cont.action.type === "claimMission" ? cont.action.code : null;
+  return (
+    <button onClick={() => (missionCode ? onClaimMission(missionCode) : onClaimDaily())} disabled={busy}
+      className="block w-full rounded-2xl p-3.5 transition-transform active:scale-[0.99] disabled:opacity-70" style={style}>
+      {body}
+    </button>
   );
 }
 
