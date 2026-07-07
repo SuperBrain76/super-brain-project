@@ -317,7 +317,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
           const row  = f as unknown as Record<string, unknown>;
           const home = normalizeName(teamNameMap.get(row.home_team_id as string) ?? "");
           const away = normalizeName(teamNameMap.get(row.away_team_id as string) ?? "");
-          return home === apiHomeName || away === apiAwayName;
+          return home === apiHomeName || away === apiAwayName || home === apiAwayName || away === apiHomeName;
         }) ?? findDbFixtureByKickoff(apiFix.fixture.date, availableDb); // fallback: time-only
       }
 
@@ -332,8 +332,21 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         continue; // Fixture not in our ±3h window
       }
 
-      const newStatus               = mapStatus(apiFix.fixture.status.short);
-      const { homeScore, awayScore } = extractScore(apiFix);
+      const newStatus = mapStatus(apiFix.fixture.status.short);
+      let { homeScore, awayScore } = extractScore(apiFix);
+
+      // Detect if API has home/away swapped relative to our DB.
+      // If DB home name matches API away name, scores need to be reversed.
+      if (homeScore !== null && awayScore !== null && !useSingleMatchFallback) {
+        const apiHomeName2 = normalizeName(apiFix.teams.home.name);
+        const row2 = dbFix as unknown as Record<string, unknown>;
+        const dbHomeName = normalizeName(teamNameMap.get(row2.home_team_id as string) ?? "");
+        if (dbHomeName && dbHomeName !== apiHomeName2) {
+          // API home ≠ DB home → teams are swapped, reverse the scores
+          [homeScore, awayScore] = [awayScore, homeScore];
+          console.log(`[ingest:SWAP] fixture ${dbFix.id.slice(0, 8)} — API home=${apiFix.teams.home.name} but DB home=${teamNameMap.get(row2.home_team_id as string)} → swapping scores`);
+        }
+      }
 
       const newKicksOffAt = new Date(apiFix.fixture.date).toISOString();
       const statusChanged    = newStatus !== dbFix.status;
