@@ -30,6 +30,7 @@ const PENALTY_WINNER: Record<number, "home" | "away"> = {
   82: "home",  // BEL 2-2 SEN → Belgium won on penalties
   86: "home",  // ARG 1-1 CPV → Argentina won on penalties
   88: "away",  // AUS 1-1 EGY → Egypt won on penalties
+  96: "home",  // SUI 0-0 COL → Switzerland won on penalties
 };
 
 // winner of fixture N → fills a slot in a later fixture

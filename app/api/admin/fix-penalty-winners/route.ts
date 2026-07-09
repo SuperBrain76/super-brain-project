@@ -17,18 +17,25 @@ const PENALTY_RESULTS: Record<number, "home" | "away"> = {
   82: "home",  // BEL 2-2 SEN → Belgium won
   86: "home",  // ARG 1-1 CPV → Argentina won
   88: "away",  // AUS 1-1 EGY → Egypt won
+  96: "home",  // SUI 0-0 COL → Switzerland won
 };
 
 // R16 fixture → which R32 fixture feeds which side
-const R16_FEEDS: Record<number, { home: number; away: number }> = {
+const ALL_FEEDS: Record<number, { home: number; away: number }> = {
+  // R16
   89: { home: 74, away: 77 },
   90: { home: 73, away: 75 },
   91: { home: 76, away: 78 },
   92: { home: 79, away: 80 },
   93: { home: 83, away: 84 },
   94: { home: 82, away: 81 },
-  95: { home: 86, away: 88 },  // ARG/CPV winner vs AUS/EGY winner
-  96: { home: 85, away: 87 },  // SUI/ALG winner vs COL/GHA winner
+  95: { home: 86, away: 88 },
+  96: { home: 85, away: 87 },
+  // QF
+  97: { home: 89, away: 90 },
+  98: { home: 91, away: 92 },
+  99: { home: 93, away: 94 },
+  100: { home: 95, away: 96 },
 };
 
 export async function GET() {
@@ -54,7 +61,7 @@ export async function GET() {
 
   const log: string[] = [];
 
-  for (const [r16Num, feeds] of Object.entries(R16_FEEDS)) {
+  for (const [r16Num, feeds] of Object.entries(ALL_FEEDS)) {
     const dest = byNum.get(Number(r16Num));
     if (!dest) continue;
 
