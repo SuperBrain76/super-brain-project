@@ -47,8 +47,8 @@ const PROPAGATION: Record<number, { home: string; away: string }> = {
   96:  { home: "W85", away: "W87" },  // SUI/ALG winner vs COL/GHA winner
   // QF — winners of R16
   97:  { home: "W89", away: "W90" },
-  98:  { home: "W91", away: "W92" },
-  99:  { home: "W93", away: "W94" },
+  98:  { home: "W93", away: "W94" },  // ESP/BEL winner — earlier QF kickoff
+  99:  { home: "W91", away: "W92" },  // NOR/ENG winner — later QF kickoff
   100: { home: "W95", away: "W96" },
   // SF — winners of QF
   101: { home: "W97",  away: "W98"  },

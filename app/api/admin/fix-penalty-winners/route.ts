@@ -33,8 +33,8 @@ const ALL_FEEDS: Record<number, { home: number; away: number }> = {
   96: { home: 85, away: 87 },
   // QF
   97: { home: 89, away: 90 },
-  98: { home: 91, away: 92 },
-  99: { home: 93, away: 94 },
+  98: { home: 93, away: 94 },  // ESP/BEL winner
+  99: { home: 91, away: 92 },  // NOR/ENG winner
   100: { home: 95, away: 96 },
 };
 
