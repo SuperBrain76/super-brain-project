@@ -52,5 +52,5 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ fixtures: rows });
+  return NextResponse.json({ comp_id: comp.id, fixtures: rows });
 }
