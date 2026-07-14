@@ -24,16 +24,19 @@ export async function GET() {
 
   if (!fixtures) return NextResponse.json({ error: "no fixtures" }, { status: 500 });
 
+  type FixRow = { id: string; fixture_number: number; stage: string; home_team_id: string | null; away_team_id: string | null; status: string };
+  const rows = fixtures as FixRow[];
+
   // Find duplicate fixture_numbers
-  const counts: Record<number, typeof fixtures> = {};
-  for (const f of fixtures as { id: string; fixture_number: number; stage: string; home_team_id: string | null; away_team_id: string | null; status: string }[]) {
+  const counts: Record<number, FixRow[]> = {};
+  for (const f of rows) {
     if (!counts[f.fixture_number]) counts[f.fixture_number] = [];
     counts[f.fixture_number].push(f);
   }
 
   const duplicates = Object.entries(counts)
-    .filter(([, rows]) => rows.length > 1)
-    .map(([num, rows]) => ({ fixture_number: Number(num), count: rows.length, rows }));
+    .filter(([, dupeRows]) => dupeRows.length > 1)
+    .map(([num, dupeRows]) => ({ fixture_number: Number(num), count: dupeRows.length, rows: dupeRows }));
 
   return NextResponse.json({
     comp_id: comp.id,
