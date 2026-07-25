@@ -32,6 +32,15 @@ import {
 import { track } from "@/lib/analytics";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
 import CompletionCelebration from "@/components/premier/CompletionCelebration";
+import { club, textOn } from "@/lib/premierLeague/clubs";
+
+/** Aggregated community prediction split for one fixture (from the crowd). */
+export interface FixtureStats {
+  total:    number;   // predictions cast so far
+  homePct:  number;
+  drawPct:  number;
+  awayPct:  number;
+}
 
 // ── Tokens (predict-shell light theme) ────────────────────────
 const GREEN  = "#1a3a2a";
@@ -65,6 +74,7 @@ export default function MatchweekSheet({
   clock = Date.now,
   maxIq = 500,
   playerCount,
+  statsByFixture,
   onViewLeaderboard,
   onShare,
 }: {
@@ -79,6 +89,8 @@ export default function MatchweekSheet({
   maxIq?:            number;
   /** Social-proof count for the celebration. Hidden if absent. */
   playerCount?:      number;
+  /** Community prediction split per fixture id — shows "the crowd" bar. Hidden if absent. */
+  statsByFixture?:   Record<string, FixtureStats>;
   /** Where "View leaderboards" goes. If absent, the celebration hides that button. */
   onViewLeaderboard?: () => void;
   /** "Challenge a friend" share action. Hidden if absent. */
@@ -91,7 +103,6 @@ export default function MatchweekSheet({
     return m;
   });
   const [status, setStatus]     = useState<Map<string, RowStatus>>(new Map());
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [nowMs, setNowMs]       = useState(() => clock());
 
   // The "wow" moment. Fires ONCE, the first time all matches are predicted.
@@ -213,6 +224,9 @@ export default function MatchweekSheet({
           <div className="text-sm font-bold" style={{ color: TEXT1 }}>{roundLabel}</div>
           <div className="text-xs" style={{ color: MUTED }}>
             {progress.predicted} of {progress.total} predicted
+            {playerCount != null && playerCount > 0 && (
+              <span> · <strong style={{ color: TEXT2 }}>{playerCount.toLocaleString()}</strong> playing</span>
+            )}
           </div>
         </div>
         <ProgressRing done={progress.predicted} total={progress.total} complete={progress.complete} />
@@ -255,16 +269,10 @@ export default function MatchweekSheet({
                 pick={picks.get(f.id) ?? null}
                 open={isOpen(f)}
                 status={status.get(f.id) ?? "idle"}
-                expanded={expanded.has(f.id)}
+                stats={statsByFixture?.[f.id] ?? null}
+                nowMs={nowMs}
                 onOutcome={(o) => onOutcome(f, o)}
                 onStep={(side, d) => onStep(f, side, d)}
-                onToggleExpand={() =>
-                  setExpanded((prev) => {
-                    const s = new Set(prev);
-                    s.has(f.id) ? s.delete(f.id) : s.add(f.id);
-                    return s;
-                  })
-                }
               />
             ))}
           </div>
@@ -304,91 +312,75 @@ export default function MatchweekSheet({
 // ── One fixture ───────────────────────────────────────────────
 
 function FixtureRow({
-  fixture, pick, open, status, expanded,
-  onOutcome, onStep, onToggleExpand,
+  fixture, pick, open, status, stats, nowMs,
+  onOutcome, onStep,
 }: {
-  fixture:        Fixture;
-  pick:           ScorePick | null;
-  open:           boolean;
-  status:         RowStatus;
-  expanded:       boolean;
-  onOutcome:      (o: Outcome) => void;
-  onStep:         (side: "home" | "away", delta: number) => void;
-  onToggleExpand: () => void;
+  fixture:   Fixture;
+  pick:      ScorePick | null;
+  open:      boolean;
+  status:    RowStatus;
+  stats:     FixtureStats | null;
+  nowMs:     number;
+  onOutcome: (o: Outcome) => void;
+  onStep:    (side: "home" | "away", delta: number) => void;
 }) {
   const selected = pick ? selectedOutcome({ ...fixture, myPrediction: { homeScore: pick.home, awayScore: pick.away, pointsAwarded: null } }) : null;
   const home = fixture.homeTeam?.name ?? "TBD";
   const away = fixture.awayTeam?.name ?? "TBD";
+  const homeColor = fixture.homeTeam?.code ? club(fixture.homeTeam.code)?.primary : undefined;
+  const awayColor = fixture.awayTeam?.code ? club(fixture.awayTeam.code)?.primary : undefined;
+
+  // A thin colour edge on the selected side makes the pick feel committed.
+  const edge = selected === "home" ? homeColor : selected === "away" ? awayColor : selected === "draw" ? GREEN : BORDER;
 
   return (
     <div
-      className="rounded-xl p-3"
-      style={{ background: CARD, border: `1px solid ${BORDER}`, opacity: open ? 1 : 0.75 }}
+      className="rounded-xl p-3 transition-shadow"
+      style={{ background: CARD, border: `1px solid ${BORDER}`, borderLeft: `3px solid ${edge}`, opacity: open ? 1 : 0.72 }}
     >
-      {/* Teams + crests — real club colours make this feel like football */}
+      {/* Teams + crests + kickoff — real club colours make this feel like football */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <ClubCrest code={fixture.homeTeam?.code} size={26} />
           <span className="text-sm font-semibold truncate" style={{ color: TEXT1 }}>{home}</span>
         </div>
-        <span className="text-[10px] px-2" style={{ color: MUTED }}>v</span>
+        <KickoffChip iso={fixture.kicksOffAt} nowMs={nowMs} open={open} />
         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
           <span className="text-sm font-semibold truncate text-right" style={{ color: TEXT1 }}>{away}</span>
           <ClubCrest code={fixture.awayTeam?.code} size={26} />
         </div>
       </div>
 
-      {/* H / D / A — the one-tap control */}
       {open ? (
         <>
+          {/* H / D / A — one tap, in club colours when chosen */}
           <div className="grid grid-cols-3 gap-1.5">
-            <OutcomeBtn label={clubShort(fixture.homeTeam?.code)} active={selected === "home"} onClick={() => onOutcome("home")} />
-            <OutcomeBtn label="Draw"             active={selected === "draw"} onClick={() => onOutcome("draw")} />
-            <OutcomeBtn label={clubShort(fixture.awayTeam?.code)} active={selected === "away"} onClick={() => onOutcome("away")} />
+            <OutcomeBtn label={clubShort(fixture.homeTeam?.code)} active={selected === "home"} color={homeColor} onClick={() => onOutcome("home")} />
+            <OutcomeBtn label="Draw" active={selected === "draw"} color={GREEN} onClick={() => onOutcome("draw")} />
+            <OutcomeBtn label={clubShort(fixture.awayTeam?.code)} active={selected === "away"} color={awayColor} onClick={() => onOutcome("away")} />
           </div>
 
-          {/* Once picked: show the scoreline, then a discoverable — NOT
-              hidden — "Change score" beneath it. Exact scores are optional,
-              never presented as an advanced feature. */}
+          {/* The crowd — how everyone else is calling it */}
+          {stats && stats.total > 0 && (
+            <PredictionBar stats={stats} selected={selected} homeColor={homeColor} awayColor={awayColor} />
+          )}
+
+          {/* Scoreline with +/- ALWAYS visible once picked — no extra click. */}
           {pick ? (
-            <div className="mt-2.5 flex flex-col items-center gap-1">
-              {!expanded ? (
-                <>
-                  <div className="text-2xl font-extrabold leading-none" style={{ color: TEXT1 }}>
-                    {pick.home} <span style={{ color: MUTED }}>–</span> {pick.away}
-                  </div>
-                  <button onClick={onToggleExpand} className="text-[11px] font-semibold underline" style={{ color: GREEN }}>
-                    Change score
-                  </button>
-                </>
-              ) : (
-                <div className="w-full pt-1 flex flex-col items-center gap-2">
-                  <div className="flex items-center justify-center gap-4">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-semibold truncate max-w-[90px]" style={{ color: MUTED }}>{homeShort(home)}</span>
-                      <Stepper value={pick.home} onStep={(d) => onStep("home", d)} />
-                    </div>
-                    <span className="text-lg font-bold mt-4" style={{ color: MUTED }}>–</span>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-semibold truncate max-w-[90px]" style={{ color: MUTED }}>{homeShort(away)}</span>
-                      <Stepper value={pick.away} onStep={(d) => onStep("away", d)} />
-                    </div>
-                  </div>
-                  <button onClick={onToggleExpand} className="text-[11px] font-semibold" style={{ color: GREEN }}>
-                    Done
-                  </button>
-                </div>
-              )}
-              <div className="h-3"><RowStatusChip status={status} /></div>
+            <div className="mt-2.5 flex items-center justify-center gap-3">
+              <Stepper value={pick.home} onStep={(d) => onStep("home", d)} />
+              <span className="text-lg font-bold" style={{ color: MUTED }}>–</span>
+              <Stepper value={pick.away} onStep={(d) => onStep("away", d)} />
+              <span className="w-14 text-right"><RowStatusChip status={status} /></span>
             </div>
           ) : (
-            <div className="mt-2 text-center h-3"><RowStatusChip status={status} /></div>
+            <p className="mt-2 text-center text-[11px]" style={{ color: MUTED }}>Pick a winner — then fine-tune the score</p>
           )}
         </>
       ) : (
         // Locked: show the prediction, greyed. Never remove the row.
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: MUTED }}>Locked</span>
+          <span className="text-xs" style={{ color: MUTED }}>🔒 Locked</span>
           <span className="text-sm font-semibold" style={{ color: pick ? TEXT2 : MUTED }}>
             {pick ? `Your pick: ${pick.home}–${pick.away}` : "No prediction"}
           </span>
@@ -400,19 +392,63 @@ function FixtureRow({
 
 // ── Small UI pieces ───────────────────────────────────────────
 
-function OutcomeBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function OutcomeBtn({ label, active, color, onClick }: { label: string; active: boolean; color?: string; onClick: () => void }) {
+  const bg = active ? (color ?? GREEN) : "#f4f7f2";
   return (
     <button
       onClick={onClick}
-      className="py-2.5 rounded-lg text-xs font-bold transition-colors active:scale-[0.97]"
+      className="py-2.5 rounded-lg text-xs font-bold transition-all active:scale-[0.96]"
       style={{
-        background: active ? GREEN : "#f4f7f2",
-        color:      active ? "#ffffff" : TEXT2,
-        border:     `1px solid ${active ? GREEN : BORDER}`,
+        background: bg,
+        color:      active ? textOn(bg) : TEXT2,
+        border:     `1px solid ${active ? bg : BORDER}`,
+        boxShadow:  active ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
       }}
     >
       {label}
     </button>
+  );
+}
+
+/** The crowd's split — a live-feeling community bar under the H/D/A control. */
+function PredictionBar({ stats, selected, homeColor, awayColor }: {
+  stats: FixtureStats; selected: Outcome | null; homeColor?: string; awayColor?: string;
+}) {
+  const seg = (pct: number, color: string, on: boolean) => (
+    <div style={{ width: `${pct}%`, background: color, opacity: on ? 1 : 0.5, transition: "width .4s ease" }} />
+  );
+  return (
+    <div className="mt-2">
+      <div className="flex h-1.5 rounded-full overflow-hidden" style={{ background: "#eef3ec" }}>
+        {seg(stats.homePct, homeColor ?? GREEN, selected === "home")}
+        {seg(stats.drawPct, "#b8c4bb", selected === "draw")}
+        {seg(stats.awayPct, awayColor ?? "#5c6b60", selected === "away")}
+      </div>
+      <div className="flex justify-between mt-1 text-[10px]" style={{ color: MUTED }}>
+        <span>{stats.homePct}%</span>
+        <span>{stats.total.toLocaleString()} predictions</span>
+        <span>{stats.awayPct}%</span>
+      </div>
+    </div>
+  );
+}
+
+/** Kickoff time / live countdown chip — anticipation in every row. */
+function KickoffChip({ iso, nowMs, open }: { iso: string; nowMs: number; open: boolean }) {
+  const ko = new Date(iso).getTime();
+  const ms = ko - nowMs;
+  let label: string;
+  if (!open || ms <= 0) {
+    label = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+  } else {
+    const h = Math.floor(ms / 3600000), d = Math.floor(h / 24);
+    label = d >= 1 ? `${d}d` : h >= 1 ? `${h}h` : `${Math.max(1, Math.floor(ms / 60000))}m`;
+  }
+  return (
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full mx-1 shrink-0"
+          style={{ background: "#f4f7f2", color: MUTED }}>
+      {label}
+    </span>
   );
 }
 

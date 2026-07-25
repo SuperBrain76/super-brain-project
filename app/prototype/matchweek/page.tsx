@@ -19,7 +19,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CompetitionProvider } from "@/components/CompetitionProvider";
 import CompetitionHome, { type HomeData } from "@/components/premier/CompetitionHome";
-import MatchweekSheet from "@/components/premier/MatchweekSheet";
+import MatchweekSheet, { type FixtureStats } from "@/components/premier/MatchweekSheet";
+
+// Believable crowd splits so the prototype's community bar has life.
+const PROTO_STATS: Record<string, FixtureStats> = {
+  "mw1-0": { total: 3182, homePct: 71, drawPct: 18, awayPct: 11 },  // LIV v BOU
+  "mw1-1": { total: 2740, homePct: 44, drawPct: 33, awayPct: 23 },  // AVL v NEW
+  "mw1-2": { total: 2611, homePct: 39, drawPct: 34, awayPct: 27 },  // BHA v FUL
+  "mw1-3": { total: 2498, homePct: 48, drawPct: 30, awayPct: 22 },  // NFO v BRE
+  "mw1-4": { total: 2455, homePct: 35, drawPct: 31, awayPct: 34 },  // SUN v WHU
+  "mw1-5": { total: 2603, homePct: 63, drawPct: 24, awayPct: 13 },  // TOT v BUR
+  "mw1-6": { total: 3044, homePct: 9,  drawPct: 17, awayPct: 74 },  // WOL v MCI
+  "mw1-7": { total: 2733, homePct: 55, drawPct: 28, awayPct: 17 },  // CHE v CRY
+  "mw1-8": { total: 4120, homePct: 33, drawPct: 27, awayPct: 40 },  // MUN v ARS
+  "mw1-9": { total: 2288, homePct: 42, drawPct: 33, awayPct: 25 },  // LEE v EVE
+};
 import { DEFAULT_SETTINGS, type Season } from "@/lib/competitionEngine";
 import type { Competition, MyStats } from "@/lib/predictor";
 import { MW1_ROUND } from "@/lib/prototype/mw1Fixtures";
@@ -168,6 +182,7 @@ export default function MatchweekPrototype() {
                 clock={nowMs}
                 maxIq={500}
                 playerCount={4287}
+                statsByFixture={PROTO_STATS}
                 onViewLeaderboard={() => setTab("league")}
                 onShare={() => {
                   const text = "I've made my Premier League Matchweek 1 predictions on SuperBrain. Beat me →";

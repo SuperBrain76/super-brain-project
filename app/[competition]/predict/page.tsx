@@ -15,8 +15,9 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
 import { getCurrentRoundContext, getRounds, type Round } from "@/lib/competitionEngine";
+import { supabase } from "@/lib/supabase";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
-import MatchweekSheet from "@/components/premier/MatchweekSheet";
+import MatchweekSheet, { type FixtureStats } from "@/components/premier/MatchweekSheet";
 
 export default function MatchweekPredictPage() {
   const { competition: competitionSlug } = useParams<{ competition: string }>();
@@ -30,6 +31,8 @@ export default function MatchweekPredictPage() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [stats,       setStats]       = useState<Record<string, FixtureStats>>({});
+  const [playerCount, setPlayerCount] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
@@ -48,6 +51,28 @@ export default function MatchweekPredictPage() {
       const { fixtures: fx } = await getFixturesByRound(ctx.round.id);
       if (!alive) return;
       setFixtures(fx);
+
+      // Community layer — the crowd's split + how many are playing. Best-effort;
+      // the sheet simply hides these when absent.
+      void Promise.all([
+        supabase.rpc("get_round_prediction_stats", { p_round_id: ctx.round.id }),
+        supabase.rpc("get_competition_predictor_count", { p_competition_id: competition.id }),
+      ]).then(([s, c]) => {
+        if (!alive) return;
+        if (s.data) {
+          const map: Record<string, FixtureStats> = {};
+          for (const r of s.data as Record<string, unknown>[]) {
+            map[r.fixture_id as string] = {
+              total:   Number(r.total ?? 0),
+              homePct: Number(r.home_pct ?? 0),
+              drawPct: Number(r.draw_pct ?? 0),
+              awayPct: Number(r.away_pct ?? 0),
+            };
+          }
+          setStats(map);
+        }
+        if (typeof c.data === "number") setPlayerCount(c.data);
+      }).catch(() => { /* community layer is non-critical */ });
 
       // Previous round for "copy last week's scores".
       if (ctx.season) {
@@ -93,6 +118,8 @@ export default function MatchweekPredictPage() {
         fixtures={fixtures}
         previousFixtures={previous}
         roundLabel={round?.label ?? "Matchweek"}
+        statsByFixture={stats}
+        playerCount={playerCount}
         onChanged={() => { /* optimistic; a background reload could go here */ }}
       />
     </div>
