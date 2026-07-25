@@ -39,8 +39,8 @@ const FEATURES = [
       </svg>
     ),
     color: "#ffab00",
-    title: "Bonus Questions",
-    body: "Go beyond match scores. Predict the Golden Boot, Golden Ball, Winner, Runner Up, Surprise Team — earn massive bonus points.",
+    title: "Matchday Challenges",
+    body: "Go beyond the scores. Call the biggest upset, over/unders, hat-tricks and more — optional bonus points every matchweek.",
   },
 ];
 

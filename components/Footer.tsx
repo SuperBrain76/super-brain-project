@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GrandPrizeFooterMention } from "@/components/GrandPrize";
+
 import { BRAND } from "@/lib/brand";
 
 export default function Footer() {
@@ -29,10 +29,6 @@ export default function Footer() {
             <Link href="/contact"    className="transition-colors hover:opacity-70">Contact</Link>
             <Link href="/disclaimer" className="transition-colors hover:opacity-70">Disclaimer</Link>
           </div>
-        </div>
-
-        <div className="mt-8 pt-8" style={{ borderTop: `0.5px solid ${BRAND.hairline}` }}>
-          <GrandPrizeFooterMention />
         </div>
 
         <div className="mt-6 flex items-center justify-between">
