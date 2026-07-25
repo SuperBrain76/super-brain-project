@@ -179,7 +179,7 @@ export default function LandingPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-            {/* ── World Cup Predictor — Sports (emerald) ── */}
+            {/* ── Sports Predictor — Sports (emerald) ── */}
             <Link href="/predict"
               className="group relative overflow-hidden rounded-3xl flex flex-col p-8 transition-transform duration-300 hover:-translate-y-1"
               style={{ background: MATERIAL.raise, border: `0.5px solid ${BRAND.hairline}` }}>
@@ -191,9 +191,9 @@ export default function LandingPage() {
                   <span className="text-[10px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full"
                     style={{ background: "rgba(53,197,111,0.12)", color: BRAND.sports }}>Live now</span>
                 </div>
-                <h3 className="text-2xl font-extrabold mb-2 leading-tight" style={{ color: BRAND.ink }}>World Cup Predictor</h3>
+                <h3 className="text-2xl font-extrabold mb-2 leading-tight" style={{ color: BRAND.ink }}>Sports Predictor</h3>
                 <p className="text-sm leading-relaxed mb-7" style={{ color: BRAND.muted }}>
-                  Predict every match, earn points, beat friends — win the <span style={{ color: BRAND.gold, fontWeight: 600 }}>Champion Watch</span>.
+                  Predict the Premier League — every match, one tap. Build a private league, beat your friends, climb the table.
                 </p>
                 <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: BRAND.sports }}>
                   Play now
@@ -248,7 +248,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── BONUS QUESTIONS — value moment, gold earns its place ──────────── */}
+      {/* ── BONUS QUESTIONS — World Cup specific (Golden Boot etc.); hidden
+           once a competition is active. ─────────────────────────────────── */}
+      <HideWhenActiveCompetition>
       <section style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderBottom: `0.5px solid ${BRAND.hairline}` }}>
         <div className="max-w-5xl mx-auto px-5 py-20">
           <div className="flex flex-col md:flex-row items-start gap-14">
@@ -285,6 +287,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </HideWhenActiveCompetition>
 
       {/* ── HOW IT WORKS — boxless, a line of light through the steps ──────── */}
       <section className="max-w-5xl mx-auto px-5 py-20">
@@ -311,7 +314,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── GRAND PRIZE — the gold moment. Luminous black, the watch glows. ── */}
+      {/* ── GRAND PRIZE — World Cup Champion Watch; hidden once a competition
+           is active so the archived prize never competes with what's live. ── */}
+      <HideWhenActiveCompetition>
       <section className="relative overflow-hidden" style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderBottom: `0.5px solid ${BRAND.hairline}`, background: MATERIAL.vignette }}>
         <div
           className="absolute pointer-events-none"
@@ -407,6 +412,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </HideWhenActiveCompetition>
 
       {/* ── PRIVATE LEAGUES — boxless, divided by light ───────────────────── */}
       <section className="max-w-5xl mx-auto px-5 py-20">
