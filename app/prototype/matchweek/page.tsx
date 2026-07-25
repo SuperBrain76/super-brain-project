@@ -93,6 +93,8 @@ export default function MatchweekPrototype() {
       ? fx.find((f) => f.homeTeam?.code === ed.biggest[0] && f.awayTeam?.code === ed.biggest[1])
       : null;
 
+    const featured = biggest ?? fx[fx.length - 1] ?? null;
+
     return {
       round: MW1_ROUND,
       fixtures: fx,
@@ -100,11 +102,19 @@ export default function MatchweekPrototype() {
       settings,
       stats,
       leaguePreview: { name: league.name, rank: myRank, total: league.rows.length },
-      biggestMatch: biggest ?? fx[fx.length - 1] ?? null,
+      biggestMatch: featured,
       biggestWhy: ed?.biggestWhy,
       challengeCount: 0,
       challengesAnswered: 0,
       editorial: ed ? { headline: ed.headline, players: ed.watch } : null,
+      competitionName:   "Premier League",
+      playerCount:       4872,
+      leagueCount:       362,
+      iqAvailable:       fx.length * 50,
+      featuredStats:     featured ? PROTO_STATS[featured.id] ?? null : null,
+      iqLifetime:        pts,
+      iqThisCompetition: pts,
+      lastWeekend:       null,
     };
   }, [tick, league, myRank]);
 

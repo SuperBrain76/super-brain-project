@@ -335,51 +335,61 @@ function FixtureRow({
 
   return (
     <div
-      className="rounded-xl p-3 transition-shadow"
+      className="rounded-xl px-2.5 py-2 transition-shadow"
       style={{ background: CARD, border: `1px solid ${BORDER}`, borderLeft: `3px solid ${edge}`, opacity: open ? 1 : 0.72 }}
     >
-      {/* Teams + crests + kickoff — real club colours make this feel like football */}
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <ClubCrest code={fixture.homeTeam?.code} size={26} />
-          <span className="text-sm font-semibold truncate" style={{ color: TEXT1 }}>{home}</span>
+      {/* Scoreboard line: teams either side of the score, right in the middle.
+          Crests + colours + the score inline make each row read like a fixture,
+          not a form field. */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <ClubCrest code={fixture.homeTeam?.code} size={22} />
+          <span className="text-[13px] font-semibold truncate" style={{ color: TEXT1 }}>{home}</span>
         </div>
-        <KickoffChip iso={fixture.kicksOffAt} nowMs={nowMs} open={open} />
-        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-          <span className="text-sm font-semibold truncate text-right" style={{ color: TEXT1 }}>{away}</span>
-          <ClubCrest code={fixture.awayTeam?.code} size={26} />
+
+        {/* Centre: inline score once picked, else the kickoff/countdown. */}
+        {open && pick ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <MiniStep label="−" onClick={() => onStep("home", -1)} />
+            <span className="text-[15px] font-extrabold tabular-nums w-4 text-center" style={{ color: TEXT1 }}>{pick.home}</span>
+            <MiniStep label="+" onClick={() => onStep("home", 1)} />
+            <span className="text-[13px] font-bold mx-0.5" style={{ color: MUTED }}>–</span>
+            <MiniStep label="−" onClick={() => onStep("away", -1)} />
+            <span className="text-[15px] font-extrabold tabular-nums w-4 text-center" style={{ color: TEXT1 }}>{pick.away}</span>
+            <MiniStep label="+" onClick={() => onStep("away", 1)} />
+          </div>
+        ) : (
+          <KickoffChip iso={fixture.kicksOffAt} nowMs={nowMs} open={open} />
+        )}
+
+        <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+          <span className="text-[13px] font-semibold truncate text-right" style={{ color: TEXT1 }}>{away}</span>
+          <ClubCrest code={fixture.awayTeam?.code} size={22} />
         </div>
       </div>
 
       {open ? (
         <>
           {/* H / D / A — one tap, in club colours when chosen */}
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5 mt-1.5">
             <OutcomeBtn label={clubShort(fixture.homeTeam?.code)} active={selected === "home"} color={homeColor} onClick={() => onOutcome("home")} />
             <OutcomeBtn label="Draw" active={selected === "draw"} color={GREEN} onClick={() => onOutcome("draw")} />
             <OutcomeBtn label={clubShort(fixture.awayTeam?.code)} active={selected === "away"} color={awayColor} onClick={() => onOutcome("away")} />
           </div>
 
-          {/* The crowd — how everyone else is calling it */}
-          {stats && stats.total > 0 && (
+          {/* The crowd — a thin split bar, only when picked (keeps unpicked rows short) */}
+          {pick && stats && stats.total > 0 && (
             <PredictionBar stats={stats} selected={selected} homeColor={homeColor} awayColor={awayColor} />
           )}
 
-          {/* Scoreline with +/- ALWAYS visible once picked — no extra click. */}
-          {pick ? (
-            <div className="mt-2.5 flex items-center justify-center gap-3">
-              <Stepper value={pick.home} onStep={(d) => onStep("home", d)} />
-              <span className="text-lg font-bold" style={{ color: MUTED }}>–</span>
-              <Stepper value={pick.away} onStep={(d) => onStep("away", d)} />
-              <span className="w-14 text-right"><RowStatusChip status={status} /></span>
-            </div>
-          ) : (
-            <p className="mt-2 text-center text-[11px]" style={{ color: MUTED }}>Pick a winner — then fine-tune the score</p>
+          {/* Save state, unobtrusive. */}
+          {status !== "idle" && (
+            <div className="mt-1 text-right"><RowStatusChip status={status} /></div>
           )}
         </>
       ) : (
         // Locked: show the prediction, greyed. Never remove the row.
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-1">
           <span className="text-xs" style={{ color: MUTED }}>🔒 Locked</span>
           <span className="text-sm font-semibold" style={{ color: pick ? TEXT2 : MUTED }}>
             {pick ? `Your pick: ${pick.home}–${pick.away}` : "No prediction"}
@@ -418,18 +428,29 @@ function PredictionBar({ stats, selected, homeColor, awayColor }: {
     <div style={{ width: `${pct}%`, background: color, opacity: on ? 1 : 0.5, transition: "width .4s ease" }} />
   );
   return (
-    <div className="mt-2">
-      <div className="flex h-1.5 rounded-full overflow-hidden" style={{ background: "#eef3ec" }}>
+    <div className="mt-1.5 flex items-center gap-2">
+      <div className="flex h-1 rounded-full overflow-hidden flex-1" style={{ background: "#eef3ec" }}>
         {seg(stats.homePct, homeColor ?? GREEN, selected === "home")}
         {seg(stats.drawPct, "#b8c4bb", selected === "draw")}
         {seg(stats.awayPct, awayColor ?? "#5c6b60", selected === "away")}
       </div>
-      <div className="flex justify-between mt-1 text-[10px]" style={{ color: MUTED }}>
-        <span>{stats.homePct}%</span>
-        <span>{stats.total.toLocaleString()} predictions</span>
-        <span>{stats.awayPct}%</span>
-      </div>
+      <span className="text-[9px] shrink-0" style={{ color: MUTED }}>
+        {stats.homePct}·{stats.drawPct}·{stats.awayPct}% · {stats.total.toLocaleString()}
+      </span>
     </div>
+  );
+}
+
+/** A compact +/- button for the inline scoreboard steppers. */
+function MiniStep({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-6 h-6 rounded-md text-sm font-bold flex items-center justify-center active:scale-90 shrink-0"
+      style={{ background: "#f4f7f2", color: GREEN, border: `1px solid ${BORDER}` }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -449,28 +470,6 @@ function KickoffChip({ iso, nowMs, open }: { iso: string; nowMs: number; open: b
           style={{ background: "#f4f7f2", color: MUTED }}>
       {label}
     </span>
-  );
-}
-
-function Stepper({ value, onStep }: { value: number; onStep: (d: number) => void }) {
-  return (
-    <div className="flex items-center gap-2">
-      <StepBtn label="−" onClick={() => onStep(-1)} />
-      <span className="text-xl font-bold w-6 text-center" style={{ color: TEXT1 }}>{value}</span>
-      <StepBtn label="+" onClick={() => onStep(1)} />
-    </div>
-  );
-}
-
-function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-8 h-8 rounded-lg text-lg font-bold flex items-center justify-center active:scale-90"
-      style={{ background: "#f4f7f2", color: GREEN, border: `1px solid ${BORDER}` }}
-    >
-      {label}
-    </button>
   );
 }
 

@@ -19,8 +19,12 @@ import {
   getCurrentRoundContext, getRoundFixtures, getCompetitionSettings,
   type Round, type CompetitionSettings,
 } from "@/lib/competitionEngine";
+import { getMyIqBalance } from "@/lib/economy";
 import { supabase } from "@/lib/supabase";
 import CompetitionHome, { type HomeData } from "@/components/premier/CompetitionHome";
+import type { FixtureStats } from "@/components/premier/MatchweekSheet";
+
+const IQ_PER_EXACT = 50;   // biggest IQ per correct-score prediction (default economy)
 
 export default function PremierLeagueHome({ competition }: { competition: Competition }) {
   const [data, setData]   = useState<HomeData | null>(null);
@@ -46,19 +50,53 @@ export default function PremierLeagueHome({ competition }: { competition: Compet
       const editorial = round ? await loadEditorial(round) : null;
       if (!alive) return;
 
+      const biggest = pickBiggestMatch(fixtures, editorial?.biggestFixtureId ?? null);
+
+      // Community + economy — the "why care" data. Best-effort and parallel;
+      // the dashboard degrades gracefully when any of these is missing.
+      const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try { return await fn(); } catch { return fallback; }
+      };
+      const [players, leagues, roundStats, iqLifetime, history] = await Promise.all([
+        safe(async () => { const r = await supabase.rpc("get_competition_predictor_count", { p_competition_id: competition.id }); return typeof r.data === "number" ? r.data : undefined; }, undefined as number | undefined),
+        safe(async () => { const r = await supabase.from("prediction_leagues").select("id", { count: "exact", head: true }).eq("competition_id", competition.id); return r.count ?? undefined; }, undefined as number | undefined),
+        round ? safe(async () => { const r = await supabase.rpc("get_round_prediction_stats", { p_round_id: round.id }); return r.data as Record<string, unknown>[] | null; }, null) : Promise.resolve(null),
+        safe(() => getMyIqBalance(), null as number | null),
+        safe(async () => { const r = await supabase.rpc("get_my_competition_history"); return r.data as Record<string, unknown>[] | null; }, null),
+      ]);
+      if (!alive) return;
+
+      const featuredStats: FixtureStats | null = (() => {
+        if (!biggest || !roundStats) return null;
+        const row = roundStats.find((r) => r.fixture_id === biggest.id);
+        if (!row) return null;
+        return { total: Number(row.total ?? 0), homePct: Number(row.home_pct ?? 0), drawPct: Number(row.draw_pct ?? 0), awayPct: Number(row.away_pct ?? 0) };
+      })();
+
+      const seasonIq = (() => {
+        const h = history?.find((r) => r.competition_id === competition.id);
+        return h ? Number(h.iq_earned ?? 0) : 0;
+      })();
+
       setData({
         round,
         fixtures,
         nextRoundStartsMs: ctx.nextRoundStartsMs,
         settings:          settings as CompetitionSettings,
         stats:             stats as MyStats | null,
-        // League preview and challenge counts land in Phase 3b/5; the
-        // dashboard renders sensible CTAs when they are null/zero.
         leaguePreview:     null,
-        biggestMatch:      pickBiggestMatch(fixtures, editorial?.biggestFixtureId ?? null),
+        biggestMatch:      biggest,
         challengeCount:    0,
         challengesAnswered: 0,
         editorial:         editorial ? { headline: editorial.headline, players: editorial.players } : null,
+        competitionName:   competition.name,
+        playerCount:       players,
+        leagueCount:       leagues,
+        iqAvailable:       fixtures.length * IQ_PER_EXACT,
+        featuredStats,
+        iqLifetime:        iqLifetime ?? 0,
+        iqThisCompetition: seasonIq,
+        lastWeekend:       null,   // populated once a prior round has settled (Phase 3b)
       });
     }
 
