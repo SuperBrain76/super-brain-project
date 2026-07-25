@@ -3,6 +3,7 @@ import Image from "next/image";
 import CountdownTimer from "@/components/CountdownTimer";
 import HomepageAnalytics from "@/components/HomepageAnalytics";
 import HeroSection from "@/components/HeroSection";
+import HomeCompetitions, { HideWhenActiveCompetition } from "@/components/home/HomeCompetitions";
 import { WhatsAppHeroCard } from "@/components/WhatsAppChannelCard";
 import { BRAND, MATERIAL } from "@/lib/brand";
 
@@ -81,7 +82,12 @@ export default function LandingPage() {
     <div className="min-h-screen" style={{ background: BRAND.black }}>
       <HomepageAnalytics />
 
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
+      {/* ── Active competition band — always promotes what's live now ─────── */}
+      <HomeCompetitions />
+
+      {/* ── HERO ── legacy World-Cup billboard. Hidden once a competition is
+           public, so an archived one never competes with the active one. ──── */}
+      <HideWhenActiveCompetition>
       <HeroSection>
         <div
           className="absolute inset-0 pointer-events-none"
@@ -163,6 +169,7 @@ export default function LandingPage() {
           </div>
         </div>
       </HeroSection>
+      </HideWhenActiveCompetition>
 
       {/* ── TWO-PATH SECTION — sculpted glass panels ─────────────────────── */}
       <section style={{ background: BRAND.black, borderBottom: `0.5px solid ${BRAND.hairline}` }}>

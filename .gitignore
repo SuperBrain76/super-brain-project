@@ -8,3 +8,9 @@ node_modules/
 /public/workbox-*.js
 /public/workbox-*.js.map
 .vercel
+
+# Local DB connection string for deployment (never commit)
+.supabase-db-url.local
+
+# Production rollback snapshot — contains user data, never commit
+supabase/prod-rollback/

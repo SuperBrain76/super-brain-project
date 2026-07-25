@@ -31,12 +31,18 @@ export async function GET(req: NextRequest) {
 
   const db = createClient(SUPABASE_URL, SUPABASE_SRK, { auth: { persistSession: false } });
 
+  // Competition Engine V2: fixture_number is only unique WITHIN a
+  // competition, so with several competitions live this route must be told
+  // which one. Defaults to the World Cup for backwards compatibility with
+  // any existing bookmark or script.
+  const slug = req.nextUrl.searchParams.get("competition") ?? "wc2026";
+
   const { data: comp } = await db
     .from("competitions")
     .select("id")
-    .eq("slug", "wc2026")
+    .eq("slug", slug)
     .single();
-  if (!comp) return NextResponse.json({ error: "competition not found" }, { status: 500 });
+  if (!comp) return NextResponse.json({ error: `competition "${slug}" not found` }, { status: 404 });
 
   const { data: fixture, error: fetchErr } = await db
     .from("fixtures")

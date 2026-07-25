@@ -68,12 +68,47 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Which competition? Defaults to the World Cup, whose bracket this
+  // PROPAGATION map describes, but accepts ?competition=<slug> so the same
+  // endpoint can serve a future knockout competition.
+  const slug = req.nextUrl.searchParams.get("competition") ?? "wc2026";
+
   const { data: comp } = await supabase
     .from("competitions")
     .select("id")
-    .eq("slug", "wc2026")
+    .eq("slug", slug)
     .single();
   if (!comp) return NextResponse.json({ error: "competition not found" }, { status: 500 });
+
+  // ── Knockout gate — Competition Engine V2 ────────────────────
+  // MUST no-op for a league competition. The PROPAGATION map below is the
+  // World Cup's 32-team bracket keyed by fixture_number; running it against
+  // Premier League fixtures would assign teams to matches at random,
+  // corrupting fixtures that already have predictions against them.
+  //
+  // Fails CLOSED: if the setting cannot be read, the cron does nothing.
+  // The World Cup has has_knockout = true seeded by migration 043, so its
+  // behaviour is unchanged.
+  const { data: knockout, error: settingErr } = await supabase.rpc("get_competition_setting", {
+    p_competition_id: comp.id,
+    p_key:            "has_knockout",
+  });
+
+  if (settingErr) {
+    console.error("[advance-knockout] could not read has_knockout — refusing to run:", settingErr.message);
+    return NextResponse.json(
+      { skipped: true, reason: "has_knockout_unreadable", competition: slug, error: settingErr.message },
+      { status: 200 },
+    );
+  }
+
+  if (knockout !== true) {
+    return NextResponse.json({
+      skipped:     true,
+      reason:      "competition_has_no_knockout_bracket",
+      competition: slug,
+    });
+  }
 
   const { data: fixtures } = await supabase
     .from("fixtures")

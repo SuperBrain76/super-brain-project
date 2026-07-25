@@ -1,5 +1,6 @@
 "use client";
 
+import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +44,8 @@ function Tick({ done }: { done: boolean }) {
 }
 
 export default function GettingStarted({ userId, predictions, bonusAnswered, bonusTotal, hasProfile, onDismiss }: Props) {
+  const competitionSlug = useCompetitionSlug();
+  const compHref = (sub = "") => (competitionSlug ? `/${competitionSlug}${sub}` : `/predict${sub}`);
   const [visible,       setVisible]       = useState(false);
   const [inLeague,      setInLeague]      = useState(false);
   const [leagueChecked, setLeagueChecked] = useState(false);
@@ -103,19 +106,19 @@ export default function GettingStarted({ userId, predictions, bonusAnswered, bon
     },
     {
       n:    3,
-      href: "/predict/leagues",
+      href: compHref("/leagues"),
       label: "Join or Create a League",
       done: step3,
     },
     {
       n:    4,
-      href: "/predict/bonus",
+      href: compHref("/bonus"),
       label: "Answer Bonus Questions",
       done: step4,
     },
     {
       n:    5,
-      href: "/predict/leaderboard",
+      href: compHref("/leaderboard"),
       label: "Climb the Rankings",
       done: step5,
       gold: true,

@@ -1,50 +1,48 @@
-/**
- * Google OAuth helper — shared across login, signup and league join flows.
- *
- * Handles:
- * - PKCE flow (supabase-js v2 default for OAuth)
- * - Preserving the ?next= redirect destination through the OAuth round-trip
- * - Canonical site URL so the callback always lands on production
- */
-
 import { supabase } from "./supabase";
+import { Browser } from "@capacitor/browser";
 
-/**
- * Kick off Google OAuth sign-in.
- * @param next  Optional path to redirect to after sign-in (e.g. "/predict/leagues/join?code=ABC")
- * @returns     Error message string, or null on success (browser navigates away)
- */
-export async function signInWithGoogle(next?: string): Promise<string | null> {
-  const siteUrl    = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
-  const callbackUrl = next
-    ? `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`
-    : `${siteUrl}/auth/callback`;
-
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo:   callbackUrl,
-      queryParams: {
-        // Request offline access + profile so we get a stable sub and display name
-        access_type: "offline",
-        prompt:      "select_account",
-      },
-    },
-  });
-
-  return error ? error.message : null;
+// Opens OAuth URL in SFSafariViewController (iOS) rather than the system browser,
+// satisfying App Store guideline 4 which requires auth to stay within the app.
+async function openOAuthInAppBrowser(url: string): Promise<void> {
+  try {
+    await Browser.open({ url, presentationStyle: "popover" });
+  } catch {
+    // Fallback for non-Capacitor environments (web browser)
+    window.location.href = url;
+  }
 }
 
-export async function signInWithApple(next?: string): Promise<string | null> {
+async function signInWithProvider(
+  provider: "google" | "apple",
+  next?: string,
+  queryParams?: Record<string, string>,
+): Promise<string | null> {
   const siteUrl     = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
   const callbackUrl = next
     ? `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`
     : `${siteUrl}/auth/callback`;
 
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "apple",
-    options: { redirectTo: callbackUrl },
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo:          callbackUrl,
+      queryParams,
+      skipBrowserRedirect: true,
+    },
   });
 
-  return error ? error.message : null;
+  if (error) return error.message;
+  if (data.url) await openOAuthInAppBrowser(data.url);
+  return null;
+}
+
+export async function signInWithGoogle(next?: string): Promise<string | null> {
+  return signInWithProvider("google", next, {
+    access_type: "offline",
+    prompt:      "select_account",
+  });
+}
+
+export async function signInWithApple(next?: string): Promise<string | null> {
+  return signInWithProvider("apple", next);
 }

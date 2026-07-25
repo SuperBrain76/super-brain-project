@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import {
-  getCompetition,
+  resolveCompetition,
   getTeams,
   getBonusQuestions,
   adminLockBonusQuestion,
@@ -232,7 +232,7 @@ export default function AdminBonusPage() {
   useEffect(() => {
     if (!isAdmin) return;
     async function load() {
-      const { competition: comp } = await getCompetition("wc2026");
+      const { competition: comp } = await resolveCompetition();
       if (!comp) { setLoading(false); return; }
       setCompetition(comp);
       const [qs, ts] = await Promise.all([

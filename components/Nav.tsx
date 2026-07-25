@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useCompetitionNav, useIsCompetitionRoute } from "@/components/CompetitionProvider";
 import { BRAND } from "@/lib/brand";
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "";
@@ -11,10 +12,20 @@ export default function Nav() {
   const { user, loading, signOut } = useAuth();
   const pathname = usePathname();
   const isAdmin = !!user && user.email === ADMIN_EMAIL;
-  const isPredict = pathname.startsWith("/predict");
+
+  // Competition Engine V2: the predictor no longer lives under a single
+  // /predict prefix — it is /premier-league, /la-liga, /wc2026. Section
+  // detection and link building both go through the competition hooks.
+  const isPredict = useIsCompetitionRoute();
+  const { slug: compSlug, name: compName } = useCompetitionNav();
+
+  // While the slug resolves, fall back to /predict — it redirects to the
+  // same destination, so a link is never dead.
+  const compHref = (sub = "") => (compSlug ? `/${compSlug}${sub}` : `/predict${sub}`);
 
   function NavLink({ href, label, accent, className = "" }: { href: string; label: string; accent: string; className?: string }) {
-    const active = href === "/predict" ? pathname === "/predict" || pathname.startsWith("/predict") : pathname.startsWith(href);
+    const hubHref = compHref();
+    const active = href === hubHref ? pathname === hubHref : pathname.startsWith(href);
     return (
       <Link
         href={href}
@@ -47,14 +58,14 @@ export default function Nav() {
         <nav className="hidden md:flex items-center gap-0.5">
           {isPredict ? (
             <>
-              <NavLink href="/predict" label="World Cup 2026" accent={BRAND.sports} />
-              <NavLink href="/predict/leagues" label="My Leagues" accent={BRAND.sports} className="hidden sm:block" />
-              <NavLink href="/predict/leaderboard" label="Rankings" accent={BRAND.neutral} className="hidden md:block" />
+              <NavLink href={compHref()} label={compName} accent={BRAND.sports} />
+              <NavLink href={compHref("/leagues")} label="My Leagues" accent={BRAND.sports} className="hidden sm:block" />
+              <NavLink href={compHref("/leaderboard")} label="Rankings" accent={BRAND.neutral} className="hidden md:block" />
             </>
           ) : (
             <>
               <NavLink href="/tests" label="Brain Tests" accent={BRAND.tests} />
-              <NavLink href="/predict" label="Sports" accent={BRAND.sports} />
+              <NavLink href={compHref()} label="Sports" accent={BRAND.sports} />
               <NavLink href="/battle" label="Battle" accent={BRAND.battle} className="hidden md:block" />
               <NavLink href="/leaderboard" label="Rankings" accent={BRAND.neutral} className="hidden md:block" />
             </>

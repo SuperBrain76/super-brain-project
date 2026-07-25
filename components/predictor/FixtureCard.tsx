@@ -10,6 +10,7 @@ import {
   pointsColor,
 } from "@/lib/predictor";
 import { getKnockoutSeeds } from "@/lib/knockoutSeeds";
+import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import SeedPill from "./SeedPill";
 
 const LAST_FIXTURE_KEY = "lastPredictedFixture";
@@ -314,6 +315,9 @@ export default function FixtureCard({
   compact = false,
   highlighted = false,
 }: FixtureCardProps) {
+  // Rendered only inside /[competition]/*; falls back to the legacy
+  // prefix if ever rendered outside, which redirects correctly.
+  const competitionSlug = useCompetitionSlug() ?? "predict";
   const open    = isPredictionOpen(fixture);
   const done    = fixture.status === "completed";
   const hasPred = !!fixture.myPrediction;
@@ -329,7 +333,7 @@ export default function FixtureCard({
 
   return (
     <Link
-      href={`/predict/${fixture.id}`}
+      href={`/${competitionSlug}/fixture/${fixture.id}`}
       id={`fixture-${fixture.id}`}
       className="block w-full"
       onClick={() => {

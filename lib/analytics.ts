@@ -42,6 +42,57 @@ function _device(): "mobile" | "desktop" {
   return navigator.maxTouchPoints > 0 ? "mobile" : "desktop";
 }
 
+// ── Competition dimension — Competition Engine V2 ─────────────
+//
+// 🔴 THIS CANNOT BE BACKFILLED. PostHog properties are fixed at ingest
+// time. Any predictor event emitted without a competition dimension is
+// permanently unattributable — so with several competitions live, every
+// predictor funnel would silently merge them and become meaningless.
+//
+// That is why this is wired up now rather than with the Premier League UI:
+// it is the only piece of Phase 1 whose cost is irreversible if deferred.
+//
+// The context is set once, when a page resolves its competition, and is then
+// attached to every predictor event automatically. Call sites do not have to
+// remember to pass it — anything that relies on remembering will be missed.
+
+interface CompetitionContext {
+  competition_id?:   string;
+  competition_slug?: string;
+  season_id?:        string;
+  sport?:            string;
+  round_id?:         string;
+  round_code?:       string;
+}
+
+let _competitionContext: CompetitionContext = {};
+
+/**
+ * Record which competition the user is currently looking at.
+ *
+ * Call after resolving the competition (and again when the round changes).
+ * Safe to call repeatedly; fields are merged so setting a round later does
+ * not clear the competition.
+ */
+export function setCompetitionContext(ctx: CompetitionContext): void {
+  _competitionContext = { ..._competitionContext, ...ctx };
+}
+
+/** Clear the context — e.g. when navigating away from a competition. */
+export function clearCompetitionContext(): void {
+  _competitionContext = {};
+}
+
+/** Current context, for callers that need to inspect it. */
+export function getCompetitionContext(): Readonly<CompetitionContext> {
+  return _competitionContext;
+}
+
+/** Fire a predictor event with the competition dimension attached. */
+function tc(event: string, props?: Record<string, unknown>): void {
+  t(event, { ..._competitionContext, ...props });
+}
+
 export const track = {
   // ── Cognitive tests ──────────────────────────────────────────────────────────
   homepageView:      ()                                                              => t("homepage_view"),
@@ -59,13 +110,20 @@ export const track = {
   signupCompleted:   ()                                                              => t("signup_completed"),
 
   // ── Predictor ────────────────────────────────────────────────────────────────
-  predictionSaved:         (fixtureId: string, isEdit: boolean)                     => t("prediction_saved",          { fixture_id: fixtureId, is_edit: isEdit, device: _device() }),
-  bonusAnswerSaved:        (questionKey: string)                                     => t("bonus_answer_saved",        { question_key: questionKey }),
-  leagueCreated:           (visibility: "private" | "public")                        => t("league_created",            { visibility }),
-  leagueJoined:            (leagueId: string)                                        => t("league_joined",             { league_id: leagueId }),
-  inviteLinkCopied:        (leagueId: string, copyType: "code" | "link")             => t("invite_link_copied",        { league_id: leagueId, copy_type: copyType }),
-  whatsappShareClicked:    (leagueId: string)                                        => t("whatsapp_share_clicked",    { league_id: leagueId }),
-  predictorLeaderboardViewed: ()                                                     => t("leaderboard_viewed",        { context: "predictor" }),
+  // These use `tc`, so every one carries the competition dimension set by
+  // setCompetitionContext(). Do not switch any of them back to `t`.
+  predictionSaved:         (fixtureId: string, isEdit: boolean)                     => tc("prediction_saved",          { fixture_id: fixtureId, is_edit: isEdit, device: _device() }),
+  bonusAnswerSaved:        (questionKey: string)                                     => tc("bonus_answer_saved",        { question_key: questionKey }),
+  leagueCreated:           (visibility: "private" | "public")                        => tc("league_created",            { visibility }),
+  leagueJoined:            (leagueId: string)                                        => tc("league_joined",             { league_id: leagueId }),
+  inviteLinkCopied:        (leagueId: string, copyType: "code" | "link")             => tc("invite_link_copied",        { league_id: leagueId, copy_type: copyType }),
+  whatsappShareClicked:    (leagueId: string)                                        => tc("whatsapp_share_clicked",    { league_id: leagueId }),
+  predictorLeaderboardViewed: (window?: "round" | "month" | "season")                 => tc("leaderboard_viewed",        { context: "predictor", window: window ?? "season" }),
+
+  /** Matchweek navigation — the round dimension for Phase 4/5 funnels. */
+  roundViewed:             (roundCode: string, roundId: string)                      => tc("round_viewed",              { round_code: roundCode, round_id: roundId, device: _device() }),
+  /** Fired when the user switches competition. */
+  competitionSwitched:     (fromSlug: string | null, toSlug: string)                 => tc("competition_switched",      { from_slug: fromSlug, to_slug: toSlug, device: _device() }),
 
   // ── Growth / funnel events ────────────────────────────────────────────────────
   // Funnel A:  invite_page_viewed → league_joined → first_prediction_saved

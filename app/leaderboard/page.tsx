@@ -10,7 +10,7 @@ import { nameToFlag } from "@/lib/countries";
 import { getContributionLeaderboard } from "@/lib/economy";
 import { getNetworkLeaderboard } from "@/lib/network";
 import { getBattleLeaderboard } from "@/lib/battle";
-import { getPredictorLeaderboard, getCompetition } from "@/lib/predictor";
+import { getPredictorLeaderboard, resolveCompetition } from "@/lib/predictor";
 import { BRAND, MATERIAL } from "@/lib/brand";
 
 type Segment = "predictions" | "iq" | "network" | "battles" | "tests";
@@ -379,7 +379,7 @@ function EconomyBoard({ kind }: { kind: Exclude<Segment, "tests"> }) {
         const d = await getBattleLeaderboard();
         out = d && d.map((e) => ({ rank: e.rank, name: e.displayName, country: e.country, value: `${e.elo} Elo`, sub: `${e.wins}W · ${e.losses}L` }));
       } else {
-        const { competition } = await getCompetition("wc2026");
+        const { competition } = await resolveCompetition();
         if (competition) {
           const d = await getPredictorLeaderboard(competition.id);
           out = d.map((e) => ({ rank: e.rank, name: e.displayName, country: e.country, value: `${e.totalPoints.toLocaleString()} pts`, sub: `${e.exactScores} exact` }));

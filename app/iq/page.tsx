@@ -15,6 +15,7 @@ import { IqInfoButton } from "@/components/IqInfoSheet";
 import { PrestigeStatusLine, IqUnlocksLadder } from "@/components/IqUnlocks";
 import { detectCelebrations, type CelebrationEvent } from "@/lib/celebrate";
 import { CelebrationModal } from "@/components/CelebrationModal";
+import CompetitionHistory from "@/components/profile/CompetitionHistory";
 
 // Palette — "Midnight Gold", sculpted. Gold = earned value only.
 const INK = "#2A2205";     // text on a gold fill
@@ -200,6 +201,9 @@ export default function PartnerDashboardPage() {
           Every prediction, brain test, battle and contribution earns permanent <span style={{ color: GOLD, fontWeight: 700 }}>IQ</span>.
         </p>
       </div>
+
+      {/* Competition History — the record across every competition played */}
+      <CompetitionHistory />
 
       {/* ── Hero: IQ, sculpted (boxless) — value framed by the icon's ring ── */}
       <div className="relative flex items-center justify-center pt-2 pb-1">

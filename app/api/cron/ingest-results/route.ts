@@ -1,463 +1,423 @@
 /**
- * GET|POST /api/cron/ingest-results
+ * GET|POST /api/cron/ingest-results — Competition Engine V2
  *
- * Triggered every 5 minutes by GitHub Actions. Also accepts Vercel cron
- * format (GET) if Vercel Pro is ever enabled.
- *
+ * Triggered every 5 minutes by GitHub Actions.
  * Authentication: Authorization: Bearer <CRON_SECRET>
  *
- * Request-efficient polling — three pre-flight checks before any API call:
+ * ────────────────────────────────────────────────────────────
+ * WHAT CHANGED FROM THE WORLD CUP VERSION
+ * ────────────────────────────────────────────────────────────
+ *   1. Loops over EVERY competition with ingest_enabled, instead of a
+ *      hardcoded `.eq("slug", "wc2026")`.
+ *   2. Provider league/season come from competition_settings, not from the
+ *      `WC2026 = "league=1&season=2026"` constant.
+ *   3. The window is DERIVED FROM FIXTURES. `isTournamentWindow()` had the
+ *      WC calendar baked in, so ingestion became a permanent no-op on
+ *      20 July 2026 and would never have restarted for any competition.
+ *   4. 🔴 Results are routed by PROVIDER FIXTURE ID ONLY.
+ *      Removed: the ±90-minute kickoff fallback, the either-team name
+ *      match, and `useSingleMatchFallback`. Each of those could silently
+ *      route a result to the wrong fixture once matches share a kickoff
+ *      time — which is every Saturday in the Premier League.
+ *      An unroutable result is now logged and skipped. It is never guessed.
  *
- *   CHECK 1 — Tournament window
- *     If today is outside WC2026 dates (Jun 11 – Jul 19), return immediately.
- *     Zero API calls on off-season days regardless of cron schedule.
+ * Pre-flight gates (unchanged in spirit — they were well built):
+ *   CHECK 1  competition enabled for ingestion
+ *   CHECK 2  fixtures in our own DB within ±3h  → else no API call
+ *   CHECK 3  any of them live / in progress / imminent → else no API call
  *
- *   CHECK 2 — DB fixtures in window
- *     Query our own fixtures table for matches in the next ±3 hours.
- *     If none exist, return immediately. Zero API calls on non-match days.
- *
- *   CHECK 3 — Active match window
- *     Inspect those fixtures: is any match live, recently started (< 3h ago
- *     and not completed), or kicking off within 30 minutes?
- *     If none qualify, return immediately. Zero API calls between matches.
- *
- *   Only if all three checks pass does the handler call API-Football.
- *
- * Scoring safety:
- *   - extractScore() returns null/null for all non-final statuses
- *   - Scores are only written to DB when status = 'completed'
- *   - This ensures auto_score_predictions trigger fires exactly once per
- *     fixture, with confirmed fulltime scores (never partial live scores)
+ * Scoring safety: writing both scores fires auto_score_predictions, which
+ * awards points and mints IQ. Live scores ARE written (points move during
+ * a match); economy_award_fixture reconciles deltas so this cannot
+ * double-mint. See lib/ingestion.ts extractScore for the full note.
  */
 
 import { NextRequest, NextResponse }    from "next/server";
 import { createClient }                  from "@supabase/supabase-js";
+import type { SupabaseClient }           from "@supabase/supabase-js";
 import {
-  isTournamentWindow,
   getPollReason,
   fetchLiveFixtures,
   fetchFixturesByDate,
   mapStatus,
   extractScore,
-  findDbFixtureByKickoff,
+  matchProviderFixture,
+  isReversed,
   RateLimitError,
   AuthError,
   type DbFixture,
   type QuotaMeta,
+  type CompetitionIngestConfig,
+  type ApiFootballFixture,
 } from "@/lib/ingestion";
 
+// ── Per-competition result ────────────────────────────────────
+
+interface CompetitionOutcome {
+  slug:        string;
+  skipped?:    boolean;
+  reason?:     string;
+  updated?:    number;
+  checked?:    number;
+  unroutable?: number;
+  apiCalls?:   number;
+  changes?:    string[];
+  error?:      string;
+}
+
+// ── Competition discovery ─────────────────────────────────────
+
+async function loadIngestConfigs(db: SupabaseClient): Promise<CompetitionIngestConfig[]> {
+  const { data: comps, error } = await db
+    .from("competitions")
+    .select("id, slug")
+    .neq("status", "completed");
+
+  if (error || !comps) {
+    console.error("[ingest] could not list competitions:", error?.message);
+    return [];
+  }
+
+  const configs: CompetitionIngestConfig[] = [];
+
+  for (const c of comps as { id: string; slug: string }[]) {
+    const { data: settings } = await db.rpc("get_competition_settings", {
+      p_competition_id: c.id,
+    });
+
+    const s = (settings ?? {}) as Record<string, unknown>;
+
+    // Fail CLOSED. A competition with no provider configuration is not
+    // ingested — it is never assumed to be the World Cup.
+    const leagueId = typeof s.provider_league_id === "number" ? s.provider_league_id : null;
+    const season   = typeof s.provider_season    === "number" ? s.provider_season    : null;
+    const enabled  = s.ingest_enabled === true;
+
+    if (!enabled || leagueId === null || season === null) continue;
+
+    configs.push({
+      competitionId:    c.id,
+      slug:             c.slug,
+      provider:         typeof s.provider === "string" ? s.provider : "api-football",
+      providerLeagueId: leagueId,
+      providerSeason:   season,
+      ingestEnabled:    true,
+      hasKnockout:      s.has_knockout === true,
+    });
+  }
+
+  return configs;
+}
+
+// ── One competition ───────────────────────────────────────────
+
+async function ingestCompetition(
+  db:     SupabaseClient,
+  cfg:    CompetitionIngestConfig,
+  apiKey: string,
+  now:    number,
+): Promise<{ outcome: CompetitionOutcome; quota: QuotaMeta | null }> {
+
+  if (cfg.provider !== "api-football") {
+    return {
+      outcome: { slug: cfg.slug, skipped: true, reason: `unsupported_provider:${cfg.provider}` },
+      quota: null,
+    };
+  }
+
+  const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+  const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
+
+  const SELECT =
+    "id, kicks_off_at, home_score, away_score, status, provider_fixture_id, home_team_id, away_team_id";
+
+  // ── CHECK 2: our own fixtures in the window ─────────────────
+  const { data: windowFixtures, error: dbErr } = await db
+    .from("fixtures").select(SELECT)
+    .eq("competition_id", cfg.competitionId)
+    .gte("kicks_off_at", windowStart)
+    .lte("kicks_off_at", windowEnd)
+    .order("kicks_off_at", { ascending: true });
+
+  if (dbErr) {
+    return { outcome: { slug: cfg.slug, error: `DB error: ${dbErr.message}` }, quota: null };
+  }
+
+  // Stuck fixtures outside the window: a match that completed after our
+  // window closed would otherwise stay 'live' forever, and getPollReason
+  // would keep reporting live_match from that same stale status — a bug
+  // that never self-corrects.
+  const { data: stuckLive } = await db
+    .from("fixtures").select(SELECT)
+    .eq("competition_id", cfg.competitionId)
+    .in("status", ["live", "postponed"])
+    .lt("kicks_off_at", windowStart)
+    .order("kicks_off_at", { ascending: true });
+
+  const seen = new Set<string>();
+  const dbFixtures = [...(windowFixtures ?? []), ...(stuckLive ?? [])]
+    .filter((f) => (seen.has(f.id as string) ? false : (seen.add(f.id as string), true))) as DbFixture[];
+
+  if (dbFixtures.length === 0) {
+    return { outcome: { slug: cfg.slug, skipped: true, reason: "no_fixtures_in_window", apiCalls: 0 }, quota: null };
+  }
+
+  // ── CHECK 3: is anything actually happening? ────────────────
+  const pollReason = getPollReason(dbFixtures, now);
+  if (!pollReason) {
+    const next = dbFixtures
+      .filter((f) => f.status === "scheduled")
+      .sort((a, b) => new Date(a.kicks_off_at).getTime() - new Date(b.kicks_off_at).getTime())[0];
+    const mins = next ? Math.round((new Date(next.kicks_off_at).getTime() - now) / 60_000) : null;
+    return {
+      outcome: {
+        slug: cfg.slug, skipped: true, reason: "no_active_match_window",
+        apiCalls: 0, ...(mins !== null ? { changes: [`next kickoff in ${mins}m`] } : {}),
+      },
+      quota: null,
+    };
+  }
+
+  // ── Guard: refuse to ingest an unmapped competition ─────────
+  // Without provider ids there is no safe way to route a result. Rather
+  // than fall back to kickoff guessing — the exact defect this rewrite
+  // removes — do nothing and say why.
+  const mapped = dbFixtures.filter((f) => f.provider_fixture_id).length;
+  if (mapped === 0) {
+    console.error(
+      `[ingest:${cfg.slug}] ABORT — no fixture in this window has a provider_fixture_id. ` +
+      `Run the provider-id backfill (migration 039) before enabling ingestion.`,
+    );
+    return {
+      outcome: { slug: cfg.slug, skipped: true, reason: "no_provider_ids_backfill_required", apiCalls: 0 },
+      quota: null,
+    };
+  }
+  if (mapped < dbFixtures.length) {
+    console.warn(
+      `[ingest:${cfg.slug}] ${dbFixtures.length - mapped} of ${dbFixtures.length} fixtures in ` +
+      `window lack a provider id — their results CANNOT be ingested and will be reported unroutable.`,
+    );
+  }
+
+  // ── Team names, for reversal detection only ─────────────────
+  const teamIds = [...new Set(
+    dbFixtures.flatMap((f) => [f.home_team_id, f.away_team_id]).filter(Boolean) as string[],
+  )];
+  const { data: teamsData } = teamIds.length
+    ? await db.from("teams").select("id, name").in("id", teamIds)
+    : { data: [] as { id: string; name: string }[] };
+  const teamName = new Map((teamsData ?? []).map((t) => [t.id as string, t.name as string]));
+
+  // ── Call the provider ───────────────────────────────────────
+  let apiCallsMade = 0;
+  let quota: QuotaMeta = { requestsLimit: null, requestsRemaining: null, requestsUsed: null };
+
+  console.log(`[ingest:${cfg.slug}] polling — reason: ${pollReason}`);
+  const live = await fetchLiveFixtures(apiKey, cfg);
+  apiCallsMade += live.apiCallsMade;
+  quota = live.quota;
+
+  let apiFixtures: ApiFootballFixture[] = live.fixtures;
+
+  // Nothing live: fetch by the date(s) the in-progress fixtures kicked off
+  // on — NOT wall-clock today. A 22:00 UTC kickoff finishes after midnight,
+  // by which time a today-only query silently misses it.
+  if (apiFixtures.length === 0) {
+    const dates = new Set<string>([
+      new Date(now).toISOString().slice(0, 10),
+      ...dbFixtures
+        .filter((f) => f.status !== "completed" && f.status !== "postponed")
+        .map((f) => f.kicks_off_at.slice(0, 10)),
+    ]);
+    for (const d of dates) {
+      const byDate = await fetchFixturesByDate(apiKey, cfg, d);
+      apiCallsMade += byDate.apiCallsMade;
+      quota = byDate.quota;
+      apiFixtures = apiFixtures.concat(byDate.fixtures);
+    }
+  }
+
+  if (apiFixtures.length === 0) {
+    return {
+      outcome: { slug: cfg.slug, updated: 0, checked: 0, apiCalls: apiCallsMade, reason: "provider_returned_nothing" },
+      quota,
+    };
+  }
+
+  // ── Route and write ─────────────────────────────────────────
+  let updated    = 0;
+  let unroutable = 0;
+  const changes: string[] = [];
+
+  for (const apiFix of apiFixtures) {
+    // 🔴 THE RULE: provider id, or nothing. No fallback exists by design.
+    const outcome = matchProviderFixture(apiFix.fixture.id, dbFixtures);
+
+    if (outcome.kind !== "matched") {
+      unroutable++;
+      console.log(
+        `[ingest:${cfg.slug}:UNROUTABLE] provider_id=${apiFix.fixture.id} ` +
+        `${apiFix.teams.home.name} v ${apiFix.teams.away.name} @ ${apiFix.fixture.date} — ${outcome.reason}`,
+      );
+      continue;
+    }
+
+    const dbFix     = outcome.fixture;
+    const newStatus = mapStatus(apiFix.fixture.status.short);
+    let { homeScore, awayScore } = extractScore(apiFix);
+
+    // Provider occasionally lists a fixture with home/away reversed
+    // relative to our seed. Now that identity is certain, a name mismatch
+    // means orientation — not a mis-route.
+    if (homeScore !== null && awayScore !== null) {
+      if (isReversed(apiFix.teams.home.name, teamName.get(dbFix.home_team_id ?? ""))) {
+        [homeScore, awayScore] = [awayScore, homeScore];
+        console.log(`[ingest:${cfg.slug}:SWAP] fixture ${dbFix.id.slice(0, 8)} — orientation reversed`);
+      }
+    }
+
+    const newKicksOffAt  = new Date(apiFix.fixture.date).toISOString();
+    const statusChanged  = newStatus !== dbFix.status;
+    const kickoffChanged = newKicksOffAt !== dbFix.kicks_off_at;
+    const scoreChanged =
+      (newStatus === "live" || newStatus === "completed") &&
+      homeScore !== null && awayScore !== null &&
+      (homeScore !== dbFix.home_score || awayScore !== dbFix.away_score);
+
+    if (!statusChanged && !scoreChanged && !kickoffChanged) continue;
+
+    const payload: Record<string, unknown> = {
+      status:       newStatus,
+      kicks_off_at: newKicksOffAt,
+      updated_at:   new Date().toISOString(),
+    };
+
+    if (scoreChanged) {
+      payload.home_score = homeScore;
+      payload.away_score = awayScore;
+      console.log(
+        `[ingest:${cfg.slug}:SCORE] fixture ${dbFix.id.slice(0, 8)} | ` +
+        `provider_id=${apiFix.fixture.id} | api_status=${apiFix.fixture.status.short} | ` +
+        `score=${homeScore}-${awayScore} | ${newStatus === "completed" ? "FINAL" : "LIVE"} ` +
+        `→ auto_score_predictions will fire`,
+      );
+    }
+
+    const { error: updErr } = await db.from("fixtures").update(payload).eq("id", dbFix.id);
+    if (updErr) {
+      console.error(`[ingest:${cfg.slug}:ERROR] update failed for ${dbFix.id}:`, updErr.message);
+      continue;
+    }
+
+    updated++;
+    changes.push(
+      `${dbFix.id.slice(0, 8)} | ` +
+      (scoreChanged ? `SCORED ${homeScore}-${awayScore}` : `STATUS ${dbFix.status}→${newStatus}`),
+    );
+  }
+
+  return {
+    outcome: {
+      slug: cfg.slug, updated, checked: apiFixtures.length,
+      unroutable, apiCalls: apiCallsMade, changes,
+    },
+    quota,
+  };
+}
+
 // ── Handler ───────────────────────────────────────────────────
-// All env vars are read inside the handler (not at module level)
-// to ensure they are evaluated at request time, not build time.
 
 async function handler(req: NextRequest): Promise<NextResponse> {
-
-  // ── Environment (read at request time) ──────────────────────
   const CRON_SECRET      = process.env.CRON_SECRET               ?? "";
   const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY          ?? "";
   const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
   const SUPABASE_SRK     = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-  // ── Auth ────────────────────────────────────────────────────
-  const cronSecret = CRON_SECRET;
-  if (!cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!CRON_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const auth = req.headers.get("authorization");
   const querySecret = req.nextUrl.searchParams.get("secret");
-  if (auth !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
+  if (auth !== `Bearer ${CRON_SECRET}` && querySecret !== CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // ── Config check ────────────────────────────────────────────
   if (!FOOTBALL_API_KEY || !SUPABASE_URL || !SUPABASE_SRK) {
     const missing = [
       !FOOTBALL_API_KEY ? "FOOTBALL_API_KEY" : null,
       !SUPABASE_URL     ? "NEXT_PUBLIC_SUPABASE_URL" : null,
       !SUPABASE_SRK     ? "SUPABASE_SERVICE_ROLE_KEY" : null,
     ].filter(Boolean).join(", ");
-    return NextResponse.json(
-      { error: `Missing env vars: ${missing}` },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: `Missing env vars: ${missing}` }, { status: 500 });
   }
 
   const startedAt = Date.now();
-
-  // ── CHECK 1: Tournament window ───────────────────────────────
-  // Hard cutoff — zero API requests outside WC2026 dates.
-  if (!isTournamentWindow()) {
-    return NextResponse.json({
-      skipped:  true,
-      reason:   "outside_tournament_window",
-      apiCalls: 0,
-      duration: Date.now() - startedAt,
-    });
-  }
-
-  // Service-role DB client (bypasses RLS — server-side only)
   const db = createClient(SUPABASE_URL, SUPABASE_SRK);
 
-  // ── CHECK 2: DB fixtures in window ───────────────────────────
-  // Query our own DB before touching the external API.
-  // Include: fixtures within ±3h of now, PLUS any stuck "live" fixtures
-  // regardless of age (catches matches that completed outside the window).
-  const now         = Date.now();
-  const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
-  const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
+  // ── CHECK 1: which competitions want ingesting? ─────────────
+  const configs = await loadIngestConfigs(db);
 
-  // Resolve competition ID by slug (one fast PK-range index lookup)
-  const { data: compRow } = await db
-    .from("competitions")
-    .select("id")
-    .eq("slug", "wc2026")
-    .single();
-
-  const competitionId = (compRow as Record<string, unknown> | null)?.id as string | null;
-
-  if (!competitionId) {
-    console.error("[ingest] competition wc2026 not found in DB");
-    return NextResponse.json({ error: "Competition wc2026 not found" }, { status: 500 });
-  }
-
-  // Windowed fixtures (upcoming + recent)
-  const { data: windowFixtures, error: dbErr } = await db
-    .from("fixtures")
-    .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
-    .eq("competition_id", competitionId)
-    .gte("kicks_off_at", windowStart)
-    .lte("kicks_off_at", windowEnd)
-    .order("kicks_off_at", { ascending: true });
-
-  // Also fetch any stuck "live" or "postponed" fixtures outside the window
-  // "postponed" can occur when API-Football marks a match as postponed then completes it
-  const { data: stuckLive } = await db
-    .from("fixtures")
-    .select("id, kicks_off_at, home_score, away_score, status, home_team_id, away_team_id")
-    .eq("competition_id", competitionId)
-    .in("status", ["live", "postponed"])
-    .lt("kicks_off_at", windowStart)
-    .order("kicks_off_at", { ascending: true });
-
-  // Merge, deduplicating by id
-  const seen = new Set<string>();
-  const merged = [...(windowFixtures ?? []), ...(stuckLive ?? [])].filter((f) => {
-    if (seen.has(f.id)) return false;
-    seen.add(f.id);
-    return true;
-  });
-  const dbFixtures = merged;
-
-  if (dbErr) {
-    // DB error is a real error — return 500 so GitHub marks the run failed
-    console.error("[ingest] DB query failed:", dbErr.message);
-    return NextResponse.json({ error: `DB error: ${dbErr.message}` }, { status: 500 });
-  }
-
-  // Load team names so we can match simultaneous fixtures by team, not just time
-  const teamIds = [...new Set([
-    ...(dbFixtures ?? []).map((f) => f.home_team_id as string),
-    ...(dbFixtures ?? []).map((f) => f.away_team_id as string),
-  ])];
-  const { data: teamsData } = await db.from("teams").select("id, name").in("id", teamIds);
-  const teamNameMap = new Map((teamsData ?? []).map((t) => [t.id as string, t.name as string]));
-
-  const TEAM_ALIASES: Record<string, string> = {
-    "czechia":                    "czechrepublic",
-    "türkiye":                    "turkey",
-    "turkiye":                    "turkey",
-    "coteivoire":                 "ivorycoast",
-    "congodr":                    "drcongo",
-    "democraticrepublicofcongo":  "drcongo",
-    "northmacedonia":             "macedonia",
-    "bosniaandherzegovina":       "bosniaherzegovina",
-  };
-  function normalizeName(name: string) {
-    const raw = name.toLowerCase().replace(/[^a-z]/g, "");
-    return TEAM_ALIASES[raw] ?? raw;
-  }
-
-  const typedDb = (dbFixtures ?? []) as DbFixture[];
-
-  if (typedDb.length === 0) {
+  if (configs.length === 0) {
     return NextResponse.json({
       skipped:  true,
-      reason:   "no_fixtures_in_window",
+      reason:   "no_competitions_with_ingestion_enabled",
       apiCalls: 0,
       duration: Date.now() - startedAt,
     });
   }
 
-  // ── CHECK 3: Active match window ─────────────────────────────
-  // Only proceed if a match is live, in-progress, or imminent.
-  const pollReason = getPollReason(typedDb, now);
+  const results: CompetitionOutcome[] = [];
+  let totalApiCalls = 0;
+  let quota: QuotaMeta = { requestsLimit: null, requestsRemaining: null, requestsUsed: null };
 
-  if (!pollReason) {
-    // No active window — next match is more than 30 min away
-    const nextFixture = typedDb
-      .filter((f) => f.status === "scheduled")
-      .sort((a, b) => new Date(a.kicks_off_at).getTime() - new Date(b.kicks_off_at).getTime())[0];
-
-    const nextKickoffMs = nextFixture
-      ? new Date(nextFixture.kicks_off_at).getTime()
-      : null;
-
-    const minsUntilNext = nextKickoffMs
-      ? Math.round((nextKickoffMs - now) / 60_000)
-      : null;
-
-    return NextResponse.json({
-      skipped:       true,
-      reason:        "no_active_match_window",
-      nextKickoffIn: minsUntilNext !== null ? `${minsUntilNext}m` : null,
-      apiCalls:      0,
-      duration:      Date.now() - startedAt,
-    });
+  for (const cfg of configs) {
+    try {
+      const { outcome, quota: q } = await ingestCompetition(db, cfg, FOOTBALL_API_KEY, Date.now());
+      results.push(outcome);
+      totalApiCalls += outcome.apiCalls ?? 0;
+      if (q) quota = q;
+    } catch (err) {
+      // One competition's failure must not stop the others. A rate limit
+      // hit on the Premier League should not prevent the Champions League
+      // from ingesting its results.
+      if (err instanceof RateLimitError) {
+        console.warn(`[ingest:${cfg.slug}] rate limited:`, err.message);
+        results.push({ slug: cfg.slug, error: "rate_limited" });
+        if (err.quota) quota = err.quota;
+        break; // shared quota — stop hitting the provider entirely
+      }
+      if (err instanceof AuthError) {
+        console.error(`[ingest:${cfg.slug}] auth error:`, err.message);
+        results.push({ slug: cfg.slug, error: `auth_error: ${err.message}` });
+        break; // the key is wrong for every competition
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[ingest:${cfg.slug}] unexpected error:`, message);
+      results.push({ slug: cfg.slug, error: message });
+    }
   }
 
-  // ── All checks passed — call API-Football ────────────────────
+  const totalUpdated    = results.reduce((n, r) => n + (r.updated ?? 0), 0);
+  const totalUnroutable = results.reduce((n, r) => n + (r.unroutable ?? 0), 0);
+  const failed          = results.filter((r) => r.error);
 
-  let apiCallsMade = 0;
-  let quota: QuotaMeta = {
-    requestsLimit: null,
-    requestsRemaining: null,
-    requestsUsed: null,
-  };
+  console.log(
+    `[ingest] complete: ${totalUpdated} updated across ${configs.length} competition(s), ` +
+    `${totalUnroutable} unroutable, ${totalApiCalls} API calls | ${Date.now() - startedAt}ms`,
+  );
 
-  try {
-    // Step A: Fetch live fixtures first (most request-efficient path)
-    console.log(`[ingest:API] calling GET /fixtures?league=1&season=2026&live=all | reason: ${pollReason}`);
-    const liveResult = await fetchLiveFixtures(FOOTBALL_API_KEY);
-    apiCallsMade += liveResult.apiCallsMade;
-    quota = liveResult.quota;
-
-    let apiFixtures = liveResult.fixtures;
-    console.log(`[ingest:API] live response: ${apiFixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
-
-    // Step B: If nothing live, fetch the full schedule for the date(s) the
-    //         in-progress fixtures actually kicked off on — NOT wall-clock
-    //         "today". Matches kicking off late (e.g. 22:00-23:00 UTC) can
-    //         run past midnight UTC; by the time API-Football stops listing
-    //         them under live=all (i.e. FT), wall-clock "today" has already
-    //         rolled to the next day, so a today-only date query silently
-    //         misses them and the DB status gets stuck on "live" forever
-    //         (getPollReason keeps reporting live_match based on that same
-    //         stale status, so the bug never self-corrects).
-    if (apiFixtures.length === 0) {
-      const relevantDates = new Set<string>([
-        new Date().toISOString().slice(0, 10), // always check wall-clock today too
-        ...typedDb
-          .filter((f) => f.status !== "completed" && f.status !== "postponed")
-          .map((f) => f.kicks_off_at.slice(0, 10)),
-      ]);
-
-      for (const dateStr of relevantDates) {
-        console.log(`[ingest:API] no live matches — calling GET /fixtures?league=1&season=2026&date=${dateStr}`);
-        const dateResult = await fetchFixturesByDate(FOOTBALL_API_KEY, dateStr);
-        apiCallsMade += dateResult.apiCallsMade;
-        quota = dateResult.quota;
-        apiFixtures = apiFixtures.concat(dateResult.fixtures);
-        console.log(`[ingest:API] date=${dateStr} response: ${dateResult.fixtures.length} fixtures | quota used: ${quota.requestsUsed ?? "?"}/${quota.requestsLimit ?? "?"} (${quota.requestsRemaining ?? "?"} remaining)`);
-      }
-    }
-
-    if (apiFixtures.length === 0) {
-      return NextResponse.json({
-        updated:     0,
-        checked:     0,
-        apiCalls:    apiCallsMade,
-        quota,
-        pollReason,
-        message:     "API returned no fixtures for today",
-        duration:    Date.now() - startedAt,
-      });
-    }
-
-    // ── Diff and update ───────────────────────────────────────
-    console.log(
-      `[ingest:CHECK] api fixtures: ${apiFixtures.length} | ` +
-      `db window fixtures: ${typedDb.length} | ` +
-      `api calls this run: ${apiCallsMade}`,
-    );
-
-    let updated    = 0;
-    let skippedNoMatch = 0;
-    const changes: string[] = [];
-
-    // When live endpoint returns exactly 1 match and we have exactly 1
-    // in-progress DB fixture, skip time-matching entirely — the API already
-    // confirmed it's live so it must be the same fixture. This handles
-    // timezone/clock differences between API-Football and our seeded times.
-    const inProgressDb = typedDb.filter(
-      (f) => f.status !== "completed" && f.status !== "postponed",
-    );
-    const useSingleMatchFallback =
-      apiFixtures.length === 1 &&
-      inProgressDb.length === 1 &&
-      pollReason !== "kickoff_imminent"; // Don't confuse pre-match with live
-
-    // Track which DB fixtures have been claimed so simultaneous kickoffs
-    // (group-stage final round: 2 matches at exactly the same time) each
-    // get matched to a distinct DB row instead of both hitting the same one.
-    const claimedDbIds = new Set<string>();
-
-    for (const apiFix of apiFixtures) {
-      const availableDb = typedDb.filter((f) => !claimedDbIds.has(f.id));
-
-      let dbFix: typeof typedDb[0] | undefined;
-      if (useSingleMatchFallback) {
-        dbFix = inProgressDb[0];
-      } else {
-        const apiMs       = new Date(apiFix.fixture.date).getTime();
-        const apiHomeName = normalizeName(apiFix.teams.home.name);
-        const apiAwayName = normalizeName(apiFix.teams.away.name);
-        // Match by team name within 90-min window (handles simultaneous kickoffs)
-        dbFix = availableDb.find((f) => {
-          if (Math.abs(new Date(f.kicks_off_at).getTime() - apiMs) > 90 * 60 * 1000) return false;
-          const row  = f as unknown as Record<string, unknown>;
-          const home = normalizeName(teamNameMap.get(row.home_team_id as string) ?? "");
-          const away = normalizeName(teamNameMap.get(row.away_team_id as string) ?? "");
-          return home === apiHomeName || away === apiAwayName || home === apiAwayName || away === apiHomeName;
-        }) ?? findDbFixtureByKickoff(apiFix.fixture.date, availableDb); // fallback: time-only
-      }
-
-      if (dbFix) claimedDbIds.add(dbFix.id);
-
-      if (!dbFix) {
-        skippedNoMatch++;
-        console.log(
-          `[ingest:NOMATCH] api_date=${apiFix.fixture.date} | ` +
-          `db_fixtures=${typedDb.map((f) => f.kicks_off_at).join(",")}`,
-        );
-        continue; // Fixture not in our ±3h window
-      }
-
-      const newStatus = mapStatus(apiFix.fixture.status.short);
-      let { homeScore, awayScore } = extractScore(apiFix);
-
-      // Detect if API has home/away swapped relative to our DB.
-      // If DB home name matches API away name, scores need to be reversed.
-      if (homeScore !== null && awayScore !== null && !useSingleMatchFallback) {
-        const apiHomeName2 = normalizeName(apiFix.teams.home.name);
-        const row2 = dbFix as unknown as Record<string, unknown>;
-        const dbHomeName = normalizeName(teamNameMap.get(row2.home_team_id as string) ?? "");
-        if (dbHomeName && dbHomeName !== apiHomeName2) {
-          // API home ≠ DB home → teams are swapped, reverse the scores
-          [homeScore, awayScore] = [awayScore, homeScore];
-          console.log(`[ingest:SWAP] fixture ${dbFix.id.slice(0, 8)} — API home=${apiFix.teams.home.name} but DB home=${teamNameMap.get(row2.home_team_id as string)} → swapping scores`);
-        }
-      }
-
-      const newKicksOffAt = new Date(apiFix.fixture.date).toISOString();
-      const statusChanged    = newStatus !== dbFix.status;
-      const kickoffChanged   = newKicksOffAt !== dbFix.kicks_off_at;
-
-      // Write scores for both live and completed matches so points
-      // fluctuate in real-time during a match (every 5-min cron tick).
-      // extractScore() returns null/null for non-started/postponed fixtures
-      // so those are never written. The auto_score_predictions trigger
-      // re-scores all predictions whenever the score changes.
-      const scoreChanged =
-        (newStatus === "live" || newStatus === "completed") &&
-        homeScore !== null &&
-        awayScore !== null &&
-        (homeScore !== dbFix.home_score || awayScore !== dbFix.away_score);
-
-      if (!statusChanged && !scoreChanged && !kickoffChanged) continue;
-
-      const updatePayload: Record<string, unknown> = {
-        status:       newStatus,
-        kicks_off_at: newKicksOffAt, // Always sync to API-Football's official time
-        updated_at:   new Date().toISOString(),
-      };
-
-      if (scoreChanged) {
-        // Writing both scores triggers the auto_score_predictions AFTER UPDATE
-        // trigger, which sets predictions.points_awarded for all users.
-        // Leaderboard RPCs are computed on-demand — no further action needed.
-        updatePayload.home_score = homeScore;
-        updatePayload.away_score = awayScore;
-        // Log score writes explicitly so they're easy to find in Vercel logs
-        console.log(
-          `[ingest:SCORE] fixture ${dbFix.id.slice(0, 8)} | ` +
-          `api_status=${apiFix.fixture.status.short} | ` +
-          `score=${homeScore}-${awayScore} | ` +
-          `type=${newStatus === "completed" ? "FINAL" : "LIVE"} | ` +
-          `writing to DB → auto_score_predictions trigger will fire`,
-        );
-      }
-
-      const { error: updateErr } = await db
-        .from("fixtures")
-        .update(updatePayload)
-        .eq("id", dbFix.id);
-
-      if (updateErr) {
-        console.error(`[ingest:ERROR] update failed for fixture ${dbFix.id}:`, updateErr.message);
-        continue;
-      }
-
-      updated++;
-      const label = scoreChanged
-        ? `SCORED ${homeScore}-${awayScore}`
-        : `STATUS ${dbFix.status}→${newStatus}`;
-      const changeMsg = `${dbFix.id.slice(0, 8)} | ${label}`;
-      changes.push(changeMsg);
-      console.log(`[ingest:UPDATE] ${changeMsg}`);
-    }
-
-    const duration = Date.now() - startedAt;
-
-    console.log(
-      `[ingest] complete: ${updated} updated, ${apiFixtures.length - skippedNoMatch} matched, ` +
-      `${skippedNoMatch} outside window | ${duration}ms`,
-    );
-
-    return NextResponse.json({
-      updated,
-      checked:     apiFixtures.length,
-      apiCalls:    apiCallsMade,
+  return NextResponse.json(
+    {
+      competitions: results,
+      totalUpdated,
+      totalUnroutable,
+      apiCalls: totalApiCalls,
       quota,
-      pollReason,
-      changes,
-      duration,
-    });
-
-  } catch (err) {
-
-    // ── Typed error handling ──────────────────────────────────
-
-    if (err instanceof RateLimitError) {
-      // Rate limited: this is expected under heavy load — log a warning
-      // but return 200 so GitHub doesn't mark the run as failed.
-      // The next 5-minute run will succeed once the rate window resets.
-      console.warn("[ingest] rate limited:", err.message, "quota:", err.quota);
-      return NextResponse.json({
-        warning:  "rate_limited",
-        message:  err.message,
-        apiCalls: apiCallsMade,
-        quota:    err.quota ?? quota,
-        duration: Date.now() - startedAt,
-      });
-    }
-
-    if (err instanceof AuthError) {
-      // Auth errors mean the API key is wrong or expired — 500 to alert
-      console.error("[ingest] auth error:", err.message);
-      return NextResponse.json(
-        { error: "auth_error", message: err.message, apiCalls: apiCallsMade },
-        { status: 500 },
-      );
-    }
-
-    // Unexpected error — 500 so GitHub marks the run failed for alerting
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[ingest] unexpected error:", message);
-    return NextResponse.json(
-      { error: "unexpected", message, apiCalls: apiCallsMade },
-      { status: 500 },
-    );
-  }
+      duration: Date.now() - startedAt,
+    },
+    // 500 only when something genuinely failed, so GitHub Actions marks the
+    // run red. A rate limit is expected under load and is not a failure.
+    { status: failed.some((r) => r.error !== "rate_limited") ? 500 : 200 },
+  );
 }
 
 export const GET  = handler;

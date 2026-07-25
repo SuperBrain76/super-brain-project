@@ -52,12 +52,18 @@ export async function GET(req: NextRequest) {
   const reset = req.nextUrl.searchParams.get("reset") === "true";
   const log: string[] = [];
 
+  // Knockout-only tool. Defaults to the World Cup, whose bracket this
+  // route's seed map describes; accepts ?competition= for a future knockout
+  // competition. A league competition has no knockout stage and this route
+  // has nothing to do for one.
+  const slug = req.nextUrl.searchParams.get("competition") ?? "wc2026";
+
   const { data: comp } = await supabase
     .from("competitions")
     .select("id")
-    .eq("slug", "wc2026")
+    .eq("slug", slug)
     .single();
-  if (!comp) return NextResponse.json({ error: "competition not found" }, { status: 500 });
+  if (!comp) return NextResponse.json({ error: `competition "${slug}" not found` }, { status: 404 });
 
   // Build team code → id map
   const { data: teams } = await supabase

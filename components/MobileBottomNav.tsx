@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useCompetitionSlug, useIsCompetitionRoute } from "@/components/CompetitionProvider";
 import { BRAND } from "@/lib/brand";
 
 // Exact routes and prefixes that need full screen (no nav)
@@ -63,19 +64,24 @@ export default function MobileBottomNav() {
 
   if (isGameRoute(pathname)) return null;
 
-  const isPredict = pathname.startsWith("/predict");
+  // Competition Engine V2: predictor routes are /premier-league, /la-liga,
+  // /wc2026 — not a single /predict prefix.
+  const isPredict = useIsCompetitionRoute();
+  const compSlug  = useCompetitionSlug();
+  // Falls back to /predict until the slug resolves; that route redirects.
+  const compHref  = (sub = "") => (compSlug ? `/${compSlug}${sub}` : `/predict${sub}`);
   const youAccent = user ? BRAND.gold : BRAND.neutral; // gold = value (your IQ), only when signed in
 
   const predictorTabs: Tab[] = [
-    { href: "/predict",             label: "Fixtures", Icon: IconPredict,     match: "/predict",             accent: BRAND.sports },
-    { href: "/predict/leagues",     label: "Leagues",  Icon: IconBattle,      match: "/predict/leagues",     accent: BRAND.sports },
-    { href: "/predict/leaderboard", label: "Ranks",    Icon: IconLeaderboard, match: "/predict/leaderboard", accent: BRAND.neutral },
+    { href: compHref(),             label: "Fixtures", Icon: IconPredict,     match: compHref(),             accent: BRAND.sports },
+    { href: compHref("/leagues"),     label: "Leagues",  Icon: IconBattle,      match: compHref("/leagues"),     accent: BRAND.sports },
+    { href: compHref("/leaderboard"), label: "Ranks",    Icon: IconLeaderboard, match: compHref("/leaderboard"), accent: BRAND.neutral },
     { href: user ? "/iq" : "/login", label: user ? "You" : "Sign in", Icon: IconYou, match: user ? "/iq" : "/login", accent: youAccent },
   ];
 
   const defaultTabs: Tab[] = [
     { href: "/tests",       label: "Tests",   Icon: IconTests,       match: "/tests",       accent: BRAND.tests },
-    { href: "/predict",     label: "Sports",  Icon: IconPredict,     match: "/predict",     accent: BRAND.sports },
+    { href: compHref(),     label: "Sports",  Icon: IconPredict,     match: compHref(),     accent: BRAND.sports },
     { href: "/battle",      label: "Battle",  Icon: IconBattle,      match: "/battle",      accent: BRAND.battle },
     { href: "/leaderboard", label: "Ranks",   Icon: IconLeaderboard, match: "/leaderboard", accent: BRAND.neutral },
     { href: user ? "/iq" : "/login", label: user ? "You" : "Sign in", Icon: IconYou, match: user ? "/iq" : "/login", accent: youAccent },
@@ -95,8 +101,10 @@ export default function MobileBottomNav() {
         }}
       >
         {tabs.map(({ href, label, Icon, match, accent }) => {
-          const active = (isPredict && match === "/predict")
-            ? pathname === "/predict"
+          // The hub tab must only light up ON the hub, not on every page
+          // beneath it — otherwise all four tabs read as active.
+          const active = (isPredict && match === compHref())
+            ? pathname === compHref()
             : pathname.startsWith(match);
           const color = active ? accent : BRAND.dim;
 

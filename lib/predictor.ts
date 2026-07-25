@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { validateLeagueName } from "./leagueName";
+import { getDefaultCompetitionSlug, getStages, stageLabelFrom } from "./competitionEngine";
 
 // ── Competition cache ─────────────────────────────────────────
 // getCompetition("wc2026") is called on every /predict page load.
@@ -244,11 +245,78 @@ export async function getCompetition(
     return { competition: null, error: `competitions query failed: ${error.message} (code: ${error.code})` };
   }
   if (!data) {
-    return { competition: null, error: `No competition found with slug "${slug}". Run the wc2026 seed SQL.` };
+    return { competition: null, error: `No competition found with slug "${slug}". Check the competitions table, and that one competition has is_default set in competition_settings.` };
   }
   const result = { competition: rowToCompetition(data as Record<string, unknown>), error: null };
   _competitionCache.set(slug, result);
   return result;
+}
+
+/**
+ * Resolve which competition a page should show — Competition Engine V2.
+ *
+ * Replaces the literal `getCompetition("wc2026")` that appeared in ten
+ * page components. Resolution order:
+ *
+ *   1. an explicit slug passed by the caller (a route param, later)
+ *   2. the `?c=<slug>` query string, read from the URL
+ *   3. the competition flagged `is_default` in competition_settings
+ *   4. FALLBACK_COMPETITION_SLUG — only when Supabase is unconfigured or
+ *      migration 043 has not been applied
+ *
+ * Day-one behaviour is bit-identical to the old hardcoded call: the World
+ * Cup is seeded with `is_default = true`, so step 3 returns "wc2026".
+ *
+ * Step 2 reads `window.location.search` directly rather than taking
+ * `useSearchParams()`. That keeps this a plain async function callable from
+ * any existing effect, and avoids forcing a Suspense boundary into ten
+ * pages that currently need none. Path-based routes
+ * (`/predict/[competition]/…`) land in Phase 3 alongside the competition
+ * switcher — they belong with the UI work, and there is nothing to switch
+ * between until a second competition exists.
+ */
+export async function resolveCompetition(
+  slug?: string | null,
+): Promise<{ competition: Competition | null; error: string | null }> {
+  let target = slug?.trim() || "";
+
+  if (!target && typeof window !== "undefined") {
+    target = new URLSearchParams(window.location.search).get("c")?.trim() || "";
+  }
+
+  if (!target) target = await getDefaultCompetitionSlug();
+
+  const result = await getCompetition(target);
+
+  // Attach the competition dimension to every subsequent analytics event.
+  //
+  // Done HERE, at the one choke point every page already goes through,
+  // rather than asking ten call sites to remember — anything that depends on
+  // remembering gets missed, and PostHog properties cannot be backfilled.
+  //
+  // Dynamically imported and browser-gated so that lib/analytics (and
+  // posthog-js with it) never reaches a server bundle via this module.
+  if (result.competition && typeof window !== "undefined") {
+    void import("./analytics")
+      .then((m) => m.setCompetitionContext({
+        competition_id:   result.competition!.id,
+        competition_slug: result.competition!.slug,
+      }))
+      .catch(() => { /* analytics must never break a page render */ });
+  }
+
+  return result;
+}
+
+/** The slug `resolveCompetition()` would use. For callers that need it directly. */
+export async function resolveCompetitionSlug(slug?: string | null): Promise<string> {
+  const explicit = slug?.trim() || "";
+  if (explicit) return explicit;
+  if (typeof window !== "undefined") {
+    const fromUrl = new URLSearchParams(window.location.search).get("c")?.trim();
+    if (fromUrl) return fromUrl;
+  }
+  return getDefaultCompetitionSlug();
 }
 
 export async function listCompetitions(): Promise<Competition[]> {
@@ -276,6 +344,28 @@ const FIXTURE_SELECT = `
   away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
   predictions ( home_score, away_score, points_awarded )
 `;
+
+/**
+ * Fixtures for one round, with the caller's own prediction joined.
+ *
+ * The round-scoped load behind the Premier League dashboard and prediction
+ * sheet — one matchweek (~10 fixtures), never the whole 380-fixture season.
+ * Not cached: it must be fresh while live scores tick.
+ */
+export async function getFixturesByRound(
+  roundId: string,
+): Promise<{ fixtures: Fixture[]; error: string | null }> {
+  if (!isSupabaseConfigured) return { fixtures: [], error: "Supabase is not configured." };
+
+  const { data, error } = await supabase
+    .from("fixtures")
+    .select(FIXTURE_SELECT)
+    .eq("round_id", roundId)
+    .order("kicks_off_at", { ascending: true });
+
+  if (error) return { fixtures: [], error: `round fixtures query failed: ${error.message}` };
+  return { fixtures: (data as Record<string, unknown>[] ?? []).map(rowToFixture), error: null };
+}
 
 /** Returns fixtures for a competition, optionally filtered by stage. */
 export async function getFixtures(
@@ -1326,7 +1416,18 @@ export function kickoffCountdown(isoString: string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-/** Stage display name. */
+/**
+ * Stage display name — synchronous fallback.
+ *
+ * ⚠️ These seven labels are World Cup specific. They are retained verbatim
+ * because migration 040 seeds `competition_stages` with EXACTLY these
+ * strings, so a competition whose stages have not loaded yet renders
+ * identically rather than flashing raw codes. Byte-equality between this
+ * map and the seed is asserted in tests/competition-stages.test.ts.
+ *
+ * Prefer `getStageLabeller(competitionId)` — it reads from the database and
+ * therefore works for league formats, which have none of these codes.
+ */
 export function stageLabel(stage: string): string {
   const map: Record<string, string> = {
     group: "Group Stage",
@@ -1338,6 +1439,28 @@ export function stageLabel(stage: string): string {
     final: "Final",
   };
   return map[stage] ?? stage;
+}
+
+/**
+ * Competition-aware stage labeller.
+ *
+ * Loads the competition's stages once and returns a synchronous lookup, so
+ * render paths stay synchronous. Falls back to `stageLabel` when a stage is
+ * missing from the table — never renders blank.
+ *
+ *   const label = await getStageLabeller(comp.id);
+ *   label("qf")  // "Quarter-final"  (World Cup)
+ *   label("mw")  // "Matchweek"      (Premier League)
+ */
+export async function getStageLabeller(
+  competitionId: string,
+): Promise<(code: string) => string> {
+  const stages = await getStages(competitionId);
+  if (stages.length === 0) return stageLabel;
+  return (code: string) => {
+    const fromDb = stageLabelFrom(stages, code);
+    return fromDb === code ? stageLabel(code) : fromDb;
+  };
 }
 
 /** Points colour for UI. */
