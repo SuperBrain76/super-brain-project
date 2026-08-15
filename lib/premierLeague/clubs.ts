@@ -44,7 +44,24 @@ export const PREMIER_LEAGUE_CLUBS: Club[] = [
   { code: "TOT", name: "Tottenham",          short: "Spurs",      nickname: "Spurs",           primary: "#132257", city: "London",        stadium: "Tottenham Hotspur Stadium" },
 ];
 
-const BY_CODE = new Map(PREMIER_LEAGUE_CLUBS.map((c) => [c.code, c]));
+// Global registry across every league. Each league's clubs live in its own
+// file under lib/leagues/ and are merged here; codes are unique across all of
+// them, so club(code) resolves any team in any competition. (Type-only import
+// in the league files avoids a runtime cycle.)
+import { LA_LIGA_CLUBS } from "@/lib/leagues/laLiga";
+import { BUNDESLIGA_CLUBS } from "@/lib/leagues/bundesliga";
+import { SERIE_A_CLUBS } from "@/lib/leagues/serieA";
+import { LIGUE_1_CLUBS } from "@/lib/leagues/ligue1";
+
+export const ALL_CLUBS: Club[] = [
+  ...PREMIER_LEAGUE_CLUBS,
+  ...LA_LIGA_CLUBS,
+  ...BUNDESLIGA_CLUBS,
+  ...SERIE_A_CLUBS,
+  ...LIGUE_1_CLUBS,
+];
+
+const BY_CODE = new Map(ALL_CLUBS.map((c) => [c.code, c]));
 
 export function club(code: string): Club | undefined {
   return BY_CODE.get(code);
