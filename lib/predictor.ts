@@ -58,6 +58,7 @@ export interface Fixture {
     homeScore:    number;
     awayScore:    number;
     pointsAwarded: number | null;
+    isBanker?:    boolean;
   } | null;
 }
 
@@ -217,6 +218,7 @@ function rowToFixture(r: Record<string, unknown>): Fixture {
       homeScore:     myPred.home_score as number,
       awayScore:     myPred.away_score as number,
       pointsAwarded: myPred.points_awarded as number | null,
+      isBanker:      (myPred.is_banker as boolean | undefined) ?? false,
     } : null,
   };
 }
@@ -342,7 +344,7 @@ const FIXTURE_SELECT = `
   home_score, away_score, kicks_off_at, venue, status,
   home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
   away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
-  predictions ( home_score, away_score, points_awarded )
+  predictions ( home_score, away_score, points_awarded, is_banker )
 `;
 
 /**
@@ -514,6 +516,23 @@ export async function upsertPrediction(
       : "Could not save your prediction. Please try again." };
   }
   return { error: null };
+}
+
+/**
+ * Nominate (or clear) the caller's Banker for a fixture's matchweek — the one
+ * prediction whose points double if correct. Enforces one banker per round
+ * (setting one clears any other in the same round). See migration 055.
+ */
+export async function setBanker(
+  fixtureId: string,
+  isBanker: boolean,
+): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured) return { error: "Supabase is not configured." };
+  const { error } = await supabase.rpc("set_banker", {
+    p_fixture_id: fixtureId,
+    p_is_banker:  isBanker,
+  });
+  return { error: error ? "Could not update your banker. Please try again." : null };
 }
 
 /** Load all predictions made by the current user for a competition. */

@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Fixture } from "@/lib/predictor";
-import { upsertPrediction } from "@/lib/predictor";
+import { upsertPrediction, setBanker } from "@/lib/predictor";
 import {
   type Outcome, type ScorePick, type BulkTarget,
   scoreForOutcome, pickFromFixture, selectedOutcome,
@@ -77,12 +77,15 @@ export default function MatchweekSheet({
   statsByFixture,
   onViewLeaderboard,
   onShare,
+  onSetBanker = setBanker,
 }: {
   fixtures:          Fixture[];
   previousFixtures?: Fixture[];
   roundLabel:        string;
   onChanged?:        () => void;
   onSave?:           SavePrediction;
+  /** Persist the banker choice. Defaults to the live RPC; the prototype injects a local version. */
+  onSetBanker?:      (fixtureId: string, isBanker: boolean) => Promise<{ error: string | null }>;
   /** Time source — the prototype injects a shifted clock so fixtures lock at the travelled time. */
   clock?:            () => number;
   /** Biggest possible IQ haul this matchweek — shown in the completion celebration. */
@@ -104,6 +107,12 @@ export default function MatchweekSheet({
   });
   const [status, setStatus]     = useState<Map<string, RowStatus>>(new Map());
   const [nowMs, setNowMs]       = useState(() => clock());
+
+  // The banker — one fixture per matchweek whose points double. Seeded from
+  // the server, then optimistic.
+  const [banker, setBankerId] = useState<string | null>(
+    () => fixtures.find((f) => f.myPrediction?.isBanker)?.id ?? null,
+  );
 
   // The "wow" moment. Fires ONCE, the first time all matches are predicted.
   const [celebrate, setCelebrate] = useState(false);
@@ -168,6 +177,15 @@ export default function MatchweekSheet({
     const next = { ...cur, [side]: stepGoals(cur[side], delta) };
     applyPick(f.id, next, false);
   }, [picks, applyPick]);
+
+  const onBanker = useCallback((fixtureId: string) => {
+    setBankerId((prev) => {
+      const turnOn = prev !== fixtureId;   // tapping the current banker clears it
+      void onSetBanker(fixtureId, turnOn);
+      onChanged?.();
+      return turnOn ? fixtureId : null;    // one per round — others clear in UI + server
+    });
+  }, [onSetBanker, onChanged]);
 
   const runBulk = useCallback((targets: BulkTarget[], label: string) => {
     if (targets.length === 0) return;
@@ -297,8 +315,10 @@ export default function MatchweekSheet({
                   status={status.get(f.id) ?? "idle"}
                   stats={statsByFixture?.[f.id] ?? null}
                   nowMs={nowMs}
+                  isBanker={banker === f.id}
                   onOutcome={(o) => onOutcome(f, o)}
                   onStep={(side, d) => onStep(f, side, d)}
+                  onBanker={() => onBanker(f.id)}
                 />
               ))}
             </div>
@@ -339,8 +359,8 @@ export default function MatchweekSheet({
 // ── One fixture ───────────────────────────────────────────────
 
 function FixtureRow({
-  fixture, pick, open, status, stats, nowMs,
-  onOutcome, onStep,
+  fixture, pick, open, status, stats, nowMs, isBanker,
+  onOutcome, onStep, onBanker,
 }: {
   fixture:   Fixture;
   pick:      ScorePick | null;
@@ -348,8 +368,10 @@ function FixtureRow({
   status:    RowStatus;
   stats:     FixtureStats | null;
   nowMs:     number;
+  isBanker:  boolean;
   onOutcome: (o: Outcome) => void;
   onStep:    (side: "home" | "away", delta: number) => void;
+  onBanker:  () => void;
 }) {
   const selected = pick ? selectedOutcome({ ...fixture, myPrediction: { homeScore: pick.home, awayScore: pick.away, pointsAwarded: null } }) : null;
   const home = fixture.homeTeam?.name ?? "TBD";
@@ -365,7 +387,12 @@ function FixtureRow({
   return (
     <div
       className="rounded-xl px-2.5 py-2 transition-shadow"
-      style={{ background: CARD, border: `1px solid ${BORDER}`, borderLeft: `3px solid ${edge}`, opacity: open ? 1 : 0.72 }}
+      style={{
+        background: isBanker ? "#fffdf4" : CARD,
+        border: `1px solid ${isBanker ? `${GOLD}66` : BORDER}`,
+        borderLeft: `3px solid ${isBanker ? GOLD : edge}`,
+        opacity: open ? 1 : 0.72,
+      }}
     >
       {/* Scoreboard line: teams either side of the score, right in the middle.
           Crests + colours + the score inline make each row read like a fixture,
@@ -414,8 +441,13 @@ function FixtureRow({
             <PredictionBar stats={stats} selected={selected} homeColor={homeColor} awayColor={awayColor} />
           )}
 
-          {/* Save state, unobtrusive. */}
-          {status !== "idle" && (
+          {/* Banker toggle (once picked) + save state. */}
+          {pick ? (
+            <div className="mt-1.5 flex items-center justify-between">
+              <BankerToggle active={isBanker} onClick={onBanker} />
+              <RowStatusChip status={status} />
+            </div>
+          ) : status !== "idle" && (
             <div className="mt-1 text-right"><RowStatusChip status={status} /></div>
           )}
         </>
@@ -424,6 +456,7 @@ function FixtureRow({
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs" style={{ color: MUTED }}>🔒 Locked</span>
           <span className="text-sm font-semibold" style={{ color: pick ? TEXT2 : MUTED }}>
+            {isBanker && <span style={{ color: GOLD }}>⭐ </span>}
             {pick ? `Your pick: ${pick.home}–${pick.away}` : "No prediction"}
           </span>
         </div>
@@ -433,6 +466,22 @@ function FixtureRow({
 }
 
 // ── Small UI pieces ───────────────────────────────────────────
+
+/** Nominate this match as your Banker — double points if you're right. */
+function BankerToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full transition-all active:scale-95"
+      style={active
+        ? { background: GOLD, color: "#2a2205" }
+        : { background: "#f4f7f2", color: MUTED, border: `1px solid ${BORDER}` }}
+      title="Your banker doubles its points if you're right — one per matchweek"
+    >
+      {active ? "⭐ Banker · 2×" : "☆ Make banker"}
+    </button>
+  );
+}
 
 function OutcomeBtn({ label, active, color, onClick }: { label: string; active: boolean; color?: string; onClick: () => void }) {
   const bg = active ? (color ?? GREEN) : "#f4f7f2";
