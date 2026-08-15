@@ -292,10 +292,17 @@ function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolea
         <span className="text-[12px] font-semibold truncate text-right" style={{ color: TEXT1 }}>{clubShort(f.homeTeam?.code)}</span>
         <ClubCrest code={f.homeTeam?.code} size={18} />
       </div>
-      <span className="text-[11px] font-bold tabular-nums shrink-0 w-14 text-center px-1"
-        style={{ color: pick ? TEXT1 : MUTED }}>
-        {pick ? `${pick.homeScore}–${pick.awayScore}` : ko}
-      </span>
+      {/* Keep the kickoff time visible even after a pick — show the score above it. */}
+      <div className="shrink-0 w-16 text-center px-1 leading-tight">
+        {pick ? (
+          <>
+            <div className="text-[13px] font-bold tabular-nums" style={{ color: TEXT1 }}>{pick.homeScore}–{pick.awayScore}</div>
+            <div className="text-[9px]" style={{ color: MUTED }}>{ko}</div>
+          </>
+        ) : (
+          <div className="text-[11px] font-bold" style={{ color: MUTED }}>{ko}</div>
+        )}
+      </div>
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <ClubCrest code={f.awayTeam?.code} size={18} />
         <span className="text-[12px] font-semibold truncate" style={{ color: TEXT1 }}>{clubShort(f.awayTeam?.code)}</span>
