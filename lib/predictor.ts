@@ -29,6 +29,7 @@ export interface Competition {
   status:    "upcoming" | "active" | "completed";
   startsAt:  string | null;
   endsAt:    string | null;
+  sportCode: string;   // "football" | "ice_hockey" | … — drives sport-aware UI
 }
 
 export interface Team {
@@ -164,6 +165,7 @@ function rowToCompetition(r: Record<string, unknown>): Competition {
     status:   r.status as Competition["status"],
     startsAt: r.starts_at as string | null,
     endsAt:   r.ends_at as string | null,
+    sportCode: (r.sport_code as string | null) ?? "football",
   };
 }
 

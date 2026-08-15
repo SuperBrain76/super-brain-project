@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { resolveCompetition, getFixtures, getPredictorLeaderboard, type Fixture, type LeaderboardRow } from "@/lib/predictor";
 import { computeLeagueTable, tableHasResults, type LeagueRow } from "@/lib/leagueTable";
+import { sportOf } from "@/lib/sports";
 import GroupStandings from "@/components/predictor/GroupStandings";
 import StandingsTable from "@/components/premier/StandingsTable";
 
@@ -26,11 +27,13 @@ export default function StandingsPage() {
   const [predictors, setPredictors] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<"table" | "predictor">("table");
+  const [hasDraw, setHasDraw]   = useState(true);
 
   useEffect(() => {
     async function load() {
       const { competition } = await resolveCompetition(competitionSlug);
       if (!competition) { setLoading(false); return; }
+      setHasDraw(sportOf(competition.sportCode).hasDraw);
       const [{ fixtures: fx }, preds] = await Promise.all([
         getFixtures(competition.id),
         getPredictorLeaderboard(competition.id).catch(() => [] as LeaderboardRow[]),
@@ -84,7 +87,7 @@ export default function StandingsPage() {
                     The season hasn&apos;t kicked off yet — the table fills in as results come in.
                   </p>
                 )}
-                <StandingsTable rows={table} />
+                <StandingsTable rows={table} hasDraw={hasDraw} />
                 <p className="text-[10px] text-center" style={{ color: MUTED }}>Form shows the last five results, most recent on the right.</p>
               </>
             ) : (

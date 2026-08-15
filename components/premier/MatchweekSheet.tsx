@@ -70,6 +70,7 @@ export default function MatchweekSheet({
   fixtures,
   previousFixtures = [],
   roundLabel,
+  hasDraw = true,
   onChanged,
   onSave = upsertPrediction,
   clock = Date.now,
@@ -83,6 +84,8 @@ export default function MatchweekSheet({
   fixtures:          Fixture[];
   previousFixtures?: Fixture[];
   roundLabel:        string;
+  /** Sport allows draws (football). Ice hockey → false: no Draw pick, no draw fill. */
+  hasDraw?:          boolean;
   onChanged?:        () => void;
   onSave?:           SavePrediction;
   /** Persist the banker choice. Defaults to the live RPC; the prototype injects a local version. */
@@ -320,6 +323,7 @@ export default function MatchweekSheet({
                   stats={statsByFixture?.[f.id] ?? null}
                   nowMs={nowMs}
                   isBanker={banker === f.id}
+                  hasDraw={hasDraw}
                   onOutcome={(o) => onOutcome(f, o)}
                   onStep={(side, d) => onStep(f, side, d)}
                   onBanker={() => onBanker(f.id)}
@@ -340,8 +344,11 @@ export default function MatchweekSheet({
             />
           )}
           <BulkButton
-            label="Fill remaining as 1–1"
-            onClick={() => runBulk(fillRemaining(liveFixtures, nowMs), "fill_draw")}
+            label={hasDraw ? "Fill remaining as 1–1" : "Fill remaining as 2–1 home"}
+            onClick={() => runBulk(
+              fillRemaining(liveFixtures, nowMs, hasDraw ? { home: 1, away: 1 } : { home: 2, away: 1 }),
+              hasDraw ? "fill_draw" : "fill_home",
+            )}
           />
         </div>
       )}
@@ -363,7 +370,7 @@ export default function MatchweekSheet({
 // ── One fixture ───────────────────────────────────────────────
 
 function FixtureRow({
-  fixture, pick, open, status, stats, nowMs, isBanker,
+  fixture, pick, open, status, stats, nowMs, isBanker, hasDraw = true,
   onOutcome, onStep, onBanker,
 }: {
   fixture:   Fixture;
@@ -373,6 +380,7 @@ function FixtureRow({
   stats:     FixtureStats | null;
   nowMs:     number;
   isBanker:  boolean;
+  hasDraw?:  boolean;
   onOutcome: (o: Outcome) => void;
   onStep:    (side: "home" | "away", delta: number) => void;
   onBanker:  () => void;
@@ -433,10 +441,13 @@ function FixtureRow({
           {venue && (
             <p className="text-[10px] text-center mt-0.5" style={{ color: MUTED }}>🏟 {venue}</p>
           )}
-          {/* H / D / A — one tap, in club colours when chosen */}
-          <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+          {/* Outcome pick — one tap, in club colours when chosen.
+              Football: Home / Draw / Away. Ice hockey (no ties): Home / Away. */}
+          <div className={`grid gap-1.5 mt-1.5 ${hasDraw ? "grid-cols-3" : "grid-cols-2"}`}>
             <OutcomeBtn label={clubShort(fixture.homeTeam?.code)} active={selected === "home"} color={homeColor} onClick={() => onOutcome("home")} />
-            <OutcomeBtn label="Draw" active={selected === "draw"} color={GREEN} onClick={() => onOutcome("draw")} />
+            {hasDraw && (
+              <OutcomeBtn label="Draw" active={selected === "draw"} color={GREEN} onClick={() => onOutcome("draw")} />
+            )}
             <OutcomeBtn label={clubShort(fixture.awayTeam?.code)} active={selected === "away"} color={awayColor} onClick={() => onOutcome("away")} />
           </div>
 

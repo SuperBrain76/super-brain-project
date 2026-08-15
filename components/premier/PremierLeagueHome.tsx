@@ -20,6 +20,7 @@ import {
   type Round, type CompetitionSettings,
 } from "@/lib/competitionEngine";
 import { computeLeagueTable } from "@/lib/leagueTable";
+import { sportOf } from "@/lib/sports";
 import { computeStreak, type RoundParticipation } from "@/lib/streak";
 import { getMyIqBalance } from "@/lib/economy";
 import { supabase } from "@/lib/supabase";
@@ -108,6 +109,7 @@ export default function PremierLeagueHome({ competition }: { competition: Compet
         standings,
         roundCount:        seasonRounds.length || undefined,
         streak,
+        hasDraw:           sportOf(competition.sportCode).hasDraw,
       });
     }
 

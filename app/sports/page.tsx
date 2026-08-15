@@ -26,12 +26,19 @@ export default function SportsHubPage() {
           <span className="text-lg">⚽</span>
           <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>Football</h2>
         </div>
-        <LeagueChooser />
+        <LeagueChooser sport="football" />
+
+        {/* Ice Hockey */}
+        <div className="flex items-center gap-2 mb-3 mt-8">
+          <span className="text-lg">🏒</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>Ice Hockey</h2>
+        </div>
+        <LeagueChooser sport="ice_hockey" />
 
         {/* Room to grow */}
         <div className="mt-8 rounded-2xl p-5 text-center" style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
           <p className="text-sm font-semibold" style={{ color: BRAND.muted }}>More leagues and sports are on the way.</p>
-          <p className="text-xs mt-1" style={{ color: BRAND.dim }}>Champions League, more leagues, and beyond football.</p>
+          <p className="text-xs mt-1" style={{ color: BRAND.dim }}>Champions League and the NHL are next up.</p>
         </div>
       </div>
     </div>

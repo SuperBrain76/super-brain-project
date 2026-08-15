@@ -64,11 +64,13 @@ export interface HomeData {
   standings?:        LeagueRow[];  // the league table (computed from results)
   roundCount?:       number;       // total matchweeks in the season (for copy)
   streak?:           { current: number; longest: number };  // prediction streak
+  hasDraw?:          boolean;      // sport allows draws (football). Ice hockey → false.
 }
 
 export default function CompetitionHome({ data, clock = Date.now }: { data: HomeData; clock?: () => number }) {
   const slug = useCompetitionSlug();
   const base = slug ? `/${slug}` : "/predict";
+  const hasDraw = data.hasDraw ?? true;   // ice hockey → no draw pick / segment
 
   const [nowMs, setNowMs] = useState(() => clock());
   useEffect(() => {
@@ -111,7 +113,7 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
               {data.roundCount ? `Browse all ${data.roundCount} matchweeks →` : "Browse the season →"}
             </Link>
             {data.featuredStats && data.featuredStats.total > 0 && data.biggestMatch && (
-              <TrendingPicks fixture={data.biggestMatch} stats={data.featuredStats} />
+              <TrendingPicks fixture={data.biggestMatch} stats={data.featuredStats} hasDraw={hasDraw} />
             )}
           </div>
           {/* Rail — your status */}
@@ -313,12 +315,12 @@ function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolea
 
 // ── Trending picks — the crowd on the featured match ─────────
 
-function TrendingPicks({ fixture, stats }: { fixture: Fixture; stats: FixtureStats }) {
+function TrendingPicks({ fixture, stats, hasDraw = true }: { fixture: Fixture; stats: FixtureStats; hasDraw?: boolean }) {
   const homeC = fixture.homeTeam?.code ? club(fixture.homeTeam.code)?.primary : GREEN;
   const awayC = fixture.awayTeam?.code ? club(fixture.awayTeam.code)?.primary : MUTED;
   const rows: [string, number, string][] = [
     [clubShort(fixture.homeTeam?.code), stats.homePct, homeC ?? GREEN],
-    ["Draw", stats.drawPct, "#b8c4bb"],
+    ...(hasDraw ? [["Draw", stats.drawPct, "#b8c4bb"] as [string, number, string]] : []),
     [clubShort(fixture.awayTeam?.code), stats.awayPct, awayC ?? MUTED],
   ];
   return (

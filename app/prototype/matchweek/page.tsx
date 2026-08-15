@@ -49,7 +49,7 @@ const BORDER = "#dde5d8", TEXT1 = "#0f1f17", OK = "#1a7a4a";
 
 const FAKE_COMP: Competition = {
   id: "pl-proto", name: "Premier League", slug: "prototype/matchweek",
-  status: "active", startsAt: null, endsAt: null,
+  status: "active", startsAt: null, endsAt: null, sportCode: "football",
 };
 
 type Tab = "home" | "predict" | "league";

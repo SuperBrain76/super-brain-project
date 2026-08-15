@@ -35,7 +35,7 @@ function FormPills({ form }: { form: FormResult[] }) {
   );
 }
 
-export default function StandingsTable({ rows }: { rows: LeagueRow[] }) {
+export default function StandingsTable({ rows, hasDraw = true }: { rows: LeagueRow[]; hasDraw?: boolean }) {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
       <div className="overflow-x-auto">
@@ -46,7 +46,7 @@ export default function StandingsTable({ rows }: { rows: LeagueRow[] }) {
               <th className="text-left font-bold py-2 pl-1">Club</th>
               <th className="text-center font-bold py-2 w-8">Pl</th>
               <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">W</th>
-              <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">D</th>
+              {hasDraw && <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">D</th>}
               <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">L</th>
               <th className="text-center font-bold py-2 w-9 hidden md:table-cell">GF</th>
               <th className="text-center font-bold py-2 w-9 hidden md:table-cell">GA</th>
@@ -67,7 +67,7 @@ export default function StandingsTable({ rows }: { rows: LeagueRow[] }) {
                 </td>
                 <td className="text-center py-2 text-xs tabular-nums" style={{ color: TEXT2 }}>{r.played}</td>
                 <td className="text-center py-2 text-xs tabular-nums hidden sm:table-cell" style={{ color: TEXT2 }}>{r.won}</td>
-                <td className="text-center py-2 text-xs tabular-nums hidden sm:table-cell" style={{ color: TEXT2 }}>{r.drawn}</td>
+                {hasDraw && <td className="text-center py-2 text-xs tabular-nums hidden sm:table-cell" style={{ color: TEXT2 }}>{r.drawn}</td>}
                 <td className="text-center py-2 text-xs tabular-nums hidden sm:table-cell" style={{ color: TEXT2 }}>{r.lost}</td>
                 <td className="text-center py-2 text-xs tabular-nums hidden md:table-cell" style={{ color: TEXT2 }}>{r.gf}</td>
                 <td className="text-center py-2 text-xs tabular-nums hidden md:table-cell" style={{ color: TEXT2 }}>{r.ga}</td>

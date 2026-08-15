@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
+import { sportOf } from "@/lib/sports";
 import { getCurrentSeason, getRounds, type Round } from "@/lib/competitionEngine";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import MatchweekSheet from "@/components/premier/MatchweekSheet";
@@ -33,6 +34,7 @@ export default function MatchweekPage() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  const [hasDraw,  setHasDraw]  = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -41,6 +43,7 @@ export default function MatchweekPage() {
       const { competition, error: e } = await resolveCompetition(competitionSlug);
       if (!alive) return;
       if (e || !competition) { setError(e ?? "Competition not found."); setLoading(false); return; }
+      setHasDraw(sportOf(competition.sportCode).hasDraw);
 
       const season = await getCurrentSeason(competition.id);
       if (!alive || !season) { setError("No season."); setLoading(false); return; }
@@ -134,6 +137,7 @@ export default function MatchweekPage() {
         <MatchweekSheet
           fixtures={fixtures}
           roundLabel={round?.label ?? "Matchweek"}
+          hasDraw={hasDraw}
           onChanged={() => { /* optimistic */ }}
         />
       ) : (

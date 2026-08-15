@@ -20,7 +20,7 @@ import { LEAGUES } from "@/lib/leagues/list";
 import { club, textOn } from "@/lib/premierLeague/clubs";
 import { listVisibleCompetitions } from "@/lib/competitionEngine";
 
-export default function LeagueChooser() {
+export default function LeagueChooser({ sport }: { sport?: string }) {
   const [liveSlugs, setLiveSlugs] = useState<Set<string> | null>(null);
 
   useEffect(() => {
@@ -31,8 +31,10 @@ export default function LeagueChooser() {
     return () => { alive = false; };
   }, []);
 
-  const filtered = liveSlugs ? LEAGUES.filter((l) => liveSlugs.has(l.slug)) : LEAGUES;
-  const list = filtered.length ? filtered : LEAGUES;   // never render an empty chooser
+  // Optionally scope to one sport (the hub renders a chooser per sport section).
+  const inSport = sport ? LEAGUES.filter((l) => l.sport === sport) : LEAGUES;
+  const filtered = liveSlugs ? inSport.filter((l) => liveSlugs.has(l.slug)) : inSport;
+  const list = filtered.length ? filtered : inSport;   // never render an empty chooser
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
