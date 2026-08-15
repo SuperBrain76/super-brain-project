@@ -35,6 +35,7 @@ interface TsdbEvent {
   intHomeScore?: string | null;
   intAwayScore?: string | null;
   strStatus?:    string | null;
+  strProgress?:  string | null;   // V2 livescore uses this for the live phase
   strTimestamp?: string | null;
   dateEvent?:    string | null;
 }
@@ -63,7 +64,7 @@ function toScore(v: string | null | undefined): number | null {
 
 export function normalizeTsdbEvent(e: TsdbEvent): NormalizedResult | null {
   if (!e.idEvent) return null;
-  const status = mapTsdbStatus(e.strStatus);
+  const status = mapTsdbStatus(e.strStatus ?? e.strProgress);
   // A finished event with no score is unusable — leave scores null so the
   // cron writes only the status, never a fabricated 0-0.
   const finished = status === "completed" || status === "live";
@@ -87,9 +88,37 @@ async function fetchEvents(path: string): Promise<TsdbEvent[]> {
   return (json.events as TsdbEvent[] | null) ?? [];
 }
 
-/** Recent finished results for a league (free tier). ~15 most recent. */
+/** Recent finished results for a league (free tier V1). ~15 most recent. */
 export async function fetchTsdbPastLeague(apiKey: string, leagueId: number): Promise<NormalizedResult[]> {
   const events = await fetchEvents(`${apiKey}/eventspastleague.php?id=${leagueId}`);
+  return events.map(normalizeTsdbEvent).filter((r): r is NormalizedResult => r !== null);
+}
+
+const V2_BASE = "https://www.thesportsdb.com/api/v2/json";
+
+async function fetchV2(path: string, apiKey: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${V2_BASE}/${path}`, { headers: { "X-API-KEY": apiKey }, cache: "no-store" });
+  if (!res.ok) throw new Error(`TheSportsDB V2 HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Results for the ingestion cron. A premium key uses V2 (header auth) — live
+ * in-play scores + recent finals; the free key uses V1 finals only. Same
+ * normalized shape either way, so the caller doesn't care which ran.
+ */
+export async function fetchTsdbResults(apiKey: string, leagueId: number): Promise<NormalizedResult[]> {
+  const isPremium = apiKey && apiKey !== "123";
+  if (!isPremium) return fetchTsdbPastLeague(apiKey, leagueId);
+
+  const [prev, live] = await Promise.all([
+    fetchV2(`schedule/previous/league/${leagueId}`, apiKey).catch(() => ({} as Record<string, unknown>)),
+    fetchV2(`livescore/${leagueId}`, apiKey).catch(() => ({} as Record<string, unknown>)),
+  ]);
+  const events: TsdbEvent[] = [
+    ...(Array.isArray(prev.schedule)  ? (prev.schedule  as TsdbEvent[]) : []),
+    ...(Array.isArray(live.livescore) ? (live.livescore as TsdbEvent[]) : []),
+  ];
   return events.map(normalizeTsdbEvent).filter((r): r is NormalizedResult => r !== null);
 }
 
