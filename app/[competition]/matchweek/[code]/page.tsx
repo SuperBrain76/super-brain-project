@@ -3,24 +3,24 @@
 /**
  * /[competition]/matchweek/[code] — one matchweek, past / current / future.
  *
- * The browsable history that makes a 38-week season feel like a season.
- * docs/PREMIER_LEAGUE_UX.md §4.3. One template, three faces:
- *   future  → fixtures + kickoff times
- *   current → live scores, live points, your predictions inline
- *   past    → results, your points per fixture, your matchweek rank
- *
- * Chevrons walk MW12 ← MW13 → MW14.
+ * The browsable season that lets you predict every game, any week. One
+ * template, three faces:
+ *   open (future/current) → the full prediction sheet, inline (predict + autosave)
+ *   past                  → results, your points per fixture
+ * A scrollable MW1…MW38 rail jumps to any matchweek; chevrons walk one at a time.
+ * See docs/PREMIER_LEAGUE_UX.md §4.3 and docs/SEASON_AND_ENGAGEMENT.md.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
 import { getCurrentSeason, getRounds, type Round } from "@/lib/competitionEngine";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
+import MatchweekSheet from "@/components/premier/MatchweekSheet";
 
 const GREEN = "#1a3a2a", GOLD = "#b8972a", MUTED = "#7a8f82";
-const BORDER = "#dde5d8", CARD = "#fff", TEXT1 = "#0f1f17", TEXT2 = "#2e4a37";
+const BORDER = "#dde5d8", CARD = "#fff", TEXT1 = "#0f1f17";
 const LIVE = "#c0392b", OK = "#1a7a4a";
 
 export default function MatchweekPage() {
@@ -64,6 +64,12 @@ export default function MatchweekPage() {
   const prev = idx > 0 ? rounds[idx - 1] : null;
   const next = idx >= 0 && idx + 1 < rounds.length ? rounds[idx + 1] : null;
 
+  // A matchweek is still predictable unless every fixture has kicked off.
+  const openForPredictions = useMemo(() => {
+    const now = Date.now();
+    return fixtures.some((f) => f.status === "scheduled" && new Date(f.kicksOffAt).getTime() > now);
+  }, [fixtures]);
+
   if (loading) return <Note>Loading…</Note>;
   if (error)   return <Note>{error}</Note>;
 
@@ -71,26 +77,56 @@ export default function MatchweekPage() {
   const anyScored = fixtures.some((f) => f.myPrediction?.pointsAwarded != null);
 
   return (
-    <div className="max-w-md mx-auto w-full px-4 py-4">
+    <div className="max-w-md mx-auto w-full">
+      {/* Matchweek rail — jump to any week of the season */}
+      <div className="px-3 pt-3">
+        <div className="flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+          {rounds.map((r) => {
+            const active = r.id === round?.id;
+            return (
+              <Link key={r.id} href={`${base}/matchweek/${r.code}`}
+                className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
+                style={{
+                  background: active ? GREEN : "#eef3ec",
+                  color: active ? "#fff" : MUTED,
+                  border: `1px solid ${active ? GREEN : BORDER}`,
+                }}>
+                {r.shortLabel ?? r.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Header + chevrons */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between px-4 mb-1">
         {prev
-          ? <Link href={`${base}/matchweek/${prev.code}`} className="text-sm px-2 py-1" style={{ color: GREEN }}>←</Link>
+          ? <Link href={`${base}/matchweek/${prev.code}`} className="text-lg px-2 py-1" style={{ color: GREEN }}>←</Link>
           : <span className="w-8" />}
         <div className="text-center">
           <h1 className="text-lg font-bold" style={{ color: TEXT1 }}>{round?.label}</h1>
           {anyScored && <p className="text-xs" style={{ color: MUTED }}>You scored {totalPts} pts</p>}
         </div>
         {next
-          ? <Link href={`${base}/matchweek/${next.code}`} className="text-sm px-2 py-1" style={{ color: GREEN }}>→</Link>
+          ? <Link href={`${base}/matchweek/${next.code}`} className="text-lg px-2 py-1" style={{ color: GREEN }}>→</Link>
           : <span className="w-8" />}
       </div>
 
-      <div className="flex flex-col gap-2">
-        {fixtures.map((f) => <MatchweekRow key={f.id} f={f} />)}
-      </div>
-
-      {fixtures.length === 0 && <Note>No fixtures in this matchweek yet.</Note>}
+      {fixtures.length === 0 ? (
+        <Note>No fixtures in this matchweek yet.</Note>
+      ) : openForPredictions ? (
+        // Open week → predict inline with the real sheet (autosave).
+        <MatchweekSheet
+          fixtures={fixtures}
+          roundLabel={round?.label ?? "Matchweek"}
+          onChanged={() => { /* optimistic */ }}
+        />
+      ) : (
+        // Closed week → read-only results.
+        <div className="flex flex-col gap-2 px-3 pb-24 pt-1">
+          {fixtures.map((f) => <MatchweekRow key={f.id} f={f} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -102,7 +138,7 @@ function MatchweekRow({ f }: { f: Fixture }) {
   const pts  = pred?.pointsAwarded ?? null;
 
   const ptsColor = pts === 5 ? OK : pts === 3 ? GREEN : pts === 2 ? GOLD : pts === 0 ? LIVE : MUTED;
-  const ko = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(f.kicksOffAt));
+  const ko = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(f.kicksOffAt));
 
   return (
     <div className="rounded-xl p-3" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
