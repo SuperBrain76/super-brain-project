@@ -11,7 +11,7 @@
  * See docs/PREMIER_LEAGUE_UX.md §4.3 and docs/SEASON_AND_ENGAGEMENT.md.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
@@ -64,6 +64,13 @@ export default function MatchweekPage() {
   const prev = idx > 0 ? rounds[idx - 1] : null;
   const next = idx >= 0 && idx + 1 < rounds.length ? rounds[idx + 1] : null;
 
+  // Keep the active matchweek pill in view as you walk the season.
+  const railRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = railRef.current?.querySelector('[data-active="true"]');
+    el?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [round?.id, rounds.length]);
+
   // A matchweek is still predictable unless every fixture has kicked off.
   const openForPredictions = useMemo(() => {
     const now = Date.now();
@@ -80,11 +87,12 @@ export default function MatchweekPage() {
     <div className="max-w-md mx-auto w-full">
       {/* Matchweek rail — jump to any week of the season */}
       <div className="px-3 pt-3">
-        <div className="flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+        <div ref={railRef} className="flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
           {rounds.map((r) => {
             const active = r.id === round?.id;
             return (
               <Link key={r.id} href={`${base}/matchweek/${r.code}`}
+                data-active={active ? "true" : undefined}
                 className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
                 style={{
                   background: active ? GREEN : "#eef3ec",

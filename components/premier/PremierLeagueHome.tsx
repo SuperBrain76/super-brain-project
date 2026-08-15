@@ -14,11 +14,12 @@
 
 import { useEffect, useState } from "react";
 import type { Competition, Fixture, MyStats } from "@/lib/predictor";
-import { getMyStats } from "@/lib/predictor";
+import { getMyStats, getFixtures } from "@/lib/predictor";
 import {
-  getCurrentRoundContext, getRoundFixtures, getCompetitionSettings,
+  getCurrentRoundContext, getRoundFixtures, getCompetitionSettings, getRounds,
   type Round, type CompetitionSettings,
 } from "@/lib/competitionEngine";
+import { computeLeagueTable } from "@/lib/leagueTable";
 import { getMyIqBalance } from "@/lib/economy";
 import { supabase } from "@/lib/supabase";
 import CompetitionHome, { type HomeData } from "@/components/premier/CompetitionHome";
@@ -57,14 +58,18 @@ export default function PremierLeagueHome({ competition }: { competition: Compet
       const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
         try { return await fn(); } catch { return fallback; }
       };
-      const [players, leagues, roundStats, iqLifetime, history] = await Promise.all([
+      const [players, leagues, roundStats, iqLifetime, history, allFixtures, seasonRounds] = await Promise.all([
         safe(async () => { const r = await supabase.rpc("get_competition_predictor_count", { p_competition_id: competition.id }); return typeof r.data === "number" ? r.data : undefined; }, undefined as number | undefined),
         safe(async () => { const r = await supabase.from("prediction_leagues").select("id", { count: "exact", head: true }).eq("competition_id", competition.id); return r.count ?? undefined; }, undefined as number | undefined),
         round ? safe(async () => { const r = await supabase.rpc("get_round_prediction_stats", { p_round_id: round.id }); return r.data as Record<string, unknown>[] | null; }, null) : Promise.resolve(null),
         safe(() => getMyIqBalance(), null as number | null),
         safe(async () => { const r = await supabase.rpc("get_my_competition_history"); return r.data as Record<string, unknown>[] | null; }, null),
+        safe(async () => { const r = await getFixtures(competition.id); return r.fixtures; }, [] as Fixture[]),
+        ctx.season ? safe(() => getRounds(ctx.season!.id), [] as Round[]) : Promise.resolve([] as Round[]),
       ]);
       if (!alive) return;
+
+      const standings = computeLeagueTable(allFixtures);
 
       const featuredStats: FixtureStats | null = (() => {
         if (!biggest || !roundStats) return null;
@@ -97,6 +102,8 @@ export default function PremierLeagueHome({ competition }: { competition: Compet
         iqLifetime:        iqLifetime ?? 0,
         iqThisCompetition: seasonIq,
         lastWeekend:       null,   // populated once a prior round has settled (Phase 3b)
+        standings,
+        roundCount:        seasonRounds.length || undefined,
       });
     }
 

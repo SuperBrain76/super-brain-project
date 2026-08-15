@@ -35,6 +35,7 @@ const PROTO_STATS: Record<string, FixtureStats> = {
   "mw1-9": { total: 2288, homePct: 42, drawPct: 33, awayPct: 25 },  // LEE v EVE
 };
 import { DEFAULT_SETTINGS, type Season } from "@/lib/competitionEngine";
+import { computeLeagueTable } from "@/lib/leagueTable";
 import type { Competition, MyStats } from "@/lib/predictor";
 import { MW1_ROUND } from "@/lib/prototype/mw1Fixtures";
 import { editorialForRound } from "@/lib/premierLeague/matchweekCopy";
@@ -115,6 +116,8 @@ export default function MatchweekPrototype() {
       iqLifetime:        pts,
       iqThisCompetition: pts,
       lastWeekend:       null,
+      standings:         computeLeagueTable(fx),
+      roundCount:        38,
     };
   }, [tick, league, myRank]);
 

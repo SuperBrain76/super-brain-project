@@ -20,9 +20,10 @@ import type { Round, CompetitionSettings } from "@/lib/competitionEngine";
 import { deriveMatchweekView, formatCountdown, type MatchweekView } from "@/lib/matchweek";
 import { iqStanding } from "@/lib/iqLevel";
 import { matchweekDateRange } from "@/lib/matchweekPredictions";
+import { type LeagueRow, tableHasResults } from "@/lib/leagueTable";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
-import { club } from "@/lib/premierLeague/clubs";
+import { club, textOn } from "@/lib/premierLeague/clubs";
 import type { FixtureStats } from "@/components/premier/MatchweekSheet";
 
 // ── Tokens ────────────────────────────────────────────────────
@@ -59,6 +60,8 @@ export interface HomeData {
   iqLifetime?:       number;    // building your SuperBrain
   iqThisCompetition?: number;   // season IQ in this competition
   lastWeekend?:      { roundLabel: string; rank: number; movement: number; iq: number } | null;
+  standings?:        LeagueRow[];  // the league table (computed from results)
+  roundCount?:       number;       // total matchweeks in the season (for copy)
 }
 
 export default function CompetitionHome({ data, clock = Date.now }: { data: HomeData; clock?: () => number }) {
@@ -90,6 +93,9 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
           <BreakBlock data={data} base={base} nowMs={nowMs} />
           <YourSuperBrain data={data} base={base} />
           <LeagueStrip data={data} base={base} />
+          {data.standings && data.standings.length > 0 && (
+            <LeagueTable rows={data.standings} nowMs={nowMs} nextKickoffMs={data.nextRoundStartsMs} />
+          )}
         </div>
       ) : (
         // Two columns on desktop (use the width), one on mobile.
@@ -109,6 +115,9 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
             <YourSuperBrain data={data} base={base} />
             {data.lastWeekend && <LastWeekend lw={data.lastWeekend} base={base} />}
             <LeagueStrip data={data} base={base} />
+            {data.standings && data.standings.length > 0 && (
+              <LeagueTable rows={data.standings} nowMs={nowMs} nextKickoffMs={data.nextRoundStartsMs} />
+            )}
           </div>
         </div>
       )}
@@ -116,7 +125,7 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
       <div className="mt-4 text-center">
         <Link href={`${base}/matchweek/${data.round?.code ?? ""}`}
               className="text-xs font-semibold" style={{ color: GREEN }}>
-          Browse all {view.total} matchweeks →
+          {data.roundCount ? `Browse all ${data.roundCount} matchweeks →` : "Browse the season →"}
         </Link>
       </div>
     </div>
@@ -464,6 +473,57 @@ function LeagueStrip({ data, base }: { data: HomeData; base: string }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+// ── League table — the real standings + form ─────────────────
+
+function LeagueTable({ rows, nowMs, nextKickoffMs }: { rows: LeagueRow[]; nowMs: number; nextKickoffMs: number | null }) {
+  const live = tableHasResults(rows);
+  const kickoffLabel = !live && nextKickoffMs
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }).format(new Date(nextKickoffMs))
+    : null;
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+      <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: TEXT2 }}>📊 Table</span>
+        {!live && kickoffLabel && (
+          <span className="text-[10px]" style={{ color: MUTED }}>Kicks off {kickoffLabel}</span>
+        )}
+      </div>
+
+      {/* Column header */}
+      <div className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide"
+        style={{ color: MUTED, background: BG2, borderBottom: `1px solid ${BORDER}` }}>
+        <span className="w-4 text-center">#</span>
+        <span className="flex-1">Club</span>
+        <span className="w-5 text-center">Pl</span>
+        <span className="w-7 text-center">GD</span>
+        <span className="w-6 text-center" style={{ color: TEXT2 }}>Pts</span>
+        <span className="w-[52px] text-right">Form</span>
+      </div>
+
+      <div>
+        {rows.map((r) => (
+          <div key={r.code} className="flex items-center gap-1.5 px-3 py-1.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <span className="w-4 text-center text-[11px] tabular-nums" style={{ color: MUTED }}>{r.rank}</span>
+            <span aria-hidden style={{ width: 16, height: 16, borderRadius: 5, background: club(r.code)?.primary ?? "#e6ebe4", color: club(r.code) ? textOn(club(r.code)!.primary) : "#9aa89a", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 800 }}>{r.code}</span>
+            <span className="flex-1 text-[12px] font-semibold truncate" style={{ color: TEXT1 }}>{clubShort(r.code)}</span>
+            <span className="w-5 text-center text-[11px] tabular-nums" style={{ color: MUTED }}>{r.played}</span>
+            <span className="w-7 text-center text-[11px] tabular-nums" style={{ color: MUTED }}>{r.gd > 0 ? `+${r.gd}` : r.gd}</span>
+            <span className="w-6 text-center text-[12px] font-extrabold tabular-nums" style={{ color: TEXT1 }}>{r.points}</span>
+            <span className="w-[52px] flex items-center justify-end gap-0.5">
+              {r.form.length === 0
+                ? <span className="text-[10px]" style={{ color: MUTED }}>–</span>
+                : r.form.map((f, i) => (
+                    <span key={i} style={{ width: 8, height: 8, borderRadius: 999, background: f === "W" ? OK : f === "D" ? "#b8c4bb" : LIVE }} />
+                  ))}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
