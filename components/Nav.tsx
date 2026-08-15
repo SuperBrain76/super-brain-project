@@ -65,7 +65,7 @@ export default function Nav() {
           ) : (
             <>
               <NavLink href="/tests" label="Brain Tests" accent={BRAND.tests} />
-              <NavLink href={compHref()} label="Sports" accent={BRAND.sports} />
+              <NavLink href="/sports" label="Sports" accent={BRAND.sports} />
               <NavLink href="/battle" label="Battle" accent={BRAND.battle} className="hidden md:block" />
               <NavLink href="/leaderboard" label="Rankings" accent={BRAND.neutral} className="hidden md:block" />
             </>

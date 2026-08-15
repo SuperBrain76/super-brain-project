@@ -81,7 +81,7 @@ export default function MobileBottomNav() {
 
   const defaultTabs: Tab[] = [
     { href: "/tests",       label: "Tests",   Icon: IconTests,       match: "/tests",       accent: BRAND.tests },
-    { href: compHref(),     label: "Sports",  Icon: IconPredict,     match: compHref(),     accent: BRAND.sports },
+    { href: "/sports",      label: "Sports",  Icon: IconPredict,     match: "/sports",      accent: BRAND.sports },
     { href: "/battle",      label: "Battle",  Icon: IconBattle,      match: "/battle",      accent: BRAND.battle },
     { href: "/leaderboard", label: "Ranks",   Icon: IconLeaderboard, match: "/leaderboard", accent: BRAND.neutral },
     { href: user ? "/iq" : "/login", label: user ? "You" : "Sign in", Icon: IconYou, match: user ? "/iq" : "/login", accent: youAccent },

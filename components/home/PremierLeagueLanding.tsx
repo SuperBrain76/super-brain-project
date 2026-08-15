@@ -17,8 +17,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
-import { PREMIER_LEAGUE_CLUBS, club, textOn } from "@/lib/premierLeague/clubs";
+import { ALL_CLUBS, club, textOn } from "@/lib/premierLeague/clubs";
 import { IQ_LEVELS } from "@/lib/iqLevel";
+import LeagueChooser from "@/components/LeagueChooser";
 
 const PL = "premier-league";
 
@@ -38,6 +39,7 @@ export default function PremierLeagueLanding() {
     <div className="min-h-screen" style={{ background: BRAND.black, color: BRAND.ink }}>
       <LandingStyles />
       <Hero />
+      <LeaguePicker />
       <TryItSection />
       <SuperBrainSection />
       <HowItWorks />
@@ -63,34 +65,34 @@ function Hero() {
             style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
             <span className="w-1.5 h-1.5 rounded-full pl-pulse" style={{ background: BRAND.sports }} />
             <span className="text-[11px] tracking-[0.2em] uppercase font-semibold" style={{ color: BRAND.sports }}>
-              Premier League 2026/27 · Free to play
+              5 leagues · 2026/27 · Free to play
             </span>
           </div>
         </div>
 
         <h1 className="pl-in text-[2.9rem] leading-[0.98] sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-5" style={{ color: BRAND.ink, animationDelay: "80ms" }}>
-          Predict the<br />
-          <span style={{ color: BRAND.sports, textShadow: "0 0 90px rgba(53,197,111,0.45)" }}>Premier League</span>
+          Predict Europe&apos;s<br />
+          <span style={{ color: BRAND.sports, textShadow: "0 0 90px rgba(53,197,111,0.45)" }}>biggest leagues</span>
         </h1>
 
-        <p className="pl-in text-base sm:text-xl max-w-lg mx-auto leading-relaxed mb-8" style={{ color: BRAND.muted, animationDelay: "160ms" }}>
-          Every match, one tap. Build a private league, climb the table, and grow your{" "}
-          <span style={{ color: BRAND.gold, fontWeight: 600 }}>SuperBrain</span> — free.
+        <p className="pl-in text-base sm:text-xl max-w-xl mx-auto leading-relaxed mb-8" style={{ color: BRAND.muted, animationDelay: "160ms" }}>
+          Premier League, La Liga, Bundesliga, Serie A, Ligue 1. Every match, one tap — build a private league, climb the table, and grow your{" "}
+          <span style={{ color: BRAND.gold, fontWeight: 600 }}>SuperBrain</span>, free.
         </p>
 
         <div className="pl-in flex flex-col sm:flex-row items-center justify-center gap-3 mb-4" style={{ animationDelay: "240ms" }}>
-          <Link href={`/${PL}`} className="w-full sm:w-auto">
+          <a href="#leagues" className="w-full sm:w-auto">
             <button className="pl-cta text-sm sm:text-base font-bold px-9 py-4 w-full sm:w-auto rounded-full"
               style={{ background: BRAND.sports, color: "#04140B" }}>
-              Start predicting — free →
+              Choose your league ↓
             </button>
-          </Link>
-          <Link href={`/${PL}/predict`} className="w-full sm:w-auto">
+          </a>
+          <a href="#try" className="w-full sm:w-auto">
             <button className="text-sm px-7 py-4 w-full sm:w-auto rounded-full transition-colors"
               style={{ background: "transparent", color: BRAND.muted, border: `0.5px solid ${BRAND.hairline}` }}>
-              See this week&apos;s matches
+              See how it works
             </button>
-          </Link>
+          </a>
         </div>
 
         <p className="pl-in text-xs mb-9" style={{ color: BRAND.dim, animationDelay: "300ms" }}>
@@ -107,9 +109,9 @@ function Hero() {
       <div className="relative max-w-5xl mx-auto px-5 pb-14">
         <div className="flex flex-wrap justify-center gap-x-10 gap-y-5 sm:gap-x-16">
           {[
-            { v: "20", l: "Clubs" },
-            { v: "380", l: "Matches" },
-            { v: "10", l: "Every matchweek" },
+            { v: "5", l: "Leagues" },
+            { v: "96", l: "Clubs" },
+            { v: "1,750+", l: "Matches" },
             { v: "Free", l: "Always" },
           ].map((s) => (
             <div key={s.l} className="text-center">
@@ -125,10 +127,10 @@ function Hero() {
 
 // ── Crest wall — two marquee rows in opposite directions ──────
 function CrestWall() {
-  const half = Math.ceil(PREMIER_LEAGUE_CLUBS.length / 2);
-  const rowA = PREMIER_LEAGUE_CLUBS.slice(0, half);
-  const rowB = PREMIER_LEAGUE_CLUBS.slice(half);
-  const Row = ({ clubs, dir }: { clubs: typeof PREMIER_LEAGUE_CLUBS; dir: "l" | "r" }) => (
+  const half = Math.ceil(ALL_CLUBS.length / 2);
+  const rowA = ALL_CLUBS.slice(0, half);
+  const rowB = ALL_CLUBS.slice(half);
+  const Row = ({ clubs, dir }: { clubs: typeof ALL_CLUBS; dir: "l" | "r" }) => (
     <div className="flex overflow-hidden select-none" style={{ maskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)" }}>
       <div className={dir === "l" ? "pl-marquee-l" : "pl-marquee-r"} style={{ display: "flex", gap: 12, paddingRight: 12 }}>
         {[...clubs, ...clubs, ...clubs].map((c, i) => (
@@ -149,10 +151,25 @@ function CrestWall() {
   );
 }
 
+// ── League picker — the front door to five competitions ───────
+function LeaguePicker() {
+  return (
+    <section id="leagues" className="max-w-5xl mx-auto px-5 py-12" style={{ scrollMarginTop: 20 }}>
+      <Reveal className="text-center mb-8">
+        <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Choose your league</p>
+        <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: BRAND.ink }}>Five leagues. One tap each.</h2>
+      </Reveal>
+      <Reveal delay={60}>
+        <LeagueChooser />
+      </Reveal>
+    </section>
+  );
+}
+
 // ── Try it — interactive demo prediction ──────────────────────
 function TryItSection() {
   return (
-    <section className="max-w-5xl mx-auto px-5 py-16">
+    <section id="try" className="max-w-5xl mx-auto px-5 py-16" style={{ scrollMarginTop: 20 }}>
       <Reveal className="text-center mb-8">
         <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Try it — no sign-up</p>
         <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: BRAND.ink }}>Tap who you think wins</h2>
