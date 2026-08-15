@@ -166,9 +166,12 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
   const homeC = homeClub?.primary;
   const awayC = f.awayTeam?.code ? club(f.awayTeam.code)?.primary : undefined;
   const ko = new Date(f.kicksOffAt);
-  const dayPart  = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short" }).format(ko);
-  const timePart = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(ko);
-  const when = `${dayPart} · ${timePart}`;
+  // Always show kickoff in UK time (the competition's home timezone), not the
+  // viewer's — a match kicks off at 20:00 in Britain whether you watch from
+  // London or Dubai.
+  const dayPart  = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Europe/London" }).format(ko);
+  const timePart = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(ko);
+  const when = `${dayPart} · ${timePart} UK`;
   const venue = homeClub?.stadium;
 
   // The CTA follows the state.
