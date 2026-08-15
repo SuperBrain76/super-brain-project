@@ -21,6 +21,15 @@ import { isValidCompetitionSlug } from "@/lib/competitionRoutes";
 
 const SITE = "https://www.superbrain.social";
 
+// The competition-existence check must read the database live on every request.
+// Without this, Next's Data Cache can capture a negative result — e.g. a slug
+// crawled or prefetched moments BEFORE its rows are seeded caches as "absent"
+// and then 404s forever, even after the competition exists. force-dynamic +
+// no-store keep this segment honest: a newly-seeded league is reachable at once.
+export const dynamic     = "force-dynamic";
+export const revalidate  = 0;
+export const fetchCache  = "force-no-store";
+
 type CompetitionRow = { name: string; slug: string; sport_code: string };
 
 /**
