@@ -479,17 +479,15 @@ function LeagueStrip({ data, base }: { data: HomeData; base: string }) {
 // ── League table — the real standings + form ─────────────────
 
 function LeagueTable({ rows, nowMs, nextKickoffMs }: { rows: LeagueRow[]; nowMs: number; nextKickoffMs: number | null }) {
+  void nowMs; void nextKickoffMs;
   const live = tableHasResults(rows);
-  const kickoffLabel = !live && nextKickoffMs
-    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }).format(new Date(nextKickoffMs))
-    : null;
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
       <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: TEXT2 }}>📊 Table</span>
-        {!live && kickoffLabel && (
-          <span className="text-[10px]" style={{ color: MUTED }}>Kicks off {kickoffLabel}</span>
+        {!live && (
+          <span className="text-[10px]" style={{ color: MUTED }}>Updates as games are played</span>
         )}
       </div>
 

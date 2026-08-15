@@ -64,11 +64,17 @@ export default function MatchweekPage() {
   const prev = idx > 0 ? rounds[idx - 1] : null;
   const next = idx >= 0 && idx + 1 < rounds.length ? rounds[idx + 1] : null;
 
-  // Keep the active matchweek pill in view as you walk the season.
+  // Keep the active matchweek pill centered as you walk the season. Scroll the
+  // rail directly (scrollIntoView won't reliably move a horizontal container).
   const railRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = railRef.current?.querySelector('[data-active="true"]');
-    el?.scrollIntoView({ inline: "center", block: "nearest" });
+    const rail = railRef.current;
+    const el = rail?.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (!rail || !el) return;
+    const railRect = rail.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const delta = (elRect.left - railRect.left) - (rail.clientWidth / 2 - el.clientWidth / 2);
+    rail.scrollTo({ left: rail.scrollLeft + delta, behavior: "smooth" });
   }, [round?.id, rounds.length]);
 
   // A matchweek is still predictable unless every fixture has kicked off.
