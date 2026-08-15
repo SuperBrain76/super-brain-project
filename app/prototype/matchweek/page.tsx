@@ -118,6 +118,7 @@ export default function MatchweekPrototype() {
       lastWeekend:       null,
       standings:         computeLeagueTable(fx),
       roundCount:        38,
+      streak:            { current: predictions > 0 ? 1 : 0, longest: predictions > 0 ? 1 : 0 },
     };
   }, [tick, league, myRank]);
 

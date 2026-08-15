@@ -62,6 +62,7 @@ export interface HomeData {
   lastWeekend?:      { roundLabel: string; rank: number; movement: number; iq: number } | null;
   standings?:        LeagueRow[];  // the league table (computed from results)
   roundCount?:       number;       // total matchweeks in the season (for copy)
+  streak?:           { current: number; longest: number };  // prediction streak
 }
 
 export default function CompetitionHome({ data, clock = Date.now }: { data: HomeData; clock?: () => number }) {
@@ -408,6 +409,17 @@ function YourSuperBrain({ data, base }: { data: HomeData; base: string }) {
             </div>
           </>
         )}
+        {/* Prediction streak — a reason to come back every week. */}
+        <div className="mt-2.5 pt-2.5 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+          <span className="text-[11px] font-bold" style={{ color: (data.streak?.current ?? 0) > 0 ? GOLD : "#9aa0a6" }}>
+            {(data.streak?.current ?? 0) > 0
+              ? `🔥 ${data.streak!.current}-matchweek streak`
+              : "Predict every week to build a streak"}
+          </span>
+          {(data.streak?.longest ?? 0) > 0 && (
+            <span className="text-[10px]" style={{ color: "#9aa0a6" }}>best {data.streak!.longest}</span>
+          )}
+        </div>
       </div>
     </Link>
   );
