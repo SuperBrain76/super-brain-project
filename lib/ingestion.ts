@@ -33,9 +33,9 @@
 export interface CompetitionIngestConfig {
   competitionId:    string;
   slug:             string;
-  provider:         string;   // 'api-football'
+  provider:         string;   // 'api-football' | 'thesportsdb'
   providerLeagueId: number;
-  providerSeason:   number;
+  providerSeason:   number | string;   // API-Football uses a year; TheSportsDB "2026-2027"
   ingestEnabled:    boolean;
   hasKnockout:      boolean;
 }

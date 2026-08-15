@@ -50,6 +50,7 @@ import {
   type CompetitionIngestConfig,
   type ApiFootballFixture,
 } from "@/lib/ingestion";
+import { fetchTsdbPastLeague } from "@/lib/thesportsdb";
 
 // ── Per-competition result ────────────────────────────────────
 
@@ -88,9 +89,11 @@ async function loadIngestConfigs(db: SupabaseClient): Promise<CompetitionIngestC
     const s = (settings ?? {}) as Record<string, unknown>;
 
     // Fail CLOSED. A competition with no provider configuration is not
-    // ingested — it is never assumed to be the WC.
+    // ingested — it is never assumed to be the WC. Season may be a year
+    // (API-Football) or a string like "2026-2027" (TheSportsDB).
     const leagueId = typeof s.provider_league_id === "number" ? s.provider_league_id : null;
-    const season   = typeof s.provider_season    === "number" ? s.provider_season    : null;
+    const season   = (typeof s.provider_season === "number" || typeof s.provider_season === "string")
+      ? s.provider_season : null;
     const enabled  = s.ingest_enabled === true;
 
     if (!enabled || leagueId === null || season === null) continue;
@@ -114,10 +117,13 @@ async function loadIngestConfigs(db: SupabaseClient): Promise<CompetitionIngestC
 async function ingestCompetition(
   db:     SupabaseClient,
   cfg:    CompetitionIngestConfig,
-  apiKey: string,
+  keys:   { apiFootball: string; thesportsdb: string },
   now:    number,
 ): Promise<{ outcome: CompetitionOutcome; quota: QuotaMeta | null }> {
 
+  if (cfg.provider === "thesportsdb") {
+    return { outcome: await ingestThesportsdb(db, cfg, keys.thesportsdb, now), quota: null };
+  }
   if (cfg.provider !== "api-football") {
     return {
       outcome: { slug: cfg.slug, skipped: true, reason: `unsupported_provider:${cfg.provider}` },
@@ -125,6 +131,7 @@ async function ingestCompetition(
     };
   }
 
+  const apiKey = keys.apiFootball;
   const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
   const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
 
@@ -326,13 +333,104 @@ async function ingestCompetition(
   };
 }
 
+// ── One competition — TheSportsDB ─────────────────────────────
+// Same gates and routing as the API-Football path, but reading TheSportsDB's
+// finished results (free tier). Routes by provider_fixture_id (= idEvent) only.
+// No reversal handling: we imported home/away from TheSportsDB, so results
+// arrive in the same orientation.
+
+async function ingestThesportsdb(
+  db:     SupabaseClient,
+  cfg:    CompetitionIngestConfig,
+  apiKey: string,
+  now:    number,
+): Promise<CompetitionOutcome> {
+  const key = apiKey || "123";   // public free key
+  const windowStart = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+  const windowEnd   = new Date(now + 3 * 60 * 60 * 1000).toISOString();
+  const SELECT =
+    "id, kicks_off_at, home_score, away_score, status, provider_fixture_id, home_team_id, away_team_id";
+
+  const { data: windowFixtures, error: dbErr } = await db
+    .from("fixtures").select(SELECT)
+    .eq("competition_id", cfg.competitionId)
+    .gte("kicks_off_at", windowStart).lte("kicks_off_at", windowEnd)
+    .order("kicks_off_at", { ascending: true });
+  if (dbErr) return { slug: cfg.slug, error: `DB error: ${dbErr.message}` };
+
+  const { data: stuckLive } = await db
+    .from("fixtures").select(SELECT)
+    .eq("competition_id", cfg.competitionId)
+    .in("status", ["live", "postponed"]).lt("kicks_off_at", windowStart);
+
+  const seen = new Set<string>();
+  const dbFixtures = [...(windowFixtures ?? []), ...(stuckLive ?? [])]
+    .filter((f) => (seen.has(f.id as string) ? false : (seen.add(f.id as string), true))) as DbFixture[];
+
+  if (dbFixtures.length === 0) {
+    return { slug: cfg.slug, skipped: true, reason: "no_fixtures_in_window", apiCalls: 0 };
+  }
+
+  const pollReason = getPollReason(dbFixtures, now);
+  if (!pollReason) {
+    const next = dbFixtures
+      .filter((f) => f.status === "scheduled")
+      .sort((a, b) => new Date(a.kicks_off_at).getTime() - new Date(b.kicks_off_at).getTime())[0];
+    const mins = next ? Math.round((new Date(next.kicks_off_at).getTime() - now) / 60_000) : null;
+    return {
+      slug: cfg.slug, skipped: true, reason: "no_active_match_window", apiCalls: 0,
+      ...(mins !== null ? { changes: [`next kickoff in ${mins}m`] } : {}),
+    };
+  }
+
+  if (dbFixtures.filter((f) => f.provider_fixture_id).length === 0) {
+    return { slug: cfg.slug, skipped: true, reason: "no_provider_ids_backfill_required", apiCalls: 0 };
+  }
+
+  const results = await fetchTsdbPastLeague(key, cfg.providerLeagueId);
+  let updated = 0, unroutable = 0;
+  const changes: string[] = [];
+
+  for (const r of results) {
+    const outcome = matchProviderFixture(r.providerId, dbFixtures);
+    if (outcome.kind !== "matched") { unroutable++; continue; }
+    const dbFix = outcome.fixture;
+
+    const scoreChanged =
+      (r.status === "live" || r.status === "completed") &&
+      r.homeScore !== null && r.awayScore !== null &&
+      (r.homeScore !== dbFix.home_score || r.awayScore !== dbFix.away_score);
+    const statusChanged = r.status !== dbFix.status;
+    if (!scoreChanged && !statusChanged) continue;
+
+    const payload: Record<string, unknown> = { status: r.status, updated_at: new Date().toISOString() };
+    if (scoreChanged) {
+      payload.home_score = r.homeScore;
+      payload.away_score = r.awayScore;
+      console.log(
+        `[ingest:${cfg.slug}:SCORE] ${dbFix.id.slice(0, 8)} | id=${r.providerId} | ` +
+        `${r.homeName} ${r.homeScore}-${r.awayScore} ${r.awayName} | ` +
+        `${r.status === "completed" ? "FINAL → auto_score_predictions fires" : "LIVE"}`,
+      );
+    }
+
+    const { error: updErr } = await db.from("fixtures").update(payload).eq("id", dbFix.id);
+    if (updErr) { console.error(`[ingest:${cfg.slug}:ERROR] ${dbFix.id}: ${updErr.message}`); continue; }
+    updated++;
+    changes.push(`${dbFix.id.slice(0, 8)} | ${scoreChanged ? `SCORED ${r.homeScore}-${r.awayScore}` : `STATUS ${dbFix.status}→${r.status}`}`);
+  }
+
+  return { slug: cfg.slug, updated, checked: results.length, unroutable, apiCalls: 1, changes };
+}
+
 // ── Handler ───────────────────────────────────────────────────
 
 async function handler(req: NextRequest): Promise<NextResponse> {
-  const CRON_SECRET      = process.env.CRON_SECRET               ?? "";
-  const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY          ?? "";
-  const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
-  const SUPABASE_SRK     = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const CRON_SECRET         = process.env.CRON_SECRET               ?? "";
+  const FOOTBALL_API_KEY    = process.env.FOOTBALL_API_KEY          ?? "";
+  const THESPORTSDB_API_KEY = process.env.THESPORTSDB_API_KEY       ?? "123"; // free public key
+  const SUPABASE_URL        = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
+  const SUPABASE_SRK        = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
   if (!CRON_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const auth = req.headers.get("authorization");
@@ -341,14 +439,18 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!FOOTBALL_API_KEY || !SUPABASE_URL || !SUPABASE_SRK) {
+  // Supabase is always required; a provider key is only needed by that
+  // provider (TheSportsDB defaults to the free public key), so FOOTBALL_API_KEY
+  // is not required unless an API-Football competition is active.
+  if (!SUPABASE_URL || !SUPABASE_SRK) {
     const missing = [
-      !FOOTBALL_API_KEY ? "FOOTBALL_API_KEY" : null,
-      !SUPABASE_URL     ? "NEXT_PUBLIC_SUPABASE_URL" : null,
-      !SUPABASE_SRK     ? "SUPABASE_SERVICE_ROLE_KEY" : null,
+      !SUPABASE_URL ? "NEXT_PUBLIC_SUPABASE_URL" : null,
+      !SUPABASE_SRK ? "SUPABASE_SERVICE_ROLE_KEY" : null,
     ].filter(Boolean).join(", ");
     return NextResponse.json({ error: `Missing env vars: ${missing}` }, { status: 500 });
   }
+
+  const keys = { apiFootball: FOOTBALL_API_KEY, thesportsdb: THESPORTSDB_API_KEY };
 
   const startedAt = Date.now();
   const db = createClient(SUPABASE_URL, SUPABASE_SRK);
@@ -371,7 +473,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   for (const cfg of configs) {
     try {
-      const { outcome, quota: q } = await ingestCompetition(db, cfg, FOOTBALL_API_KEY, Date.now());
+      const { outcome, quota: q } = await ingestCompetition(db, cfg, keys, Date.now());
       results.push(outcome);
       totalApiCalls += outcome.apiCalls ?? 0;
       if (q) quota = q;
