@@ -68,6 +68,7 @@ export default function MatchweekPage() {
   // rail directly (scrollIntoView won't reliably move a horizontal container).
   const railRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (loading) return;   // the rail only exists once loading finishes
     const rail = railRef.current;
     const el = rail?.querySelector('[data-active="true"]') as HTMLElement | null;
     if (!rail || !el) return;
@@ -75,7 +76,7 @@ export default function MatchweekPage() {
     const elRect = el.getBoundingClientRect();
     const delta = (elRect.left - railRect.left) - (rail.clientWidth / 2 - el.clientWidth / 2);
     rail.scrollTo({ left: rail.scrollLeft + delta, behavior: "smooth" });
-  }, [round?.id, rounds.length]);
+  }, [round?.id, rounds.length, loading]);
 
   // A matchweek is still predictable unless every fixture has kicked off.
   const openForPredictions = useMemo(() => {
