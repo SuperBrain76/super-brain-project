@@ -104,6 +104,10 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
           <div className="flex flex-col gap-3 lg:col-span-2">
             <FeaturedMatch data={data} view={view} base={base} nowMs={nowMs} pointsSoFar={pointsSoFar} />
             <ThisWeekMatches data={data} base={base} />
+            <Link href={`${base}/matchweek/${data.round?.code ?? ""}`}
+                  className="text-center text-xs font-semibold -mt-0.5" style={{ color: GREEN }}>
+              {data.roundCount ? `Browse all ${data.roundCount} matchweeks →` : "Browse the season →"}
+            </Link>
             {data.featuredStats && data.featuredStats.total > 0 && data.biggestMatch && (
               <TrendingPicks fixture={data.biggestMatch} stats={data.featuredStats} />
             )}
@@ -121,13 +125,6 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
           </div>
         </div>
       )}
-
-      <div className="mt-4 text-center">
-        <Link href={`${base}/matchweek/${data.round?.code ?? ""}`}
-              className="text-xs font-semibold" style={{ color: GREEN }}>
-          {data.roundCount ? `Browse all ${data.roundCount} matchweeks →` : "Browse the season →"}
-        </Link>
-      </div>
     </div>
   );
 }
