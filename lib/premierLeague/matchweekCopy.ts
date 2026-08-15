@@ -19,25 +19,25 @@ export interface RoundEditorial {
 
 export const ROUND_EDITORIAL: Record<number, RoundEditorial> = {
   1: {
-    headline:   "It's back. United host Arsenal, City go to Wolves, Sunderland return.",
-    story:      "Nine months of football starts here. Get your first predictions in before Liverpool kick us off Friday night.",
-    watch:      ["Saka", "Haaland", "Wirtz"],
-    biggest:    ["MUN", "ARS"],
-    biggestWhy: "Old Trafford, Sunday teatime. Arsenal want the title that keeps slipping away; United want to prove last season was the floor.",
+    headline:   "It's back. Coventry return after 25 years; Arsenal get us started Friday night.",
+    story:      "Nine months of football starts here. Three promoted sides, twenty stories — get your first predictions in.",
+    watch:      ["Salah", "Haaland", "Saka"],
+    biggest:    ["NEW", "LIV"],
+    biggestWhy: "St James' Park, Sunday 16:30. Newcastle under the lights against Liverpool — the loudest ninety minutes of the opening weekend.",
   },
   2: {
-    headline:   "London goes to war: West Ham v Chelsea, and City host Spurs.",
-    story:      "One week in, the table already lies. Time to make it tell the truth.",
-    watch:      ["Palmer", "Kudus", "Richarlison"],
-    biggest:    ["NEW", "LIV"],
-    biggestWhy: "Monday night at St James'. Newcastle under the lights against the champions — the noisiest ninety minutes of the week.",
+    headline:   "Bank Holiday football: Palace open against City, Villa host Arsenal on Monday.",
+    story:      "One week in and the table already lies. Time to make it tell the truth.",
+    watch:      ["Saka", "Haaland", "Palmer"],
+    biggest:    ["AVL", "ARS"],
+    biggestWhy: "Villa Park, Monday night under the lights to close the matchweek — Villa have a habit of making Arsenal uncomfortable here.",
   },
   3: {
-    headline:   "Anfield hosts the early title six-pointer: Liverpool v Arsenal.",
-    story:      "Three games in and this one already feels heavy. Back your gut.",
-    watch:      ["Salah", "Ødegaard", "Isak"],
-    biggest:    ["LIV", "ARS"],
-    biggestWhy: "Two of the three genuine title contenders, at Anfield, in August. Drop points here and the narrative follows you for months.",
+    headline:   "A London derby headlines matchweek 3: Arsenal host Chelsea.",
+    story:      "Three games in and the early pace-setters are showing. Back your gut.",
+    watch:      ["Palmer", "Saka", "Salah"],
+    biggest:    ["ARS", "CHE"],
+    biggestWhy: "The Emirates, Sunday teatime. A London derby with both sides expecting to be near the top — early-season statement football.",
   },
 };
 
