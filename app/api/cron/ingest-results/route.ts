@@ -387,7 +387,15 @@ async function ingestThesportsdb(
     return { slug: cfg.slug, skipped: true, reason: "no_provider_ids_backfill_required", apiCalls: 0 };
   }
 
-  const results = await fetchTsdbPastLeague(key, cfg.providerLeagueId);
+  // A provider outage (TheSportsDB 503s, network blips) must NOT fail the run —
+  // just skip and try again next cron. It's transient, not our bug.
+  let results;
+  try {
+    results = await fetchTsdbPastLeague(key, cfg.providerLeagueId);
+  } catch (e) {
+    console.warn(`[ingest:${cfg.slug}] provider unavailable: ${e instanceof Error ? e.message : e}`);
+    return { slug: cfg.slug, skipped: true, reason: "provider_unavailable", apiCalls: 1 };
+  }
   let updated = 0, unroutable = 0;
   const changes: string[] = [];
 
