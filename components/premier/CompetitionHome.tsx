@@ -82,31 +82,43 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
   const dateRange = matchweekDateRange(data.fixtures);
 
   return (
-    <div className="max-w-md mx-auto w-full px-4 py-4 flex flex-col gap-3">
+    <div className="max-w-md lg:max-w-5xl mx-auto w-full px-4 py-4">
       <Header compName={compName} view={view} nowMs={nowMs} dateRange={dateRange} />
 
-      {/* Break state gets its own quiet layout. */}
       {view.state === "break" ? (
-        <BreakBlock data={data} base={base} nowMs={nowMs} />
+        <div className="mt-3 flex flex-col gap-3 max-w-md mx-auto">
+          <BreakBlock data={data} base={base} nowMs={nowMs} />
+          <YourSuperBrain data={data} base={base} />
+          <LeagueStrip data={data} base={base} />
+        </div>
       ) : (
-        <>
-          <FeaturedMatch data={data} view={view} base={base} nowMs={nowMs} pointsSoFar={pointsSoFar} />
-          <ThisWeek data={data} view={view} />
-          {data.featuredStats && data.featuredStats.total > 0 && data.biggestMatch && (
-            <TrendingPicks fixture={data.biggestMatch} stats={data.featuredStats} />
-          )}
-          <YourWeekend data={data} view={view} base={base} pointsSoFar={pointsSoFar} />
-        </>
+        // Two columns on desktop (use the width), one on mobile.
+        <div className="mt-3 flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">
+          {/* Main column — the match, the week's fixtures, the crowd */}
+          <div className="flex flex-col gap-3 lg:col-span-2">
+            <FeaturedMatch data={data} view={view} base={base} nowMs={nowMs} pointsSoFar={pointsSoFar} />
+            <ThisWeekMatches data={data} base={base} />
+            {data.featuredStats && data.featuredStats.total > 0 && data.biggestMatch && (
+              <TrendingPicks fixture={data.biggestMatch} stats={data.featuredStats} />
+            )}
+          </div>
+          {/* Rail — your status */}
+          <div className="flex flex-col gap-3">
+            <ThisWeek data={data} view={view} />
+            <YourWeekend data={data} view={view} base={base} pointsSoFar={pointsSoFar} />
+            <YourSuperBrain data={data} base={base} />
+            {data.lastWeekend && <LastWeekend lw={data.lastWeekend} base={base} />}
+            <LeagueStrip data={data} base={base} />
+          </div>
+        </div>
       )}
 
-      <YourSuperBrain data={data} base={base} />
-      {data.lastWeekend && <LastWeekend lw={data.lastWeekend} base={base} />}
-      <LeagueStrip data={data} base={base} />
-
-      <Link href={`${base}/matchweek/${data.round?.code ?? ""}`}
-            className="text-center text-xs font-semibold py-1" style={{ color: GREEN }}>
-        See all {view.total} fixtures →
-      </Link>
+      <div className="mt-4 text-center">
+        <Link href={`${base}/matchweek/${data.round?.code ?? ""}`}
+              className="text-xs font-semibold" style={{ color: GREEN }}>
+          Browse all {view.total} matchweeks →
+        </Link>
+      </div>
     </div>
   );
 }
@@ -218,11 +230,13 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
 // ── This Week — the numbers that make it feel big ────────────
 
 function ThisWeek({ data, view }: { data: HomeData; view: MatchweekView }) {
+  // Never show a bald "0" — pre-launch that reads as dead. Show a count only
+  // once there's something real to show.
   const cells: [string, string][] = [
     [`${view.total}`, "Matches"],
     [data.iqAvailable ? `${data.iqAvailable} IQ` : "—", "Available"],
-    [data.playerCount != null ? data.playerCount.toLocaleString() : "—", "Players"],
-    [data.leagueCount != null ? data.leagueCount.toLocaleString() : "—", "Leagues"],
+    [data.playerCount ? data.playerCount.toLocaleString() : "—", "Players"],
+    [data.leagueCount ? data.leagueCount.toLocaleString() : "—", "Leagues"],
   ];
   return (
     <div className="grid grid-cols-4 gap-2">
@@ -233,6 +247,54 @@ function ThisWeek({ data, view }: { data: HomeData; view: MatchweekView }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ── This week's matches — the fixtures, right on the dashboard ─
+// Fills the home with real football instead of whitespace, and shows your
+// pick inline so the week reads at a glance.
+
+function ThisWeekMatches({ data, base }: { data: HomeData; base: string }) {
+  const fx = data.fixtures;
+  if (fx.length === 0) return null;
+  const predicted = fx.filter((f) => f.myPrediction != null).length;
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+      <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: TEXT2 }}>⚽ This week&apos;s matches</span>
+        <Link href={`${base}/predict`} className="text-[11px] font-bold" style={{ color: GREEN }}>
+          {predicted > 0 ? `${predicted}/${fx.length} · Edit →` : "Predict all →"}
+        </Link>
+      </div>
+      <div>
+        {fx.map((f, i) => (
+          <MiniFixture key={f.id} f={f} base={base} last={i === fx.length - 1} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolean }) {
+  const pick = f.myPrediction;
+  const ko = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date(f.kicksOffAt));
+  return (
+    <Link href={`${base}/predict`} className="flex items-center gap-2 px-3.5 py-2 hover:bg-[#f6f9f5]"
+      style={{ borderBottom: last ? "none" : `1px solid ${BORDER}` }}>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+        <span className="text-[12px] font-semibold truncate text-right" style={{ color: TEXT1 }}>{clubShort(f.homeTeam?.code)}</span>
+        <ClubCrest code={f.homeTeam?.code} size={18} />
+      </div>
+      <span className="text-[11px] font-bold tabular-nums shrink-0 w-14 text-center px-1"
+        style={{ color: pick ? TEXT1 : MUTED }}>
+        {pick ? `${pick.homeScore}–${pick.awayScore}` : ko}
+      </span>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <ClubCrest code={f.awayTeam?.code} size={18} />
+        <span className="text-[12px] font-semibold truncate" style={{ color: TEXT1 }}>{clubShort(f.awayTeam?.code)}</span>
+      </div>
+    </Link>
   );
 }
 

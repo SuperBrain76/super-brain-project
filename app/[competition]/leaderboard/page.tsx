@@ -10,10 +10,12 @@ import {
   resolveCompetition,
   getPredictorLeaderboard,
   getMyStats,
+  getFixtureCount,
   type Competition,
   type LeaderboardRow,
   type MyStats,
 } from "@/lib/predictor";
+import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 import { GrandPrizeLeaderboardBanner } from "@/components/GrandPrize";
 
 // ── Design tokens ─────────────────────────────────────────────
@@ -57,6 +59,7 @@ export default function PredictorLeaderboardPage() {
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [rows,        setRows]        = useState<LeaderboardRow[]>([]);
   const [myStats,     setMyStats]     = useState<MyStats | null>(null);
+  const [matchTotal,  setMatchTotal]  = useState<number>(0);   // total fixtures — 0 = unknown
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   const [tab,         setTab]         = useState<"overall" | "match">("overall");
@@ -66,8 +69,12 @@ export default function PredictorLeaderboardPage() {
       const { competition: comp, error: compErr } = await resolveCompetition(competitionSlug);
       if (compErr || !comp) { setError(compErr ?? "Competition not found."); setLoading(false); return; }
       setCompetition(comp);
-      const leaderboard = await getPredictorLeaderboard(comp.id);
+      const [leaderboard, fixtureCount] = await Promise.all([
+        getPredictorLeaderboard(comp.id),
+        getFixtureCount(comp.id),
+      ]);
       setRows(leaderboard);
+      setMatchTotal(fixtureCount);
       track.predictorLeaderboardViewed();
       setLoading(false);
     }
@@ -85,6 +92,12 @@ export default function PredictorLeaderboardPage() {
         .sort((a, b) => b.matchPoints - a.matchPoints || b.exactScores - a.exactScores || b.correctGd - a.correctGd)
         .map((r, i) => ({ ...r, rank: i + 1 }))
     : rows;
+
+  // The Grand Prize (Custom Champion Watch) is a World-Cup-2026-only
+  // promotion — there is no generic prize concept in the Competition Engine,
+  // so the banner and /prize page belong to the World Cup alone. Show it for
+  // that competition, hide it for every other (Premier League, etc.).
+  const isWorldCup = competition?.slug === FALLBACK_COMPETITION_SLUG;
 
   if (authLoading || loading) {
     return (
@@ -121,7 +134,7 @@ export default function PredictorLeaderboardPage() {
         <div>
           <h1 className="text-xl font-extrabold" style={{ color: TEXT1 }}>Global Rankings</h1>
           <p className="text-sm mt-1" style={{ color: TEXT2 }}>
-            {competition?.name ?? "WC 2026"} · {rows.length} {rows.length === 1 ? "predictor" : "predictors"}
+            {competition?.name ?? "Global Rankings"} · {rows.length} {rows.length === 1 ? "predictor" : "predictors"}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GREEN }} />
@@ -157,7 +170,11 @@ export default function PredictorLeaderboardPage() {
               ))}
             </div>
             <div className="px-4 py-2">
-              <p className="text-xs" style={{ color: MUTED }}>Your stats · {myStats.predictions} / {104} predictions made</p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                Your stats · {matchTotal > 0
+                  ? `${myStats.predictions} / ${matchTotal} predictions made`
+                  : `${myStats.predictions} ${myStats.predictions === 1 ? "prediction" : "predictions"} made`}
+              </p>
             </div>
           </div>
         )}
@@ -181,14 +198,14 @@ export default function PredictorLeaderboardPage() {
           </div>
         )}
 
-        {/* Grand Prize banner */}
-        <GrandPrizeLeaderboardBanner participantCount={rows.length} />
+        {/* Grand Prize banner — World Cup only (see isWorldCup above) */}
+        {isWorldCup && <GrandPrizeLeaderboardBanner participantCount={rows.length} />}
 
         {/* Tab toggle */}
         <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: BG }}>
           {[
-            { key: "overall" as const, label: "🏆 WC Champion" },
-            { key: "match"   as const, label: "⚽ Match Champion" },
+            { key: "overall" as const, label: "🏆 Overall" },
+            { key: "match"   as const, label: "⚽ Match only" },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -208,8 +225,8 @@ export default function PredictorLeaderboardPage() {
         {/* Tab description */}
         <p className="text-xs px-1" style={{ color: MUTED }}>
           {tab === "overall"
-            ? "Total points including bonus questions — overall WC champion."
-            : "Match predictions only — fair for anyone who joined after the tournament started."}
+            ? "Total points including any bonus questions — the overall standings."
+            : "Match predictions only — fair for anyone who joined partway through."}
         </p>
 
         {/* Leaderboard table */}
@@ -245,7 +262,11 @@ export default function PredictorLeaderboardPage() {
           {/* Rows */}
           {displayRows.map((row) => {
             const isMe     = !!(user && row.userId === user.id);
-            const matchPct = Math.round((row.predictions / 104) * 100);
+            // Completion % against the competition's real fixture count; null
+            // when the total is unknown (fixtures not seeded / unconfigured).
+            const matchPct = matchTotal > 0
+              ? Math.min(100, Math.round((row.predictions / matchTotal) * 100))
+              : null;
             const pts      = tab === "overall" ? row.totalPoints : row.matchPoints;
             return (
               <Link
@@ -278,8 +299,8 @@ export default function PredictorLeaderboardPage() {
                 </div>
 
                 {/* Completion % */}
-                <span className="w-10 text-right text-xs tabular-nums hidden sm:block" style={{ color: matchPct >= 50 ? TEXT2 : MUTED }}>
-                  {matchPct}%
+                <span className="w-10 text-right text-xs tabular-nums hidden sm:block" style={{ color: matchPct !== null && matchPct >= 50 ? TEXT2 : MUTED }}>
+                  {matchPct !== null ? `${matchPct}%` : "—"}
                 </span>
 
                 {/* Exact scores ⚡ */}

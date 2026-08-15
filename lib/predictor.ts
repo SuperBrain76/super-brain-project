@@ -424,6 +424,37 @@ export function invalidateFixturesCache(competitionId: string, stage?: string): 
   _fixturesCache.delete(`${competitionId}:${stage ?? "all"}`);
 }
 
+// ── Fixture count cache ───────────────────────────────────────
+// The TOTAL number of fixtures in a competition is fixed once seeded
+// (380 for a Premier League season, 104 for the World Cup), so cache it
+// for the session — unlike the fixtures list, which ticks with live scores.
+const _fixtureCountCache = new Map<string, number>();
+
+/**
+ * Total number of match fixtures in a competition.
+ *
+ * Powers the completion percentage on the leaderboard ("X / total
+ * predictions made") — competition-aware, so it reads 380 for the Premier
+ * League and 104 for the World Cup rather than a hardcoded tournament size.
+ * A head-only count query: no rows are transferred.
+ *
+ * Returns 0 when Supabase is unconfigured or fixtures are not yet seeded;
+ * callers should treat 0 as "unknown" and hide the percentage.
+ */
+export async function getFixtureCount(competitionId: string): Promise<number> {
+  if (!isSupabaseConfigured) return 0;
+  if (_fixtureCountCache.has(competitionId)) return _fixtureCountCache.get(competitionId)!;
+
+  const { count, error } = await supabase
+    .from("fixtures")
+    .select("id", { count: "exact", head: true })
+    .eq("competition_id", competitionId);
+
+  if (error || count == null) return 0;
+  _fixtureCountCache.set(competitionId, count);
+  return count;
+}
+
 export async function getFixture(fixtureId: string): Promise<Fixture | null> {
   const { data, error } = await supabase
     .from("fixtures")
