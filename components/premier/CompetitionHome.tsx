@@ -65,12 +65,14 @@ export interface HomeData {
   roundCount?:       number;       // total matchweeks in the season (for copy)
   streak?:           { current: number; longest: number };  // prediction streak
   hasDraw?:          boolean;      // sport allows draws (football). Ice hockey → false.
+  sportIcon?:        string;       // sport emoji (⚽ / 🏒) for section headers
 }
 
 export default function CompetitionHome({ data, clock = Date.now }: { data: HomeData; clock?: () => number }) {
   const slug = useCompetitionSlug();
   const base = slug ? `/${slug}` : "/predict";
   const hasDraw = data.hasDraw ?? true;   // ice hockey → no draw pick / segment
+  const sportIcon = data.sportIcon ?? "⚽";
 
   const [nowMs, setNowMs] = useState(() => clock());
   useEffect(() => {
@@ -90,7 +92,7 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
 
   return (
     <div className="max-w-md lg:max-w-5xl mx-auto w-full px-4 py-4">
-      <Header compName={compName} view={view} nowMs={nowMs} dateRange={dateRange} />
+      <Header compName={compName} view={view} nowMs={nowMs} dateRange={dateRange} sportIcon={sportIcon} />
 
       {view.state === "break" ? (
         <div className="mt-3 flex flex-col gap-3 max-w-md mx-auto">
@@ -135,7 +137,7 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
 
 // ── Header — competition + matchweek + live countdown ────────
 
-function Header({ compName, view, nowMs, dateRange }: { compName: string; view: MatchweekView; nowMs: number; dateRange: string | null }) {
+function Header({ compName, view, nowMs, dateRange, sportIcon = "⚽" }: { compName: string; view: MatchweekView; nowMs: number; dateRange: string | null; sportIcon?: string }) {
   const pill = statePill(view);
   const countdown = view.state === "open" && view.challengeLock
     ? `Starts in ${formatCountdown(view.challengeLock, nowMs)}`
@@ -147,7 +149,7 @@ function Header({ compName, view, nowMs, dateRange }: { compName: string; view: 
     <div className="flex items-center justify-between">
       <div>
         <div className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: GREEN }}>
-          ⚽ {compName}
+          {sportIcon} {compName}
         </div>
         <h1 className="text-xl font-extrabold leading-tight" style={{ color: TEXT1 }}>
           {view.round?.label ?? "Matchweek"}
@@ -270,7 +272,7 @@ function ThisWeekMatches({ data, base }: { data: HomeData; base: string }) {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
       <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
-        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: TEXT2 }}>⚽ This week&apos;s matches</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: TEXT2 }}>{data.sportIcon ?? "⚽"} This week&apos;s matches</span>
         <Link href={`${base}/predict`} className="text-[11px] font-bold" style={{ color: GREEN }}>
           {predicted > 0 ? `${predicted}/${fx.length} · Edit →` : "Predict all →"}
         </Link>

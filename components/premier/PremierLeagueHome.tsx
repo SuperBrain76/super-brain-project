@@ -110,6 +110,7 @@ export default function PremierLeagueHome({ competition }: { competition: Compet
         roundCount:        seasonRounds.length || undefined,
         streak,
         hasDraw:           sportOf(competition.sportCode).hasDraw,
+        sportIcon:         sportOf(competition.sportCode).icon,
       });
     }
 
