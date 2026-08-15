@@ -41,7 +41,7 @@ const BG     = "#f0f3ef";
 const SITE = "https://www.superbrain.social";
 function inviteUrl(code: string) { return `${SITE}/predict/leagues/join?code=${code}`; }
 function whatsappUrl(league: PredictionLeague) {
-  const msg = `Join my "${league.name}" World Cup Predictor league on SuperBrain!\n\nUse code: ${league.inviteCode}\nOr join here: ${inviteUrl(league.inviteCode)}`;
+  const msg = `Join my "${league.name}" WC Predictor league on SuperBrain!\n\nUse code: ${league.inviteCode}\nOr join here: ${inviteUrl(league.inviteCode)}`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 const WHATSAPP_ICON = (
@@ -638,7 +638,7 @@ export default function LeagueDetailPage() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <CopyButton text={`${SITE}/predict/leagues/${league.id}`} label="Copy league link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
-              <a href={`https://wa.me/?text=${encodeURIComponent(`Join the "${league.name}" World Cup Predictor league on SuperBrain!\n\n${SITE}/predict/leagues/${league.id}`)}`}
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Join the "${league.name}" WC Predictor league on SuperBrain!\n\n${SITE}/predict/leagues/${league.id}`)}`}
                 target="_blank" rel="noopener noreferrer"
                 onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"

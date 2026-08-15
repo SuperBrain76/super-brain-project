@@ -72,7 +72,7 @@ export function GrandPrizeHomepageSection() {
                 className="text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: GOLD }}
               >
-                Grand Prize · SuperBrain World Cup 2026
+                Grand Prize · SuperBrain WC 2026
               </span>
             </div>
 
@@ -86,7 +86,7 @@ export function GrandPrizeHomepageSection() {
                 <span style={{ color: GOLD }}>Champion Watch</span>
               </h2>
               <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT2 }}>
-                Awarded to the overall winner of the SuperBrain World Cup Prediction 2026.
+                Awarded to the overall winner of the SuperBrain WC Prediction 2026.
                 The ultimate symbol of prediction mastery.
               </p>
             </div>
@@ -371,7 +371,7 @@ export function GrandPrizeRulesSection() {
               Custom Champion Watch
             </h3>
             <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
-              The overall winner of SuperBrain World Cup Prediction 2026 receives a custom-built luxury timepiece.
+              The overall winner of SuperBrain WC Prediction 2026 receives a custom-built luxury timepiece.
             </p>
           </div>
 
@@ -395,7 +395,7 @@ export function GrandPrizeRulesSection() {
         <div>
           <p className="text-sm font-bold" style={{ color: TEXT1 }}>Personalized Engraving</p>
           <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
-            The winner&apos;s name and the title &ldquo;SuperBrain World Cup Champion 2026&rdquo; will be engraved on
+            The winner&apos;s name and the title &ldquo;SuperBrain WC Champion 2026&rdquo; will be engraved on
             the case back — making this a genuinely one-of-a-kind piece.
           </p>
         </div>

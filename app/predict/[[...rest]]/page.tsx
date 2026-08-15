@@ -9,7 +9,7 @@
  * `/predict` URLs are not merely old — they are in circulation and cannot
  * be recalled:
  *
- *   • WhatsApp league invites shared during the World Cup
+ *   • WhatsApp league invites shared during the WC
  *   • every match-day and standings email already sent
  *   • OG cards cached by Facebook, X and WhatsApp
  *   • the App Store / Play Store listing

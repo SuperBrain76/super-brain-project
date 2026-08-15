@@ -105,13 +105,13 @@ export default function LandingPage() {
             style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BRAND.sports }} />
             <span className="text-xs tracking-[0.2em] uppercase" style={{ color: BRAND.sports }}>
-              Free to play · World Cup 2026
+              Free to play · WC 2026
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.04] mb-6" style={{ color: BRAND.ink }}>
-            The World Cup<br />
+            The WC<br />
             <span style={{ color: BRAND.sports, textShadow: "0 0 90px rgba(53,197,111,0.35)" }}>
               Predictor
             </span>
@@ -152,6 +152,11 @@ export default function LandingPage() {
           <div className="mt-4 max-w-xs mx-auto w-full">
             <WhatsAppHeroCard />
           </div>
+
+          {/* Unofficial disclaimer */}
+          <p className="mt-6 text-xs max-w-md mx-auto leading-relaxed" style={{ color: BRAND.dim }}>
+            SuperBrain is an independent fan prediction platform. It is not affiliated with, endorsed, or sponsored by any sports organisation, league, governing body, or competition featured on this platform.
+          </p>
 
           {/* Stats strip */}
           <div className="mt-10 flex flex-wrap justify-center gap-8 sm:gap-12">
@@ -248,7 +253,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── BONUS QUESTIONS — World Cup specific (Golden Boot etc.); hidden
+      {/* ── BONUS QUESTIONS — WC specific (Golden Boot etc.); hidden
            once a competition is active. ─────────────────────────────────── */}
       <HideWhenActiveCompetition>
       <section style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderBottom: `0.5px solid ${BRAND.hairline}` }}>
@@ -314,7 +319,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── GRAND PRIZE — World Cup Champion Watch; hidden once a competition
+      {/* ── GRAND PRIZE — WC Champion Watch; hidden once a competition
            is active so the archived prize never competes with what's live. ── */}
       <HideWhenActiveCompetition>
       <section className="relative overflow-hidden" style={{ borderTop: `0.5px solid ${BRAND.hairline}`, borderBottom: `0.5px solid ${BRAND.hairline}`, background: MATERIAL.vignette }}>
@@ -358,7 +363,7 @@ export default function LandingPage() {
                   <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
                 </svg>
                 <span className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: BRAND.gold }}>
-                  Grand Prize · SuperBrain World Cup 2026
+                  Grand Prize · SuperBrain WC 2026
                 </span>
               </div>
 
@@ -368,7 +373,7 @@ export default function LandingPage() {
                   <span style={{ background: MATERIAL.goldFill, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>Champion Watch</span>
                 </h2>
                 <p className="text-sm sm:text-base mt-3 leading-relaxed" style={{ color: BRAND.muted }}>
-                  Awarded to the overall SuperBrain World Cup Prediction 2026 Champion.
+                  Awarded to the overall SuperBrain WC Prediction 2026 Champion.
                   One winner. One watch. Your name engraved on it forever.
                 </p>
               </div>

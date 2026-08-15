@@ -10,7 +10,7 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: { leagueId: string } }) {
   const league = await fetchLeagueOGById(params.leagueId);
-  const name   = league?.name ?? "World Cup League";
+  const name   = league?.name ?? "WC League";
   const count  = league?.memberCount ?? 0;
 
   const nameFontSize = name.length > 28 ? 58 : name.length > 20 ? 70 : name.length > 14 ? 82 : 94;
@@ -85,7 +85,7 @@ export default async function Image({ params }: { params: { leagueId: string } }
           </span>
         </div>
 
-        {/* World Cup 2026 badge — SVG ball instead of emoji */}
+        {/* WC 2026 badge — SVG ball instead of emoji */}
         <div
           style={{
             display:      "flex",
@@ -187,7 +187,7 @@ export default async function Image({ params }: { params: { leagueId: string } }
             <rect x="8" y="27" width="12" height="2.5" rx="1" fill="#e8c44a"/>
           </svg>
           <span style={{ color: "#e8c44a", fontSize: 22, fontWeight: 700, letterSpacing: "0.02em" }}>
-            Predict the World Cup
+            Predict the WC
           </span>
         </div>
       </div>

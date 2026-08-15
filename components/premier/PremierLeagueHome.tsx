@@ -8,7 +8,7 @@
  * the whole season. See docs/PREMIER_LEAGUE_UX.md §2.
  *
  * Rendered by app/[competition]/page.tsx only when the competition's
- * home_style setting is 'matchweek'. The World Cup (home_style 'classic')
+ * home_style setting is 'matchweek'. The WC (home_style 'classic')
  * never reaches this component.
  */
 

@@ -26,7 +26,7 @@ import { upsertPrediction } from "@/lib/predictor";
 import {
   type Outcome, type ScorePick, type BulkTarget,
   scoreForOutcome, pickFromFixture, selectedOutcome,
-  stepGoals, groupByKickoff, sheetProgress,
+  stepGoals, groupByKickoff, sheetProgress, matchweekDateRange,
   copyFromPreviousRound, fillRemaining,
 } from "@/lib/matchweekPredictions";
 import { track } from "@/lib/analytics";
@@ -187,8 +187,9 @@ export default function MatchweekSheet({
       ? { ...f, myPrediction: { homeScore: pick.home, awayScore: pick.away, pointsAwarded: f.myPrediction?.pointsAwarded ?? null } }
       : f;
   });
-  const groups   = groupByKickoff(liveFixtures);
-  const progress = sheetProgress(liveFixtures, nowMs);
+  const groups     = groupByKickoff(liveFixtures);
+  const progress   = sheetProgress(liveFixtures, nowMs);
+  const dateRange  = matchweekDateRange(liveFixtures);
 
   const isOpen = (f: Fixture) => f.status === "scheduled" && new Date(f.kicksOffAt).getTime() > nowMs;
 
@@ -221,8 +222,16 @@ export default function MatchweekSheet({
         style={{ background: "#f0f3ef", borderBottom: `1px solid ${BORDER}` }}
       >
         <div>
-          <div className="text-sm font-bold" style={{ color: TEXT1 }}>{roundLabel}</div>
-          <div className="text-xs" style={{ color: MUTED }}>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold" style={{ color: TEXT1 }}>{roundLabel}</span>
+            {dateRange && (
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md"
+                    style={{ background: "#eaf1ea", color: TEXT2 }}>
+                📅 {dateRange}
+              </span>
+            )}
+          </div>
+          <div className="text-xs mt-0.5" style={{ color: MUTED }}>
             {progress.predicted} of {progress.total} predicted
             {playerCount != null && playerCount > 0 && (
               <span> · <strong style={{ color: TEXT2 }}>{playerCount.toLocaleString()}</strong> playing</span>
@@ -243,41 +252,59 @@ export default function MatchweekSheet({
         </div>
       )}
 
-      {/* Kickoff groups */}
-      {groups.map((g) => (
-        <div key={g.key}>
-          <div className="px-4 pt-4 pb-1.5 flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: TEXT2 }}>
-              {g.label}
-            </span>
-            {g.locksFirst && (
-              <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: "#fdf3d8", color: GOLD }}
-                title="This match locks first — and it's the Matchday Challenges deadline."
-              >
-                ⚠ locks first
-              </span>
+      {/* Kickoff groups — banded by day (broadcast-style), then by kickoff time */}
+      {groups.map((g, i) => {
+        const newDay = i === 0 || groups[i - 1].dayKey !== g.dayKey;
+        return (
+          <div key={g.key}>
+            {/* Day band — every fixture now carries its real date */}
+            {newDay && (
+              <div className="px-4 pt-5 pb-1 flex items-center gap-2.5">
+                <span
+                  className="text-[13px] font-extrabold px-2.5 py-1 rounded-lg shrink-0"
+                  style={{ background: GREEN, color: "#fff", letterSpacing: "0.01em" }}
+                >
+                  {g.dayLabel}
+                </span>
+                <div className="flex-1 h-px" style={{ background: BORDER }} />
+              </div>
             )}
-          </div>
 
-          <div className="flex flex-col gap-2 px-3">
-            {g.fixtures.map((f) => (
-              <FixtureRow
-                key={f.id}
-                fixture={f}
-                pick={picks.get(f.id) ?? null}
-                open={isOpen(f)}
-                status={status.get(f.id) ?? "idle"}
-                stats={statsByFixture?.[f.id] ?? null}
-                nowMs={nowMs}
-                onOutcome={(o) => onOutcome(f, o)}
-                onStep={(side, d) => onStep(f, side, d)}
-              />
-            ))}
+            {/* Kickoff-time row for this slot */}
+            <div className="px-4 pt-2 pb-1.5 flex items-center gap-2">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: "#eef3ec", color: TEXT2 }}>
+                ⏱ {g.timeLabel}
+              </span>
+              {g.locksFirst && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                  style={{ background: "#fdf3d8", color: GOLD }}
+                  title="This match locks first — and it's the Matchday Challenges deadline."
+                >
+                  🔒 locks first
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 px-3">
+              {g.fixtures.map((f) => (
+                <FixtureRow
+                  key={f.id}
+                  fixture={f}
+                  pick={picks.get(f.id) ?? null}
+                  open={isOpen(f)}
+                  status={status.get(f.id) ?? "idle"}
+                  stats={statsByFixture?.[f.id] ?? null}
+                  nowMs={nowMs}
+                  onOutcome={(o) => onOutcome(f, o)}
+                  onStep={(side, d) => onStep(f, side, d)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Bulk helpers — user-initiated only */}
       {!progress.complete && progress.predictable > 0 && (
@@ -327,8 +354,10 @@ function FixtureRow({
   const selected = pick ? selectedOutcome({ ...fixture, myPrediction: { homeScore: pick.home, awayScore: pick.away, pointsAwarded: null } }) : null;
   const home = fixture.homeTeam?.name ?? "TBD";
   const away = fixture.awayTeam?.name ?? "TBD";
-  const homeColor = fixture.homeTeam?.code ? club(fixture.homeTeam.code)?.primary : undefined;
+  const homeClub  = fixture.homeTeam?.code ? club(fixture.homeTeam.code) : undefined;
   const awayColor = fixture.awayTeam?.code ? club(fixture.awayTeam.code)?.primary : undefined;
+  const homeColor = homeClub?.primary;
+  const venue     = homeClub?.stadium;
 
   // A thin colour edge on the selected side makes the pick feel committed.
   const edge = selected === "home" ? homeColor : selected === "away" ? awayColor : selected === "draw" ? GREEN : BORDER;
@@ -370,6 +399,9 @@ function FixtureRow({
 
       {open ? (
         <>
+          {venue && (
+            <p className="text-[10px] text-center mt-0.5" style={{ color: MUTED }}>🏟 {venue}</p>
+          )}
           {/* H / D / A — one tap, in club colours when chosen */}
           <div className="grid grid-cols-3 gap-1.5 mt-1.5">
             <OutcomeBtn label={clubShort(fixture.homeTeam?.code)} active={selected === "home"} color={homeColor} onClick={() => onOutcome("home")} />

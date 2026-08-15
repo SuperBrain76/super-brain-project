@@ -8,7 +8,7 @@ const BASE_URL    = "https://www.superbrain.social";
 // Used for ALL league shares until the dynamic ImageResponse route is confirmed
 // working end-to-end by Facebook Debugger.
 const STATIC_IMAGE = `${BASE_URL}/og/world-cup-league.jpg`;
-const STATIC_ALT   = "Join a World Cup 2026 Prediction League — SuperBrain";
+const STATIC_ALT   = "Join a WC 2026 Prediction League — SuperBrain";
 
 type Props = { params: { leagueId: string }; children: React.ReactNode };
 
@@ -18,10 +18,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!league) {
     return {
       title:       "Prediction League — SuperBrain",
-      description: "Predict every World Cup 2026 match, compete with friends and climb the leaderboard. Free to play.",
+      description: "Predict every WC 2026 match, compete with friends and climb the leaderboard. Free to play.",
       openGraph: {
         title:       "Prediction League — SuperBrain",
-        description: "Predict every World Cup 2026 match, compete with friends and climb the leaderboard. Free to play.",
+        description: "Predict every WC 2026 match, compete with friends and climb the leaderboard. Free to play.",
         images:      [{ url: STATIC_IMAGE, width: 1200, height: 630, alt: STATIC_ALT }],
       },
       twitter: {
@@ -32,10 +32,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const { name, memberCount } = league;
-  const title = `${name} – World Cup 2026 Prediction League`;
+  const title = `${name} – WC 2026 Prediction League`;
   const desc  = memberCount > 1
-    ? `Predict every World Cup 2026 match and compete with ${memberCount} others in ${name}. Free to play.`
-    : `Predict every World Cup 2026 match and compete in ${name}. Free to play.`;
+    ? `Predict every WC 2026 match and compete with ${memberCount} others in ${name}. Free to play.`
+    : `Predict every WC 2026 match and compete in ${name}. Free to play.`;
 
   return {
     title,

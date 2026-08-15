@@ -73,7 +73,7 @@ export default function PredictHub() {
   const [loadError,   setLoadError]   = useState<string | null>(null);
   // Competition Engine V2: which home screen? Resolved from the competition's
   // home_style setting. 'matchweek' → the living dashboard (Premier League);
-  // anything else → the classic hub below (World Cup, unchanged).
+  // anything else → the classic hub below (WC, unchanged).
   const [homeStyle,   setHomeStyle]   = useState<"classic" | "matchweek" | null>(null);
   const [tab,           setTab]           = useState<Tab>("all");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -263,7 +263,7 @@ export default function PredictHub() {
 
   // ── Matchweek dashboard (Premier League) ─────────────────────
   // Delegated home for competitions with home_style = 'matchweek'. The
-  // classic World Cup hub below is untouched.
+  // classic WC hub below is untouched.
   if (homeStyle === "matchweek" && competition) {
     return <PremierLeagueHome competition={competition} />;
   }
@@ -326,7 +326,7 @@ export default function PredictHub() {
                 className="text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: "#b8972a" }}
               >
-                World Cup 2026 · Predictor
+                WC 2026 · Predictor
               </span>
             </div>
 
@@ -337,7 +337,7 @@ export default function PredictHub() {
                   Predict Every Match.<br />Win The Watch.
                 </h1>
                 <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  World Cup 2026 Championship
+                  WC 2026 Championship
                 </p>
               </div>
               <a

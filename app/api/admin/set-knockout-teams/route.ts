@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const reset = req.nextUrl.searchParams.get("reset") === "true";
   const log: string[] = [];
 
-  // Knockout-only tool. Defaults to the World Cup, whose bracket this
+  // Knockout-only tool. Defaults to the WC, whose bracket this
   // route's seed map describes; accepts ?competition= for a future knockout
   // competition. A league competition has no knockout stage and this route
   // has nothing to do for one.

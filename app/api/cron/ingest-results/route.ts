@@ -88,7 +88,7 @@ async function loadIngestConfigs(db: SupabaseClient): Promise<CompetitionIngestC
     const s = (settings ?? {}) as Record<string, unknown>;
 
     // Fail CLOSED. A competition with no provider configuration is not
-    // ingested — it is never assumed to be the World Cup.
+    // ingested — it is never assumed to be the WC.
     const leagueId = typeof s.provider_league_id === "number" ? s.provider_league_id : null;
     const season   = typeof s.provider_season    === "number" ? s.provider_season    : null;
     const enabled  = s.ingest_enabled === true;

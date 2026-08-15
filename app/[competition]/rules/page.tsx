@@ -349,7 +349,7 @@ export default function RulesPage(
             <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: MUTED }}>Points per question</p>
             <div className="flex flex-col">
               {[
-                { icon: "🏆", label: "World Cup Winner",                   pts: 20 },
+                { icon: "🏆", label: "WC Winner",                   pts: 20 },
                 { icon: "👟", label: "Golden Boot Winner",                  pts: 15 },
                 { icon: "🥅", label: "Golden Glove Winner",                 pts: 15, note: "Best goalkeeper" },
                 { icon: "🥈", label: "Runner Up",                           pts: 10 },
@@ -479,7 +479,7 @@ export default function RulesPage(
             <p className="text-sm leading-relaxed mt-3" style={{ color: TEXT2 }}>
               SuperBrain Predictor is a free-to-play, points-based prediction game. The Grand Prize
               (Custom Champion Watch) is awarded to the overall global leaderboard winner at the conclusion
-              of the 2026 World Cup. See the{" "}
+              of the 2026 WC. See the{" "}
               <Link href={`/${competitionSlug}/prize`} className="hover:underline" style={{ color: GREEN }}>
                 Grand Prize page
               </Link>{" "}

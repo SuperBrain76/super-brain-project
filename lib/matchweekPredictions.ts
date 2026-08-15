@@ -168,7 +168,11 @@ function pairKey(a: string, b: string): string {
 
 export interface KickoffGroup {
   key:         string;    // ISO minute — stable sort key
-  label:       string;    // "Saturday 15:00"
+  label:       string;    // "Saturday 15:00" (legacy: day + time)
+  dayKey:      string;    // "2026-08-15" — for day banding
+  dayLabel:    string;    // "Friday 15 August" — the broadcast-style day header
+  dayShort:    string;    // "Fri 15 Aug" — compact date chip
+  timeLabel:   string;    // "20:00" — kickoff time of the slot
   kickoffMs:   number;
   fixtures:    Fixture[];
   locksFirst:  boolean;   // earliest group — carries the challenge deadline
@@ -191,10 +195,15 @@ export function groupByKickoff(
   const groups: KickoffGroup[] = [...bySlot.entries()]
     .map(([key, fs]) => {
       const kickoffMs = Number(key);
+      const time = fmt(kickoffMs, timeZone, { hour: "2-digit", minute: "2-digit", hour12: false });
       return {
         key,
-        label: formatSlot(kickoffMs, timeZone),
         kickoffMs,
+        dayKey:    fmt(kickoffMs, timeZone, { year: "numeric", month: "2-digit", day: "2-digit" }),
+        dayLabel:  fmt(kickoffMs, timeZone, { weekday: "long", day: "numeric", month: "long" }),
+        dayShort:  fmt(kickoffMs, timeZone, { weekday: "short", day: "numeric", month: "short" }),
+        timeLabel: time,
+        label:     `${fmt(kickoffMs, timeZone, { weekday: "long" })} ${time}`,
         fixtures: fs.sort((a, b) =>
           (a.homeTeam?.name ?? "").localeCompare(b.homeTeam?.name ?? "")),
         locksFirst: false,
@@ -206,15 +215,38 @@ export function groupByKickoff(
   return groups;
 }
 
-function formatSlot(ms: number, timeZone: string): string {
+function fmt(ms: number, timeZone: string, opts: Intl.DateTimeFormatOptions): string {
   try {
-    return new Intl.DateTimeFormat("en-GB", {
-      weekday: "long", hour: "2-digit", minute: "2-digit",
-      hour12: false, timeZone,
-    }).format(new Date(ms));
+    return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone }).format(new Date(ms));
   } catch {
     return new Date(ms).toUTCString();
   }
+}
+
+/**
+ * Compact date range for a whole matchweek — "15–18 Aug" (or "15 Aug" for a
+ * single-day round). Feeds the sheet + dashboard headers so a matchweek always
+ * carries its dates, never just "Matchweek 1".
+ */
+export function matchweekDateRange(fixtures: Fixture[], timeZone = "Europe/London"): string | null {
+  const times = fixtures
+    .map((f) => new Date(f.kicksOffAt).getTime())
+    .filter((n) => Number.isFinite(n));
+  if (times.length === 0) return null;
+
+  const min = Math.min(...times), max = Math.max(...times);
+  const dayNum = (ms: number) => fmt(ms, timeZone, { day: "numeric" });
+  const monthOf = (ms: number) => fmt(ms, timeZone, { month: "short" });
+  const full = (ms: number) => fmt(ms, timeZone, { day: "numeric", month: "short" });
+
+  if (fmt(min, timeZone, { year: "numeric", month: "2-digit", day: "2-digit" }) ===
+      fmt(max, timeZone, { year: "numeric", month: "2-digit", day: "2-digit" })) {
+    return full(min);
+  }
+  // Same month → "15–18 Aug"; spanning months → "30 Aug – 1 Sep".
+  return monthOf(min) === monthOf(max)
+    ? `${dayNum(min)}–${dayNum(max)} ${monthOf(max)}`
+    : `${full(min)} – ${full(max)}`;
 }
 
 // ── Progress ──────────────────────────────────────────────────

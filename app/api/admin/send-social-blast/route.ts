@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
         We're going social. 🌍
       </h2>
       <p style="font-size:14px;color:#7a8f82;font-family:sans-serif;margin:0 0 20px;">
-        Hi ${firstName}, the World Cup is in full swing — and we're building a community around it.
+        Hi ${firstName}, the WC is in full swing — and we're building a community around it.
       </p>
 
       <p style="font-size:15px;color:#1a3a2a;font-family:Georgia,serif;line-height:1.7;margin:0 0 20px;">

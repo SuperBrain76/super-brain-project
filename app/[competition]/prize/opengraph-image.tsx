@@ -9,7 +9,7 @@ import { ImageResponse } from "next/og";
 export const runtime     = "edge";
 export const size        = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt         = "Custom Champion Watch — Grand Prize, SuperBrain World Cup Prediction 2026";
+export const alt         = "Custom Champion Watch — Grand Prize, SuperBrain WC Prediction 2026";
 
 function Trophy({ size: s = 48, color = "#e8c44a" }: { size?: number; color?: string }) {
   return (

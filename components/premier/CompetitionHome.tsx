@@ -19,6 +19,7 @@ import type { Fixture, MyStats } from "@/lib/predictor";
 import type { Round, CompetitionSettings } from "@/lib/competitionEngine";
 import { deriveMatchweekView, formatCountdown, type MatchweekView } from "@/lib/matchweek";
 import { iqStanding } from "@/lib/iqLevel";
+import { matchweekDateRange } from "@/lib/matchweekPredictions";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
 import { club } from "@/lib/premierLeague/clubs";
@@ -78,9 +79,11 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
   const compName = data.competitionName ?? "Premier League";
   const pointsSoFar = data.fixtures.reduce((n, f) => n + (f.myPrediction?.pointsAwarded ?? 0), 0);
 
+  const dateRange = matchweekDateRange(data.fixtures);
+
   return (
     <div className="max-w-md mx-auto w-full px-4 py-4 flex flex-col gap-3">
-      <Header compName={compName} view={view} nowMs={nowMs} />
+      <Header compName={compName} view={view} nowMs={nowMs} dateRange={dateRange} />
 
       {/* Break state gets its own quiet layout. */}
       {view.state === "break" ? (
@@ -110,7 +113,7 @@ export default function CompetitionHome({ data, clock = Date.now }: { data: Home
 
 // ── Header — competition + matchweek + live countdown ────────
 
-function Header({ compName, view, nowMs }: { compName: string; view: MatchweekView; nowMs: number }) {
+function Header({ compName, view, nowMs, dateRange }: { compName: string; view: MatchweekView; nowMs: number; dateRange: string | null }) {
   const pill = statePill(view);
   const countdown = view.state === "open" && view.challengeLock
     ? `Starts in ${formatCountdown(view.challengeLock, nowMs)}`
@@ -127,6 +130,9 @@ function Header({ compName, view, nowMs }: { compName: string; view: MatchweekVi
         <h1 className="text-xl font-extrabold leading-tight" style={{ color: TEXT1 }}>
           {view.round?.label ?? "Matchweek"}
         </h1>
+        {dateRange && (
+          <div className="text-[11px] font-semibold mt-0.5" style={{ color: MUTED }}>📅 {dateRange}</div>
+        )}
       </div>
       <div className="text-right">
         <span className="text-[11px] font-bold px-2 py-1 rounded" style={{ background: pill.bg, color: pill.fg }}>
@@ -156,9 +162,14 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
 }) {
   const f = data.biggestMatch;
   if (!f) return null;
-  const homeC = f.homeTeam?.code ? club(f.homeTeam.code)?.primary : undefined;
+  const homeClub = f.homeTeam?.code ? club(f.homeTeam.code) : undefined;
+  const homeC = homeClub?.primary;
   const awayC = f.awayTeam?.code ? club(f.awayTeam.code)?.primary : undefined;
-  const when = new Intl.DateTimeFormat("en-GB", { weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(f.kicksOffAt));
+  const ko = new Date(f.kicksOffAt);
+  const dayPart  = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short" }).format(ko);
+  const timePart = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(ko);
+  const when = `${dayPart} · ${timePart}`;
+  const venue = homeClub?.stadium;
 
   // The CTA follows the state.
   const cta = view.state === "results"
@@ -185,6 +196,7 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
           </div>
         </div>
         <div className="text-center text-[11px] mt-1.5 font-semibold" style={{ color: TEXT2 }}>{when}</div>
+        {venue && <div className="text-center text-[10px] mt-0.5" style={{ color: MUTED }}>🏟 {venue}</div>}
       </div>
       {(data.biggestWhy || data.editorial?.headline) && (
         <div className="px-4 py-2 text-[12px] leading-snug" style={{ color: TEXT2, background: CARD }}>

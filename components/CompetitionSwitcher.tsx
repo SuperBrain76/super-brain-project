@@ -4,7 +4,7 @@
  * CompetitionSwitcher — move between simultaneously running competitions.
  *
  * Renders NOTHING when only one competition is visible. A switcher with one
- * option is noise, and today that is the World Cup's situation — so this
+ * option is noise, and today that is the WC's situation — so this
  * costs the current experience nothing and appears by itself the moment the
  * Premier League goes live.
  *

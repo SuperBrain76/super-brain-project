@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   // Competition Engine V2: fixture_number is only unique WITHIN a
   // competition, so with several competitions live this route must be told
-  // which one. Defaults to the World Cup for backwards compatibility with
+  // which one. Defaults to the WC for backwards compatibility with
   // any existing bookmark or script.
   const slug = req.nextUrl.searchParams.get("competition") ?? "wc2026";
 

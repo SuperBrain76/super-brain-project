@@ -140,7 +140,7 @@ export default function WelcomePage() {
         {s.test ? <Done /> : <LinkBtn href="/tests">Start</LinkBtn>}
       </StepCard>
 
-      <StepCard done={s.prediction} icon="⚽" title="Make a prediction" subtitle="Call a World Cup match">
+      <StepCard done={s.prediction} icon="⚽" title="Make a prediction" subtitle="Call a WC match">
         {s.prediction ? <Done /> : <LinkBtn href="/predict">Predict</LinkBtn>}
       </StepCard>
 

@@ -1,7 +1,7 @@
 /**
  * GET /api/admin/send-results-email
  *
- * One-time blast to ALL registered users: official World Cup Predictor 2026 results.
+ * One-time blast to ALL registered users: official WC Predictor 2026 results.
  * Protected by CRON_SECRET.
  *
  * Trigger:
@@ -37,7 +37,7 @@ function resultsHtml(userId: string) {
   <!-- Masthead -->
   <div style="border-bottom:1px solid rgba(196,150,42,0.4);padding-bottom:20px;margin-bottom:40px;">
     <p style="margin:0 0 8px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#c4962a;font-family:sans-serif;">SuperBrain · Official Results</p>
-    <h1 style="margin:0 0 10px;font-size:32px;color:#f4f6fb;line-height:1.1;font-weight:700;">World Cup Predictor 2026 — Final Standings</h1>
+    <h1 style="margin:0 0 10px;font-size:32px;color:#f4f6fb;line-height:1.1;font-weight:700;">WC Predictor 2026 — Final Standings</h1>
     <p style="margin:0;font-size:13px;color:#8893a8;font-family:sans-serif;line-height:1.5;">104 matches · 6 bonus questions · one Champion Watch.<br>The competition is closed. Here are the official results.</p>
   </div>
 
@@ -187,7 +187,7 @@ function resultsHtml(userId: string) {
   <!-- Closing -->
   <div style="border-top:1px solid rgba(196,150,42,0.2);padding-top:32px;margin-top:48px;">
     <p style="font-size:14px;color:#8893a8;font-family:sans-serif;line-height:1.7;margin:0 0 12px;">
-      Thank you to everyone who participated in the SuperBrain World Cup Predictor 2026.
+      Thank you to everyone who participated in the SuperBrain WC Predictor 2026.
       Over 104 matches and two months of football, you called winners, predicted upsets,
       and sweated over penalty shootouts alongside the rest of the world.
     </p>
@@ -204,7 +204,7 @@ function resultsHtml(userId: string) {
   <!-- Footer -->
   <div style="margin-top:40px;padding-top:20px;border-top:1px solid rgba(196,150,42,0.15);text-align:center;">
     <p style="font-size:11px;color:#4a5568;font-family:sans-serif;margin:0;">
-      You're receiving this because you competed in the SuperBrain World Cup Predictor.<br/>
+      You're receiving this because you competed in the SuperBrain WC Predictor.<br/>
       <a href="${unsubUrl}" style="color:#8a6a1e;text-decoration:underline;">Unsubscribe</a>
     </p>
   </div>
@@ -251,7 +251,7 @@ export async function GET(req: NextRequest) {
     const emails = chunk.map((user) => ({
       from: FROM,
       to: user.email as string,
-      subject: "SuperBrain World Cup 2026 — Official Results 🏆",
+      subject: "SuperBrain WC 2026 — Official Results 🏆",
       html: resultsHtml(user.id),
     }));
 

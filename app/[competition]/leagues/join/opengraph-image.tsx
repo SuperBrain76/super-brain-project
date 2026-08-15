@@ -8,7 +8,7 @@ import { ImageResponse } from "next/og";
 export const runtime     = "edge";
 export const size        = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt         = "Join a World Cup 2026 Prediction League — SuperBrain";
+export const alt         = "Join a WC 2026 Prediction League — SuperBrain";
 
 export default function Image() {
   return new ImageResponse(
@@ -81,7 +81,7 @@ export default function Image() {
           </span>
         </div>
 
-        {/* World Cup badge — SVG ball instead of emoji */}
+        {/* WC badge — SVG ball instead of emoji */}
         <div
           style={{
             display:      "flex",
@@ -151,7 +151,7 @@ export default function Image() {
             marginBottom:  40,
           }}
         >
-          World Cup 2026 Predictions
+          WC 2026 Predictions
         </p>
 
         {/* CTA chip */}
@@ -167,7 +167,7 @@ export default function Image() {
           }}
         >
           <span style={{ color: "#e8c44a", fontSize: 22, fontWeight: 700, letterSpacing: "0.02em" }}>
-            Predict the World Cup  |  Free to play
+            Predict the WC  |  Free to play
           </span>
         </div>
       </div>

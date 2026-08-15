@@ -16,29 +16,30 @@ export interface Club {
   nickname:  string;   // "The Gunners"
   primary:   string;   // club colour
   city:      string;
+  stadium:   string;   // home ground — the smell of real football
 }
 
 export const PREMIER_LEAGUE_CLUBS: Club[] = [
-  { code: "ARS", name: "Arsenal",            short: "Arsenal",    nickname: "The Gunners",     primary: "#EF0107", city: "London" },
-  { code: "AVL", name: "Aston Villa",        short: "Villa",      nickname: "The Villans",     primary: "#670E36", city: "Birmingham" },
-  { code: "BOU", name: "Bournemouth",        short: "Bournemouth",nickname: "The Cherries",    primary: "#DA291C", city: "Bournemouth" },
-  { code: "BRE", name: "Brentford",          short: "Brentford",  nickname: "The Bees",        primary: "#E30613", city: "London" },
-  { code: "BHA", name: "Brighton",           short: "Brighton",   nickname: "The Seagulls",    primary: "#0057B8", city: "Brighton" },
-  { code: "BUR", name: "Burnley",            short: "Burnley",    nickname: "The Clarets",     primary: "#6C1D45", city: "Burnley" },
-  { code: "CHE", name: "Chelsea",            short: "Chelsea",    nickname: "The Blues",       primary: "#034694", city: "London" },
-  { code: "CRY", name: "Crystal Palace",     short: "Palace",     nickname: "The Eagles",      primary: "#1B458F", city: "London" },
-  { code: "EVE", name: "Everton",            short: "Everton",    nickname: "The Toffees",     primary: "#003399", city: "Liverpool" },
-  { code: "FUL", name: "Fulham",             short: "Fulham",     nickname: "The Cottagers",   primary: "#1B1B1B", city: "London" },
-  { code: "LEE", name: "Leeds United",       short: "Leeds",      nickname: "The Whites",      primary: "#1D428A", city: "Leeds" },
-  { code: "LIV", name: "Liverpool",          short: "Liverpool",  nickname: "The Reds",        primary: "#C8102E", city: "Liverpool" },
-  { code: "MCI", name: "Man City",           short: "Man City",   nickname: "The Cityzens",    primary: "#6CABDD", city: "Manchester" },
-  { code: "MUN", name: "Man United",         short: "Man Utd",    nickname: "The Red Devils",  primary: "#DA020E", city: "Manchester" },
-  { code: "NEW", name: "Newcastle",          short: "Newcastle",  nickname: "The Magpies",     primary: "#241F20", city: "Newcastle" },
-  { code: "NFO", name: "Nott'm Forest",      short: "Forest",     nickname: "The Tricky Trees",primary: "#DD0000", city: "Nottingham" },
-  { code: "SUN", name: "Sunderland",         short: "Sunderland", nickname: "The Black Cats",  primary: "#EB172B", city: "Sunderland" },
-  { code: "TOT", name: "Tottenham",          short: "Spurs",      nickname: "Spurs",           primary: "#132257", city: "London" },
-  { code: "WHU", name: "West Ham",           short: "West Ham",   nickname: "The Hammers",     primary: "#7A263A", city: "London" },
-  { code: "WOL", name: "Wolves",             short: "Wolves",     nickname: "Wolves",          primary: "#FDB913", city: "Wolverhampton" },
+  { code: "ARS", name: "Arsenal",            short: "Arsenal",    nickname: "The Gunners",     primary: "#EF0107", city: "London",        stadium: "Emirates Stadium" },
+  { code: "AVL", name: "Aston Villa",        short: "Villa",      nickname: "The Villans",     primary: "#670E36", city: "Birmingham",    stadium: "Villa Park" },
+  { code: "BOU", name: "Bournemouth",        short: "Bournemouth",nickname: "The Cherries",    primary: "#DA291C", city: "Bournemouth",   stadium: "Vitality Stadium" },
+  { code: "BRE", name: "Brentford",          short: "Brentford",  nickname: "The Bees",        primary: "#E30613", city: "London",        stadium: "Gtech Community Stadium" },
+  { code: "BHA", name: "Brighton",           short: "Brighton",   nickname: "The Seagulls",    primary: "#0057B8", city: "Brighton",      stadium: "Amex Stadium" },
+  { code: "BUR", name: "Burnley",            short: "Burnley",    nickname: "The Clarets",     primary: "#6C1D45", city: "Burnley",       stadium: "Turf Moor" },
+  { code: "CHE", name: "Chelsea",            short: "Chelsea",    nickname: "The Blues",       primary: "#034694", city: "London",        stadium: "Stamford Bridge" },
+  { code: "CRY", name: "Crystal Palace",     short: "Palace",     nickname: "The Eagles",      primary: "#1B458F", city: "London",        stadium: "Selhurst Park" },
+  { code: "EVE", name: "Everton",            short: "Everton",    nickname: "The Toffees",     primary: "#003399", city: "Liverpool",     stadium: "Hill Dickinson Stadium" },
+  { code: "FUL", name: "Fulham",             short: "Fulham",     nickname: "The Cottagers",   primary: "#1B1B1B", city: "London",        stadium: "Craven Cottage" },
+  { code: "LEE", name: "Leeds United",       short: "Leeds",      nickname: "The Whites",      primary: "#1D428A", city: "Leeds",         stadium: "Elland Road" },
+  { code: "LIV", name: "Liverpool",          short: "Liverpool",  nickname: "The Reds",        primary: "#C8102E", city: "Liverpool",     stadium: "Anfield" },
+  { code: "MCI", name: "Man City",           short: "Man City",   nickname: "The Cityzens",    primary: "#6CABDD", city: "Manchester",    stadium: "Etihad Stadium" },
+  { code: "MUN", name: "Man United",         short: "Man Utd",    nickname: "The Red Devils",  primary: "#DA020E", city: "Manchester",    stadium: "Old Trafford" },
+  { code: "NEW", name: "Newcastle",          short: "Newcastle",  nickname: "The Magpies",     primary: "#241F20", city: "Newcastle",     stadium: "St James' Park" },
+  { code: "NFO", name: "Nott'm Forest",      short: "Forest",     nickname: "The Tricky Trees",primary: "#DD0000", city: "Nottingham",    stadium: "The City Ground" },
+  { code: "SUN", name: "Sunderland",         short: "Sunderland", nickname: "The Black Cats",  primary: "#EB172B", city: "Sunderland",    stadium: "Stadium of Light" },
+  { code: "TOT", name: "Tottenham",          short: "Spurs",      nickname: "Spurs",           primary: "#132257", city: "London",        stadium: "Tottenham Hotspur Stadium" },
+  { code: "WHU", name: "West Ham",           short: "West Ham",   nickname: "The Hammers",     primary: "#7A263A", city: "London",        stadium: "London Stadium" },
+  { code: "WOL", name: "Wolves",             short: "Wolves",     nickname: "Wolves",          primary: "#FDB913", city: "Wolverhampton", stadium: "Molineux" },
 ];
 
 const BY_CODE = new Map(PREMIER_LEAGUE_CLUBS.map((c) => [c.code, c]));

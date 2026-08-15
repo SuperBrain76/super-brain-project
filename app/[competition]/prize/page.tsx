@@ -27,7 +27,7 @@ const HOW_TO_WIN = [
   {
     step: "02",
     title: "Predict Every Match",
-    body: "Submit your score predictions for all 104 World Cup matches before each kickoff.",
+    body: "Submit your score predictions for all 104 WC matches before each kickoff.",
   },
   {
     step: "03",
@@ -103,7 +103,7 @@ export default function PrizePage() {
                   Custom Champion Watch
                 </h1>
                 <p className="text-sm mt-2 leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
-                  Awarded to the overall winner of the SuperBrain World Cup Prediction 2026
+                  Awarded to the overall winner of the SuperBrain WC Prediction 2026
                 </p>
               </div>
 
@@ -209,7 +209,7 @@ export default function PrizePage() {
             </p>
             <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
               This is not just a trophy — it&apos;s a permanent record. Your name and the title{" "}
-              <span className="font-semibold">&ldquo;SuperBrain World Cup Champion 2026&rdquo;</span>{" "}
+              <span className="font-semibold">&ldquo;SuperBrain WC Champion 2026&rdquo;</span>{" "}
               will be engraved on the case back, making this a genuinely one-of-a-kind timepiece.
             </p>
           </div>

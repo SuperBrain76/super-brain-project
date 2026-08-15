@@ -11,8 +11,8 @@ import type { ReactNode } from "react";
  */
 
 const BASE_URL  = "https://www.superbrain.social";
-const TITLE     = "Join My World Cup 2026 Prediction League — SuperBrain";
-const DESC      = "I've created a private World Cup 2026 prediction league on SuperBrain. Join free, predict every match and compete with friends. The overall winner gets the Custom Champion Watch.";
+const TITLE     = "Join My WC 2026 Prediction League — SuperBrain";
+const DESC      = "I've created a private WC 2026 prediction league on SuperBrain. Join free, predict every match and compete with friends. The overall winner gets the Custom Champion Watch.";
 const PAGE_URL  = `${BASE_URL}/predict/leagues/join`;
 const OG_IMAGE  = `${BASE_URL}/predict/leagues/join/opengraph-image`;
 
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
         url:    OG_IMAGE,
         width:  1200,
         height: 630,
-        alt:    "Join a World Cup 2026 Prediction League — SuperBrain",
+        alt:    "Join a WC 2026 Prediction League — SuperBrain",
       },
     ],
   },

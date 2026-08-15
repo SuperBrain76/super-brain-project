@@ -31,7 +31,7 @@ const BG     = "#f0f3ef";
 const SITE = "https://www.superbrain.social";
 function inviteUrl(code: string) { return `${SITE}/predict/leagues/join?code=${code}`; }
 function whatsappUrl(league: PredictionLeague) {
-  const msg = `Join my "${league.name}" World Cup Predictor league on SuperBrain!\n\nUse code: ${league.inviteCode}\nOr join here: ${inviteUrl(league.inviteCode)}`;
+  const msg = `Join my "${league.name}" WC Predictor league on SuperBrain!\n\nUse code: ${league.inviteCode}\nOr join here: ${inviteUrl(league.inviteCode)}`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 

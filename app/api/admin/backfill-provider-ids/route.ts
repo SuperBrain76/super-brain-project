@@ -23,7 +23,7 @@
  *      — with a human reading the output — rather than every 5 minutes
  *      against live results.
  *
- * For the World Cup the >=3h spacing that made the old ingest code safe
+ * For the WC the >=3h spacing that made the old ingest code safe
  * also makes this backfill safe. For the Premier League, both-team matching
  * is what disambiguates ten simultaneous kickoffs.
  *

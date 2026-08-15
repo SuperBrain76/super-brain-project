@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 const BASE_URL  = "https://www.superbrain.social";
-const TITLE     = "Global Rankings — SuperBrain World Cup 2026 Predictor";
-const DESC      = "See who's leading the SuperBrain World Cup 2026 Prediction leaderboard. The overall champion wins the Custom Champion Watch. Free to play — start predicting now.";
+const TITLE     = "Global Rankings — SuperBrain WC 2026 Predictor";
+const DESC      = "See who's leading the SuperBrain WC 2026 Prediction leaderboard. The overall champion wins the Custom Champion Watch. Free to play — start predicting now.";
 const PAGE_URL  = `${BASE_URL}/predict/leaderboard`;
 const OG_IMAGE  = `${BASE_URL}/predict/opengraph-image`;   // reuse main predictor OG
 
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
         url:    OG_IMAGE,
         width:  1200,
         height: 630,
-        alt:    "SuperBrain World Cup 2026 Predictor — Global Rankings",
+        alt:    "SuperBrain WC 2026 Predictor — Global Rankings",
       },
     ],
   },

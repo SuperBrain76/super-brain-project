@@ -56,7 +56,7 @@ function TeamDisplay({
             </span>
             {team?.fifaRanking && (
               <span className="text-[9px] font-semibold" style={{ color: MUTED }}>
-                FIFA #{team.fifaRanking}
+                Ranked #{team.fifaRanking}
               </span>
             )}
             {/* suppress seed pill once team is known */}

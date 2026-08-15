@@ -101,7 +101,7 @@ export default function GettingStarted({ userId, predictions, bonusAnswered, bon
     {
       n:    2,
       href: "#fixture-list",
-      label: "Predict World Cup Matches",
+      label: "Predict WC Matches",
       done: step2,
     },
     {

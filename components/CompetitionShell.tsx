@@ -155,7 +155,7 @@ export default function CompetitionShell({
       <div className="predict-shell flex-1 flex flex-col min-h-full">
         <EmailVerificationBanner />
         {/* Renders nothing while only one competition is visible, so today's
-            World Cup experience is unchanged. */}
+            WC experience is unchanged. */}
         <div className="flex justify-end px-4 pt-3">
           <CompetitionSwitcher />
         </div>

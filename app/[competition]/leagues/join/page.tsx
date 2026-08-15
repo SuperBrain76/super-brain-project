@@ -8,9 +8,9 @@ import JoinContent from "./_join-content";
 const BASE_URL     = "https://www.superbrain.social";
 // Static image served from /public/og/ — no edge rendering, guaranteed delivery.
 const STATIC_IMAGE = `${BASE_URL}/og/world-cup-league.jpg`;
-const STATIC_ALT   = "Join a World Cup 2026 Prediction League — SuperBrain";
+const STATIC_ALT   = "Join a WC 2026 Prediction League — SuperBrain";
 const FALLBACK_TITLE = "Join a Prediction League — SuperBrain";
-const FALLBACK_DESC  = "Predict every World Cup 2026 match, compete with friends and climb the leaderboard. Free to play.";
+const FALLBACK_DESC  = "Predict every WC 2026 match, compete with friends and climb the leaderboard. Free to play.";
 
 type Props = { searchParams: { code?: string } };
 
@@ -41,10 +41,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   // ── Dynamic: league resolved ───────────────────────────────
   const { name, memberCount } = league;
-  const title = `Join ${name} – World Cup 2026 Prediction League`;
+  const title = `Join ${name} – WC 2026 Prediction League`;
   const desc  = memberCount > 1
-    ? `Predict every World Cup 2026 match and compete with ${memberCount} others in ${name}. Free to play.`
-    : `Predict every World Cup 2026 match and compete in ${name}. Free to play.`;
+    ? `Predict every WC 2026 match and compete with ${memberCount} others in ${name}. Free to play.`
+    : `Predict every WC 2026 match and compete in ${name}. Free to play.`;
 
   return {
     title,

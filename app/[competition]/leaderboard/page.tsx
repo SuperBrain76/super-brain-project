@@ -121,7 +121,7 @@ export default function PredictorLeaderboardPage() {
         <div>
           <h1 className="text-xl font-extrabold" style={{ color: TEXT1 }}>Global Rankings</h1>
           <p className="text-sm mt-1" style={{ color: TEXT2 }}>
-            {competition?.name ?? "World Cup 2026"} · {rows.length} {rows.length === 1 ? "predictor" : "predictors"}
+            {competition?.name ?? "WC 2026"} · {rows.length} {rows.length === 1 ? "predictor" : "predictors"}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GREEN }} />
@@ -187,7 +187,7 @@ export default function PredictorLeaderboardPage() {
         {/* Tab toggle */}
         <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: BG }}>
           {[
-            { key: "overall" as const, label: "🏆 World Cup Champion" },
+            { key: "overall" as const, label: "🏆 WC Champion" },
             { key: "match"   as const, label: "⚽ Match Champion" },
           ].map(({ key, label }) => (
             <button
@@ -208,7 +208,7 @@ export default function PredictorLeaderboardPage() {
         {/* Tab description */}
         <p className="text-xs px-1" style={{ color: MUTED }}>
           {tab === "overall"
-            ? "Total points including bonus questions — overall World Cup champion."
+            ? "Total points including bonus questions — overall WC champion."
             : "Match predictions only — fair for anyone who joined after the tournament started."}
         </p>
 
