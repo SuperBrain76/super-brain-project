@@ -21,6 +21,7 @@ import { deriveMatchweekView, formatCountdown, type MatchweekView } from "@/lib/
 import { iqStanding } from "@/lib/iqLevel";
 import { matchweekDateRange } from "@/lib/matchweekPredictions";
 import { type LeagueRow, tableHasResults } from "@/lib/leagueTable";
+import { localTime, localDate, localZoneLabel } from "@/lib/localTime";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
 import { club, textOn } from "@/lib/premierLeague/clubs";
@@ -185,12 +186,10 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
   const homeC = homeClub?.primary;
   const awayC = f.awayTeam?.code ? club(f.awayTeam.code)?.primary : undefined;
   const ko = new Date(f.kicksOffAt);
-  // Always show kickoff in UK time (the competition's home timezone), not the
-  // viewer's — a match kicks off at 20:00 in Britain whether you watch from
-  // London or Dubai.
-  const dayPart  = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Europe/London" }).format(ko);
-  const timePart = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(ko);
-  const when = `${dayPart} · ${timePart} UK`;
+  // Show kickoff in the viewer's own timezone (auto-converted from UK), labelled
+  // so it's unambiguous wherever they are.
+  const dayPart = localDate(f.kicksOffAt, { weekday: "long", day: "numeric", month: "short" });
+  const when = `${dayPart} · ${localTime(f.kicksOffAt)} ${localZoneLabel(ko)}`;
   const venue = homeClub?.stadium;
 
   // The CTA follows the state.
@@ -285,7 +284,7 @@ function ThisWeekMatches({ data, base }: { data: HomeData; base: string }) {
 
 function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolean }) {
   const pick = f.myPrediction;
-  const ko = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date(f.kicksOffAt));
+  const ko = `${localDate(f.kicksOffAt, { weekday: "short" })} ${localTime(f.kicksOffAt)}`;
   return (
     <Link href={`${base}/predict`} className="flex items-center gap-2 px-3.5 py-2 hover:bg-[#f6f9f5]"
       style={{ borderBottom: last ? "none" : `1px solid ${BORDER}` }}>

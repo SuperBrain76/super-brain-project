@@ -33,6 +33,7 @@ import { track } from "@/lib/analytics";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
 import CompletionCelebration from "@/components/premier/CompletionCelebration";
 import { club, textOn } from "@/lib/premierLeague/clubs";
+import { localZoneLabel } from "@/lib/localTime";
 
 /** Aggregated community prediction split for one fixture (from the crowd). */
 export interface FixtureStats {
@@ -254,6 +255,9 @@ export default function MatchweekSheet({
             {playerCount != null && playerCount > 0 && (
               <span> · <strong style={{ color: TEXT2 }}>{playerCount.toLocaleString()}</strong> playing</span>
             )}
+          </div>
+          <div className="text-[10px] mt-0.5" style={{ color: MUTED }}>
+            🕒 Kickoff times in your local time{localZoneLabel() ? ` (${localZoneLabel()})` : ""}
           </div>
         </div>
         <ProgressRing done={progress.predicted} total={progress.total} complete={progress.complete} />
@@ -541,7 +545,7 @@ function KickoffChip({ iso, nowMs, open }: { iso: string; nowMs: number; open: b
   const ms = ko - nowMs;
   let label: string;
   if (!open || ms <= 0) {
-    label = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date(iso));
+    label = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
   } else {
     const h = Math.floor(ms / 3600000), d = Math.floor(h / 24);
     label = d >= 1 ? `${d}d` : h >= 1 ? `${h}h` : `${Math.max(1, Math.floor(ms / 60000))}m`;

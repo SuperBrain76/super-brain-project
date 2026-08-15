@@ -153,7 +153,7 @@ function MatchweekRow({ f }: { f: Fixture }) {
   const pts  = pred?.pointsAwarded ?? null;
 
   const ptsColor = pts === 5 ? OK : pts === 3 ? GREEN : pts === 2 ? GOLD : pts === 0 ? LIVE : MUTED;
-  const ko = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date(f.kicksOffAt));
+  const ko = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(f.kicksOffAt));
 
   return (
     <div className="rounded-xl p-3" style={{ background: CARD, border: `1px solid ${BORDER}` }}>

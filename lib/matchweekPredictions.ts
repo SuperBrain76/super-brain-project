@@ -180,7 +180,9 @@ export interface KickoffGroup {
 
 export function groupByKickoff(
   fixtures: Fixture[],
-  timeZone = "Europe/London",
+  // Undefined → the viewer's local timezone (Intl default). Kickoff times and
+  // day bands read in the fan's own time, wherever they are.
+  timeZone?: string,
 ): KickoffGroup[] {
   const bySlot = new Map<string, Fixture[]>();
 
@@ -215,7 +217,7 @@ export function groupByKickoff(
   return groups;
 }
 
-function fmt(ms: number, timeZone: string, opts: Intl.DateTimeFormatOptions): string {
+function fmt(ms: number, timeZone: string | undefined, opts: Intl.DateTimeFormatOptions): string {
   try {
     return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone }).format(new Date(ms));
   } catch {
@@ -228,7 +230,7 @@ function fmt(ms: number, timeZone: string, opts: Intl.DateTimeFormatOptions): st
  * single-day round). Feeds the sheet + dashboard headers so a matchweek always
  * carries its dates, never just "Matchweek 1".
  */
-export function matchweekDateRange(fixtures: Fixture[], timeZone = "Europe/London"): string | null {
+export function matchweekDateRange(fixtures: Fixture[], timeZone?: string): string | null {
   const times = fixtures
     .map((f) => new Date(f.kicksOffAt).getTime())
     .filter((n) => Number.isFinite(n));
