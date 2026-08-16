@@ -1,0 +1,19 @@
+name: Refresh Player Stats
+
+# Pulls top scorers/assists from football-data.org into the stats cache once a
+# day. Cheap (one call per league). No-ops safely until FOOTBALL_DATA_TOKEN is set.
+
+on:
+  schedule:
+    - cron: "30 6 * * *" # 06:30 UTC daily
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger player-stats refresh
+        run: |
+          curl -fsSL --max-time 120 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/refresh-player-stats"
