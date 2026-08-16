@@ -15,7 +15,7 @@ export function unsubscribeFooter(userId: string) {
   return `
     <div style="margin-top:32px;padding-top:20px;border-top:1px solid #dde5d8;text-align:center;font-family:sans-serif;">
       <p style="font-size:11px;color:#7a8f82;margin:0;">
-        You're receiving this because you signed up for SuperBrain World Cup Predictor.<br/>
+        You're receiving this because you signed up for SuperBrain.<br/>
         <a href="${url}" style="color:#b8972a;text-decoration:underline;">Unsubscribe</a> — one click, no questions asked.
       </p>
     </div>
@@ -34,7 +34,7 @@ export function emailWrapper(content: string, userId: string) {
         <!-- Header -->
         <div style="background:#1a3a2a;border-radius:12px 12px 0 0;padding:20px 24px;text-align:center;">
           <p style="margin:0;font-size:11px;letter-spacing:3px;color:#b8972a;font-family:sans-serif;text-transform:uppercase;">SuperBrain</p>
-          <p style="margin:4px 0 0;font-size:11px;color:#7a8f82;font-family:sans-serif;">World Cup Predictor 2026</p>
+          <p style="margin:4px 0 0;font-size:11px;color:#7a8f82;font-family:sans-serif;">Predict football &amp; hockey — free</p>
         </div>
 
         <!-- Body -->
