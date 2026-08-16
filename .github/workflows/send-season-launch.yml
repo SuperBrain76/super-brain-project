@@ -1,0 +1,66 @@
+name: Send Season Launch Email
+
+# Manual, one-click send of the 2026/27 season-launch invitation.
+# Uses the CRON_SECRET + APP_URL already stored as GitHub repo secrets, so no
+# one needs to reveal the secret. Run from the Actions tab → "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to send"
+        required: true
+        default: "dry_run"
+        type: choice
+        options:
+          - "dry_run"    # count recipients only — sends nothing
+          - "test"       # send only to the test_email below
+          - "everyone"   # FULL BLAST to all registered users
+      test_email:
+        description: "Test recipient (used only when mode = test)"
+        required: false
+        default: "dylan@vidaevergreen.ae"
+
+jobs:
+  send:
+    name: Send season-launch email
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fire endpoint
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          case "$MODE" in
+            dry_run)  QS="?dry_run=true" ;;
+            test)     QS="?test=${{ github.event.inputs.test_email }}" ;;
+            everyone) QS="" ;;
+            *) echo "::error::unknown mode '$MODE'"; exit 1 ;;
+          esac
+
+          echo "Mode: $MODE"
+          HTTP_STATUS=$(curl \
+            --silent \
+            --output /tmp/response.json \
+            --write-out "%{http_code}" \
+            --max-time 90 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/admin/send-season-launch${QS}")
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response:"
+          cat /tmp/response.json | jq . 2>/dev/null || cat /tmp/response.json
+
+          if [[ "$HTTP_STATUS" -lt 200 || "$HTTP_STATUS" -ge 300 ]]; then
+            echo "::error::Endpoint returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+          SENT=$(cat /tmp/response.json | jq -r '.sent // "n/a"' 2>/dev/null)
+          WOULD_SEND=$(cat /tmp/response.json | jq -r '.wouldSendTo // "n/a"' 2>/dev/null)
+          if [ "$MODE" = "dry_run" ]; then
+            echo "::notice::DRY RUN — would send to $WOULD_SEND users"
+          elif [ "$MODE" = "test" ]; then
+            echo "::notice::Test sent to ${{ github.event.inputs.test_email }}"
+          else
+            echo "::notice::Sent to $SENT users"
+          fi
