@@ -139,7 +139,7 @@ function LeaderCard({ title, rows, suffix, showSub }: { title: string; rows: Sta
             <span className="text-xs font-semibold flex-1 min-w-0 truncate" style={{ color: TEXT1 }}>
               {r.name}{showSub && r.sub ? <span className="ml-1 text-[10px]" style={{ color: MUTED }}>{r.sub}</span> : null}
             </span>
-            <span className="text-xs font-bold" style={{ color: GOLD }}>{r.value}{suffix}</span>
+            <span className="text-xs font-bold" style={{ color: GOLD }}>{r.value}{r.value === 1 && (suffix === " goals" || suffix === " pts") ? suffix.replace(/s$/, "") : suffix}</span>
           </div>
         ))}
       </div>

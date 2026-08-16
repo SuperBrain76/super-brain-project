@@ -94,7 +94,7 @@ export function computeTeamStats(fixtures: Fixture[]): TeamStats {
     total: (f.homeScore as number) + (f.awayScore as number),
     margin: Math.abs((f.homeScore as number) - (f.awayScore as number)),
   });
-  const biggestWins = [...played].map(toMatch).sort((a, b) => b.margin - a.margin || b.total - a.total).slice(0, 5);
+  const biggestWins = [...played].map(toMatch).filter((m) => m.margin > 0).sort((a, b) => b.margin - a.margin || b.total - a.total).slice(0, 5);
   const highestScoring = [...played].map(toMatch).sort((a, b) => b.total - a.total || b.margin - a.margin).slice(0, 5);
 
   return { played: played.length, topScoring, bestDefense, cleanSheets, bestForm, biggestWins, highestScoring };
