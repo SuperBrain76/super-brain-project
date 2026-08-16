@@ -55,6 +55,10 @@ export default function StandingsPage() {
         <div className="max-w-3xl mx-auto">
           <Link href={`/${competitionSlug}`} className="text-sm font-medium" style={{ color: MUTED }}>← Predictor</Link>
           <h1 className="text-xl font-bold mt-1" style={{ color: GREEN }}>Standings</h1>
+          <div className="flex gap-2 mt-3">
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ color: "#fff", background: GREEN }}>League table</span>
+            <Link href={`/${competitionSlug}/stats`} className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ color: MUTED, background: "#eef2ec" }}>Stats</Link>
+          </div>
         </div>
       </div>
 

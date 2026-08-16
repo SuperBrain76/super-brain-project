@@ -556,6 +556,7 @@ function BreakBlock({ data, base, nowMs }: { data: HomeData; base: string; nowMs
       </p>
       <div className="flex gap-2 mt-4 justify-center">
         <Link href={`${base}/standings`}><SecondaryBtn>League table</SecondaryBtn></Link>
+        <Link href={`${base}/stats`}><SecondaryBtn>Stats</SecondaryBtn></Link>
         <Link href={`${base}/leaderboard`}><PrimaryBtn>Your ranking</PrimaryBtn></Link>
       </div>
     </div>
