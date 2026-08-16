@@ -63,6 +63,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Season-launch gate — no standings emails before the season is live (no games
+  // played yet = nothing to report). Flip SEASON_EMAILS_ENABLED=true on launch.
+  if (process.env.SEASON_EMAILS_ENABLED !== "true") {
+    return NextResponse.json({ skipped: true, reason: "pre-launch: season emails disabled" });
+  }
+
   const db = adminDb();
 
   // "Match day" window: 06:00 UTC yesterday → 06:00 UTC today

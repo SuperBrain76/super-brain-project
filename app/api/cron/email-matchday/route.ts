@@ -49,6 +49,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Season-launch gate. No "matches today" emails go out until the season is
+  // officially live — seeded fixtures have real dates, so without this the cron
+  // would email users about matches before we've announced the season. Flip
+  // SEASON_EMAILS_ENABLED=true in the environment on launch day to resume.
+  if (process.env.SEASON_EMAILS_ENABLED !== "true") {
+    return NextResponse.json({ skipped: true, reason: "pre-launch: season emails disabled" });
+  }
+
   const db = adminDb();
 
   // "Match day" window: 06:00 UTC today → 06:00 UTC tomorrow
