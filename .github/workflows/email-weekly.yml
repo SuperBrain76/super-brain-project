@@ -1,0 +1,20 @@
+name: Email — Weekly (ramp / matchweek / results)
+
+# The per-league weekly email engine. Runs daily; the route decides per league
+# whether to send a pre-launch ramp nudge, a matchweek fixtures email, or a
+# results + leaderboard wrap. Stays silent until SEASON_EMAILS_ENABLED=true.
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # 08:00 UTC daily (noon Dubai)
+  workflow_dispatch: {}
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger weekly email engine
+        run: |
+          curl -fsSL --max-time 120 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/email-weekly"
