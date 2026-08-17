@@ -35,6 +35,7 @@ export default function MatchweekPredictPage() {
   const [stats,       setStats]       = useState<Record<string, FixtureStats>>({});
   const [playerCount, setPlayerCount] = useState<number | undefined>(undefined);
   const [hasDraw,     setHasDraw]     = useState(true);
+  const [nav, setNav] = useState<{ nextHref?: string; nextLabel?: string; prevHref?: string; prevLabel?: string }>({});
 
   useEffect(() => {
     let alive = true;
@@ -77,12 +78,21 @@ export default function MatchweekPredictPage() {
         if (typeof c.data === "number") setPlayerCount(c.data);
       }).catch(() => { /* community layer is non-critical */ });
 
-      // Previous round for "copy last week's scores".
+      // Previous round for "copy last week's scores", plus next/prev links so
+      // you can keep predicting from the bottom of the sheet.
       if (ctx.season) {
         const rounds = await getRounds(ctx.season.id);
         const idx = rounds.findIndex((r) => r.id === ctx.round!.id);
-        if (idx > 0) {
-          const { fixtures: prev } = await getFixturesByRound(rounds[idx - 1].id);
+        const prevR = idx > 0 ? rounds[idx - 1] : null;
+        const nextR = idx >= 0 && idx + 1 < rounds.length ? rounds[idx + 1] : null;
+        if (alive) setNav({
+          nextHref:  nextR ? `${base}/matchweek/${nextR.code}` : undefined,
+          nextLabel: nextR?.shortLabel ?? nextR?.label,
+          prevHref:  prevR ? `${base}/matchweek/${prevR.code}` : undefined,
+          prevLabel: prevR?.shortLabel ?? prevR?.label,
+        });
+        if (prevR) {
+          const { fixtures: prev } = await getFixturesByRound(prevR.id);
           if (alive) setPrevious(prev);
         }
       }
@@ -124,6 +134,10 @@ export default function MatchweekPredictPage() {
         hasDraw={hasDraw}
         statsByFixture={stats}
         playerCount={playerCount}
+        nextHref={nav.nextHref}
+        nextLabel={nav.nextLabel}
+        prevHref={nav.prevHref}
+        prevLabel={nav.prevLabel}
         onChanged={() => { /* optimistic; a background reload could go here */ }}
       />
     </div>

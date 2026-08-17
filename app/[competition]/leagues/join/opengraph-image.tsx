@@ -8,9 +8,30 @@ import { ImageResponse } from "next/og";
 export const runtime     = "edge";
 export const size        = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt         = "Join a WC 2026 Prediction League — SuperBrain";
+export const alt         = "Join a prediction league on SuperBrain";
 
-export default function Image() {
+/**
+ * Slug to display label. A static map rather than a database lookup because
+ * this renders on the edge runtime. Unknown slugs fall back to title case, so
+ * a newly seeded competition still produces a sane card.
+ */
+const COMPETITION_LABELS: Record<string, string> = {
+  "premier-league": "Premier League",
+  "la-liga":        "LaLiga",
+  "bundesliga":     "Bundesliga",
+  "serie-a":        "Serie A",
+  "ligue-1":        "Ligue 1",
+  "shl":            "SHL",
+};
+
+function labelFor(slug?: string): string {
+  if (!slug) return "Predictions";
+  if (COMPETITION_LABELS[slug]) return COMPETITION_LABELS[slug];
+  return slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+export default function Image({ params }: { params: { competition?: string } }) {
+  const label = labelFor(params?.competition);
   return new ImageResponse(
     <div
       style={{
@@ -32,7 +53,11 @@ export default function Image() {
         style={{
           position:   "absolute",
           inset:      0,
-          background: "repeating-linear-gradient(135deg, transparent, transparent 40px, #ffffff03 40px, #ffffff03 41px)",
+          // Satori (next/og) cannot parse repeating-linear-gradient and throws
+          // "Failed to parse declaration", which failed the whole image and left
+          // invite links with no preview at all. A plain linear-gradient gives
+          // the same barely-visible sheen and renders.
+          background: "linear-gradient(135deg, #ffffff08, transparent 45%, #ffffff05)",
           display:    "flex",
         }}
       />
@@ -81,28 +106,20 @@ export default function Image() {
           </span>
         </div>
 
-        {/* WC badge — SVG ball instead of emoji */}
+        {/* Competition badge. Text only — no sport icon, because the same card
+            serves football and ice hockey. */}
         <div
           style={{
             display:      "flex",
             alignItems:   "center",
-            gap:          10,
             background:   "#b8972a15",
             border:       "1px solid #b8972a50",
             borderRadius: 6,
             padding:      "10px 20px",
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="9" stroke="#b8972a" strokeWidth="1.5" fill="none"/>
-            <polygon points="10,3 12.5,6.5 10,8.5 7.5,6.5" fill="#b8972a" opacity="0.8"/>
-            <polygon points="15.5,7 17,10.5 14,11.5 12.5,8.5" fill="#b8972a" opacity="0.8"/>
-            <polygon points="14,14.5 11,16 10,13 12.5,11.5" fill="#b8972a" opacity="0.8"/>
-            <polygon points="8,13 7,16 4,14.5 5.5,11.5" fill="#b8972a" opacity="0.8"/>
-            <polygon points="3,10.5 4.5,7 7.5,8.5 6,11.5" fill="#b8972a" opacity="0.8"/>
-          </svg>
           <span style={{ color: "#b8972a", fontSize: 14, fontWeight: 700, letterSpacing: "0.14em" }}>
-            WORLD CUP 2026
+            {label.toUpperCase()}
           </span>
         </div>
       </div>
@@ -151,7 +168,7 @@ export default function Image() {
             marginBottom:  40,
           }}
         >
-          WC 2026 Predictions
+          {label} Predictions
         </p>
 
         {/* CTA chip */}
@@ -167,7 +184,7 @@ export default function Image() {
           }}
         >
           <span style={{ color: "#e8c44a", fontSize: 22, fontWeight: 700, letterSpacing: "0.02em" }}>
-            Predict the WC  |  Free to play
+            Beat your mates  |  Free to play
           </span>
         </div>
       </div>

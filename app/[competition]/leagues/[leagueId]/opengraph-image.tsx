@@ -36,7 +36,9 @@ export default async function Image({ params }: { params: { leagueId: string } }
         style={{
           position:   "absolute",
           inset:      0,
-          background: "repeating-linear-gradient(135deg, transparent, transparent 40px, #ffffff03 40px, #ffffff03 41px)",
+          // Satori cannot parse repeating-linear-gradient; see the note in
+          // ../join/opengraph-image.tsx.
+          background: "linear-gradient(135deg, #ffffff08, transparent 45%, #ffffff05)",
           display:    "flex",
         }}
       />

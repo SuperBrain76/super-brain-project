@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { Fixture } from "@/lib/predictor";
 import { upsertPrediction, setBanker } from "@/lib/predictor";
 import {
@@ -80,6 +81,10 @@ export default function MatchweekSheet({
   onViewLeaderboard,
   onShare,
   onSetBanker = setBanker,
+  nextHref,
+  nextLabel,
+  prevHref,
+  prevLabel,
 }: {
   fixtures:          Fixture[];
   previousFixtures?: Fixture[];
@@ -102,6 +107,12 @@ export default function MatchweekSheet({
   onViewLeaderboard?: () => void;
   /** "Challenge a friend" share action. Hidden if absent. */
   onShare?:          () => void;
+  /** Bottom matchweek navigation — jump to the next/previous week right where
+   *  you finish predicting, so you never scroll back up to the rail. */
+  nextHref?:         string;
+  nextLabel?:        string;
+  prevHref?:         string;
+  prevLabel?:        string;
 }) {
   // Local mirror of predictions so the UI is optimistic. Keyed by fixture id.
   const [picks, setPicks] = useState<Map<string, ScorePick>>(() => {
@@ -361,6 +372,27 @@ export default function MatchweekSheet({
           <p className="text-xs mt-1" style={{ color: MUTED }}>
             You can change any of them until each match kicks off.
           </p>
+        </div>
+      )}
+
+      {/* Keep-going nav — jump straight to the next matchweek from the bottom,
+          no scrolling back up to the rail. */}
+      {(prevHref || nextHref) && (
+        <div className="px-4 mt-6 flex items-center gap-2">
+          {prevHref ? (
+            <Link href={prevHref}
+                  className="text-xs font-semibold px-3 py-3 rounded-lg shrink-0"
+                  style={{ color: MUTED, background: "#f4f7f2", border: `1px solid ${BORDER}` }}>
+              ← {prevLabel ?? "Previous"}
+            </Link>
+          ) : <span />}
+          {nextHref && (
+            <Link href={nextHref}
+                  className="flex-1 text-center text-sm font-bold px-3 py-3 rounded-lg active:scale-[0.98] transition-transform"
+                  style={{ color: "#fff", background: GREEN }}>
+              {nextLabel ? `Next: ${nextLabel} ` : "Next matchweek "}→
+            </Link>
+          )}
         </div>
       )}
     </div>

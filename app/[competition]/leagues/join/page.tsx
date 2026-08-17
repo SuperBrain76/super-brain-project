@@ -4,19 +4,53 @@ import { fetchLeagueOGByCode } from "@/lib/og";
 import JoinContent from "./_join-content";
 
 // www. is the canonical domain — superbrain.social 307-redirects to www.
-// Crawlers (Facebook/LinkedIn/WhatsApp) do not follow 307s for og:image URLs.
-const BASE_URL     = "https://www.superbrain.social";
-// Static image served from /public/og/ — no edge rendering, guaranteed delivery.
-const STATIC_IMAGE = `${BASE_URL}/og/world-cup-league.jpg`;
-const STATIC_ALT   = "Join a WC 2026 Prediction League — SuperBrain";
-const FALLBACK_TITLE = "Join a Prediction League — SuperBrain";
-const FALLBACK_DESC  = "Predict every WC 2026 match, compete with friends and climb the leaderboard. Free to play.";
+// Crawlers (Facebook/LinkedIn/WhatsApp) do not follow 307s for og:image URLs,
+// so every image URL below is absolute and already on www.
+const BASE_URL = "https://www.superbrain.social";
 
-type Props = { searchParams: { code?: string } };
+// Slug to display label, mirroring opengraph-image.tsx. Static rather than a
+// database lookup so metadata generation stays cheap.
+const COMPETITION_LABELS: Record<string, string> = {
+  "premier-league": "Premier League",
+  "la-liga":        "LaLiga",
+  "bundesliga":     "Bundesliga",
+  "serie-a":        "Serie A",
+  "ligue-1":        "Ligue 1",
+  "shl":            "SHL",
+};
 
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+function labelFor(slug?: string): string {
+  if (!slug) return "";
+  if (COMPETITION_LABELS[slug]) return COMPETITION_LABELS[slug];
+  return slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+type Props = {
+  params:       { competition: string };
+  searchParams: { code?: string };
+};
+
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const code   = searchParams.code?.trim().toUpperCase() ?? "";
   const league = await fetchLeagueOGByCode(code);
+  const slug   = params.competition;
+  const label  = labelFor(slug);
+
+  // The competition-aware card rendered by ./opengraph-image.tsx.
+  const joinPath = code
+    ? `${BASE_URL}/${slug}/leagues/join?code=${code}`
+    : `${BASE_URL}/${slug}/leagues/join`;
+  const IMAGE = `${BASE_URL}/${slug}/leagues/join/opengraph-image`;
+  const IMAGE_ALT = label
+    ? `Join a ${label} prediction league on SuperBrain`
+    : "Join a prediction league on SuperBrain";
+
+  const FALLBACK_TITLE = label
+    ? `Join a ${label} Prediction League — SuperBrain`
+    : "Join a Prediction League — SuperBrain";
+  const FALLBACK_DESC = label
+    ? `Predict every ${label} match, beat your mates and climb the table. Free to play.`
+    : "Predict the matches, beat your mates and climb the table. Free to play.";
 
   // ── Fallback: no code or league not found ─────────────────
   if (!league) {
@@ -27,24 +61,27 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         title:       FALLBACK_TITLE,
         description: FALLBACK_DESC,
         type:        "website",
-        url:         code ? `${BASE_URL}/predict/leagues/join?code=${code}` : `${BASE_URL}/predict/leagues/join`,
-        images:      [{ url: STATIC_IMAGE, width: 1200, height: 630, alt: STATIC_ALT }],
+        url:         joinPath,
+        images:      [{ url: IMAGE, width: 1200, height: 630, alt: IMAGE_ALT }],
       },
       twitter: {
         card:        "summary_large_image",
         title:       FALLBACK_TITLE,
         description: FALLBACK_DESC,
-        images:      [STATIC_IMAGE],
+        images:      [IMAGE],
       },
     };
   }
 
   // ── Dynamic: league resolved ───────────────────────────────
+  // The member count is the strongest signal in the preview: an invite that
+  // shows a populated league converts better than one that shows a product.
   const { name, memberCount } = league;
-  const title = `Join ${name} – WC 2026 Prediction League`;
+  const compPart = label ? ` ${label}` : "";
+  const title = `Join ${name} —${compPart} Prediction League`;
   const desc  = memberCount > 1
-    ? `Predict every WC 2026 match and compete with ${memberCount} others in ${name}. Free to play.`
-    : `Predict every WC 2026 match and compete in ${name}. Free to play.`;
+    ? `Predict every${compPart} match and compete with ${memberCount} others in ${name}. Free to play.`
+    : `Predict every${compPart} match and compete in ${name}. Free to play.`;
 
   return {
     title,
@@ -53,14 +90,14 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       title,
       description: desc,
       type:        "website",
-      url:         `${BASE_URL}/predict/leagues/join?code=${code}`,
-      images:      [{ url: STATIC_IMAGE, width: 1200, height: 630, alt: title }],
+      url:         joinPath,
+      images:      [{ url: IMAGE, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card:        "summary_large_image",
       title,
       description: desc,
-      images:      [STATIC_IMAGE],
+      images:      [IMAGE],
     },
   };
 }

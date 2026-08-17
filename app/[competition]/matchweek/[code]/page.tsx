@@ -138,12 +138,24 @@ export default function MatchweekPage() {
           fixtures={fixtures}
           roundLabel={round?.label ?? "Matchweek"}
           hasDraw={hasDraw}
+          nextHref={next ? `${base}/matchweek/${next.code}` : undefined}
+          nextLabel={next?.shortLabel ?? next?.label}
+          prevHref={prev ? `${base}/matchweek/${prev.code}` : undefined}
+          prevLabel={prev?.shortLabel ?? prev?.label}
           onChanged={() => { /* optimistic */ }}
         />
       ) : (
         // Closed week → read-only results.
         <div className="flex flex-col gap-2 px-3 pb-24 pt-1">
           {fixtures.map((f) => <MatchweekRow key={f.id} f={f} />)}
+          {(prev || next) && (
+            <div className="flex items-center gap-2 mt-4">
+              {prev
+                ? <Link href={`${base}/matchweek/${prev.code}`} className="text-xs font-semibold px-3 py-3 rounded-lg shrink-0" style={{ color: MUTED, background: "#f4f7f2", border: `1px solid ${BORDER}` }}>← {prev.shortLabel ?? prev.label}</Link>
+                : <span />}
+              {next && <Link href={`${base}/matchweek/${next.code}`} className="flex-1 text-center text-sm font-bold px-3 py-3 rounded-lg" style={{ color: "#fff", background: GREEN }}>Next: {next.shortLabel ?? next.label} →</Link>}
+            </div>
+          )}
         </div>
       )}
     </div>

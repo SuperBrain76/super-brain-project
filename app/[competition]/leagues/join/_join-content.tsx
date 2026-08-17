@@ -143,7 +143,7 @@ export default function JoinContent({ code }: { code: string }) {
   // ── Not signed in — show social proof + inline Google sign-in ──
   if (!authLoading && !user) {
     const dest = code
-      ? `/predict/leagues/join?code=${encodeURIComponent(code)}`
+      ? `/${competitionSlug}/leagues/join?code=${encodeURIComponent(code)}`
       : `/${competitionSlug}/leagues/join`;
 
     const handleGoogle = async () => {
@@ -229,15 +229,43 @@ export default function JoinContent({ code }: { code: string }) {
                 </div>
               )}
 
-              {/* Leader name */}
-              {summary?.leaderName && (
+              {/* Standings preview. An invited user should be able to see the
+                  league they were invited to before any signup wall. */}
+              {summary?.topRows && summary.topRows.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest"
+                    style={{ color: "rgba(255,255,255,0.35)" }}>
+                    Current standings
+                  </p>
+                  {summary.topRows.map((row) => (
+                    <div key={row.rank} className="flex items-center gap-2.5 py-1"
+                      style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span className="w-4 text-[11px] font-bold tabular-nums shrink-0"
+                        style={{ color: row.rank === 1 ? "#b8972a" : "rgba(255,255,255,0.35)" }}>
+                        {row.rank}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate text-[12px] text-white">
+                        {row.displayName}
+                      </span>
+                      <span className="text-[12px] font-bold tabular-nums shrink-0 text-white">
+                        {row.totalPoints}
+                      </span>
+                    </div>
+                  ))}
+                  {summary.memberCount > summary.topRows.length && (
+                    <p className="text-[10px] pt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      and {summary.memberCount - summary.topRows.length} more
+                    </p>
+                  )}
+                </div>
+              ) : summary?.leaderName ? (
                 <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  🏆 Currently led by <span className="font-semibold text-white">{summary.leaderName}</span>
+                  Currently led by <span className="font-semibold text-white">{summary.leaderName}</span>
                   {summary.leaderPoints !== null && (
                     <span> with {summary.leaderPoints} pts</span>
                   )}
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
 

@@ -59,7 +59,9 @@ export default function Image() {
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg, #b8972a, #e8c44a 50%, #b8972a)", display: "flex" }} />
 
       {/* Diagonal texture */}
-      <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(135deg, transparent, transparent 50px, #ffffff03 50px, #ffffff03 51px)", display: "flex" }} />
+      {/* Satori cannot parse repeating-linear-gradient; see the note in
+          ../leagues/join/opengraph-image.tsx. */}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #ffffff08, transparent 45%, #ffffff05)", display: "flex" }} />
 
       {/* Gold glow */}
       <div style={{ position: "absolute", top: -160, left: "50%", transform: "translateX(-50%)", width: 900, height: 600, background: "radial-gradient(ellipse at 50% 0%, #b8972a1c 0%, transparent 65%)", display: "flex" }} />

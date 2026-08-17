@@ -775,6 +775,12 @@ export interface LeagueSummary {
   leaderName:   string | null;
   leaderPoints: number | null;
   totalPredictions: number;
+  /**
+   * Top of the table, for the invite page to show before sign-in. An invited
+   * user should be able to see the league they were invited to without hitting
+   * a signup wall. The leaderboard is already fetched below, so this is free.
+   */
+  topRows: LeaderboardRow[];
 }
 
 /**
@@ -797,6 +803,7 @@ export async function getLeagueSummary(leagueId: string): Promise<LeagueSummary>
     leaderName:   leader?.displayName ?? null,
     leaderPoints: leader?.totalPoints ?? null,
     totalPredictions,
+    topRows:      leaderboard.slice(0, 5),
   };
 }
 

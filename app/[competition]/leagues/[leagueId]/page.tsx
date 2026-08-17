@@ -39,9 +39,17 @@ const BG     = "#f0f3ef";
 
 // ── Helpers ───────────────────────────────────────────────────
 const SITE = "https://www.superbrain.social";
-function inviteUrl(code: string) { return `${SITE}/predict/leagues/join?code=${code}`; }
-function whatsappUrl(league: PredictionLeague) {
-  const msg = `Join my "${league.name}" WC Predictor league on SuperBrain!\n\nUse code: ${league.inviteCode}\nOr join here: ${inviteUrl(league.inviteCode)}`;
+// Invite links must land in the competition the league belongs to. These used
+// to hardcode /predict/ — the legacy World Cup slug — so an SHL or Premier
+// League invite opened the wrong competition.
+function inviteUrl(competitionSlug: string, code: string) {
+  return `${SITE}/${competitionSlug}/leagues/join?code=${code}`;
+}
+function competitionPhrase(competitionName: string) {
+  return competitionName ? `the ${competitionName}` : "the season";
+}
+function whatsappUrl(competitionSlug: string, competitionName: string, league: PredictionLeague) {
+  const msg = `Join my "${league.name}" league on SuperBrain and predict ${competitionPhrase(competitionName)}.\n\nCode: ${league.inviteCode}\nJoin here: ${inviteUrl(competitionSlug, league.inviteCode)}`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
 const WHATSAPP_ICON = (
@@ -492,6 +500,18 @@ export default function LeagueDetailPage() {
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
 
+  // Resolved independently of the member-only load path below, because share
+  // messages name the competition and are visible to non-members too.
+  const [competitionName, setCompetitionName] = useState<string>("");
+  useEffect(() => {
+    if (!competitionSlug) return;
+    let alive = true;
+    resolveCompetition(competitionSlug).then((r) => {
+      if (alive && r.competition) setCompetitionName(r.competition.name);
+    });
+    return () => { alive = false; };
+  }, [competitionSlug]);
+
   const [joining,        setJoining]        = useState(false);
   const [joinError,      setJoinError]      = useState<string | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -637,8 +657,8 @@ export default function LeagueDetailPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <CopyButton text={`${SITE}/predict/leagues/${league.id}`} label="Copy league link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
-              <a href={`https://wa.me/?text=${encodeURIComponent(`Join the "${league.name}" WC Predictor league on SuperBrain!\n\n${SITE}/predict/leagues/${league.id}`)}`}
+              <CopyButton text={`${SITE}/${competitionSlug}/leagues/${league.id}`} label="Copy league link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Join the "${league.name}" league on SuperBrain and predict ${competitionPhrase(competitionName)}.\n\n${SITE}/${competitionSlug}/leagues/${league.id}`)}`}
                 target="_blank" rel="noopener noreferrer"
                 onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"
@@ -655,8 +675,8 @@ export default function LeagueDetailPage() {
                 {league.inviteCode}
               </code>
               <CopyButton text={league.inviteCode}            label="Copy code" onCopied={() => track.inviteLinkCopied(league.id, "code")} />
-              <CopyButton text={inviteUrl(league.inviteCode)} label="Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
-              <a href={whatsappUrl(league)} target="_blank" rel="noopener noreferrer"
+              <CopyButton text={inviteUrl(competitionSlug, league.inviteCode)} label="Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
+              <a href={whatsappUrl(competitionSlug, competitionName, league)} target="_blank" rel="noopener noreferrer"
                 onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-semibold"
                 style={{ color: "#25D366", border: "1px solid #25D36640", background: "#25D36610" }}>
@@ -683,9 +703,9 @@ export default function LeagueDetailPage() {
               Leagues are more fun with friends. Share your invite link or code now — they can join in seconds.
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              <CopyButton text={inviteUrl(league.inviteCode)} label="📋 Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
+              <CopyButton text={inviteUrl(competitionSlug, league.inviteCode)} label="Copy link" onCopied={() => track.inviteLinkCopied(league.id, "link")} />
               <a
-                href={whatsappUrl(league)}
+                href={whatsappUrl(competitionSlug, competitionName, league)}
                 target="_blank" rel="noopener noreferrer"
                 onClick={() => track.whatsappShareClicked(league.id)}
                 className="flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded-full"
