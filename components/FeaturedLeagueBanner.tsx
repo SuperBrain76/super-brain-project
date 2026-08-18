@@ -56,19 +56,24 @@ export default function FeaturedLeagueBanner({
           <span className="text-[9px] font-black tracking-[0.22em]" style={{ color: GOLD }}>FEATURED LEAGUE · LIVE</span>
         </div>
 
-        {/* Crest + venue */}
+        {/* Logo (real) or crest + venue name, with member count */}
         <div className="flex items-center gap-3 mb-3">
-          <div className="relative w-14 h-14 rounded-2xl grid place-items-center shrink-0 font-black text-2xl"
-               style={{ background: "#fff", color: INK, boxShadow: "0 10px 30px -8px #000" }}>
-            {league.sponsorLogoUrl
-              ? <img src={league.sponsorLogoUrl} alt={league.sponsorName ?? ""} className="w-full h-full object-contain rounded-2xl p-1" />
-              : initial}
-            <span className="absolute -inset-2 rounded-3xl -z-10" style={{ background: `radial-gradient(circle,${GOLD}66,transparent 70%)`, animation: "flHalo 2.6s ease-in-out infinite" }} />
-          </div>
-          <div className="min-w-0">
-            {league.sponsorName && <div className="text-lg font-black leading-tight truncate" style={{ color: CREAM }}>{league.sponsorName}</div>}
-            <div className="text-[10px] font-bold tracking-widest uppercase" style={{ color: MUTED }}>Members&apos; league</div>
-          </div>
+          {league.sponsorLogoUrl ? (
+            <img src={league.sponsorLogoUrl} alt={league.sponsorName ?? ""} className="h-12 sm:h-14 w-auto object-contain"
+                 style={{ maxWidth: "62%", filter: "drop-shadow(0 6px 16px #000)" }} />
+          ) : (
+            <>
+              <div className="relative w-14 h-14 rounded-2xl grid place-items-center shrink-0 font-black text-2xl"
+                   style={{ background: "#fff", color: INK, boxShadow: "0 10px 30px -8px #000" }}>
+                {initial}
+                <span className="absolute -inset-2 rounded-3xl -z-10" style={{ background: `radial-gradient(circle,${GOLD}66,transparent 70%)`, animation: "flHalo 2.6s ease-in-out infinite" }} />
+              </div>
+              <div className="min-w-0">
+                {league.sponsorName && <div className="text-lg font-black leading-tight truncate" style={{ color: CREAM }}>{league.sponsorName}</div>}
+                <div className="text-[10px] font-bold tracking-widest uppercase" style={{ color: MUTED }}>Members&apos; league</div>
+              </div>
+            </>
+          )}
           <div className="ml-auto text-center shrink-0">
             <div className="text-2xl font-black tabular-nums" style={{ color: CREAM }}>{league.memberCount ?? "—"}</div>
             <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: MUTED }}>members</div>

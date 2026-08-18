@@ -39,7 +39,7 @@ const MOCK_FEATURED: PredictionLeague = {
   sponsorName:        "McCafferty's Irish Bars",
   sponsorUrl:         null,
   sponsorDescription: "Predict the weekend at Dubai's home of live sport. Climb the table, win at the bar — the winner's round is on the house.",
-  sponsorLogoUrl:     null,
+  sponsorLogoUrl:     "/venues/mccaffertys-jvc.png",
   suspended:          false,
 };
 
@@ -206,7 +206,7 @@ export default function DiscoverPage() {
                 joining={joiningId === league.id}
                 joined={joinedIds.has(league.id)}
                 competitionSlug={competitionSlug}
-                color={league.id === MOCK_FEATURED.id ? "#1C7A3E" : undefined}
+                color={league.id === MOCK_FEATURED.id ? "#334155" : undefined}
                 viewHref={league.id === MOCK_FEATURED.id ? "/venues/mccaffertys" : undefined}
               />
             ))}

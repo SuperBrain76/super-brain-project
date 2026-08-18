@@ -7,10 +7,11 @@
  * fixtures, sponsors. Sample data — a proposal, marked as a SuperBrain demo.
  */
 
+// McCafferty's JVC real brand: slate/charcoal + gold (pulled from their site).
 const G = {
-  green: "#1C7A3E", green2: "#0E5A2A", gold: "#E6B94E", gold2: "#C9A54B",
-  ink: "#0A0D0A", panel: "#12160F", panel2: "#181D13", line: "#2C3624",
-  cream: "#F7EFDD", muted: "#A9B79A", crimson: "#C0392B",
+  green: "#334155", green2: "#1E293B", gold: "#E6B94E", gold2: "#C6922C",
+  ink: "#0B0F17", panel: "#141A24", panel2: "#1B2330", line: "#2E3B4E",
+  cream: "#F5F1E6", muted: "#9BA7B8", crimson: "#C0392B",
 };
 
 const LEADERS = [
@@ -61,8 +62,8 @@ export default function McCaffertysLeague() {
               <span className="w-2 h-2 rounded-full" style={{ background: "#4ade80", animation: "mcLive 1.6s ease-in-out infinite" }} />
               <span className="text-[10px] font-black tracking-[0.25em]" style={{ color: G.gold }}>LEAGUE LIVE · MEMBERS ONLY</span>
             </div>
-            <div className="mc-word" style={{ fontSize: "clamp(46px,10vw,104px)", lineHeight: .9 }}>McCafferty&apos;s</div>
-            <div className="text-xs sm:text-sm tracking-[0.45em] uppercase mt-3 mb-8" style={{ color: G.gold }}>A Traditional Irish Bar</div>
+            <img src="/venues/mccaffertys-jvc.png" alt="McCafferty's — A Traditional Irish Bar"
+                 className="mx-auto mb-8" style={{ maxWidth: "min(460px, 84%)", height: "auto", filter: "drop-shadow(0 10px 30px #000)" }} />
             <p className="text-[11px] font-black tracking-[0.3em] uppercase mb-2" style={{ color: G.cream }}>Official Members&apos; Prediction League</p>
             <h1 className="text-3xl sm:text-5xl font-black mb-6" style={{ color: G.cream, fontFamily: "'Playfair Display',serif" }}>The McCafferty&apos;s Cup</h1>
             <div className="flex flex-wrap items-center justify-center gap-3">
