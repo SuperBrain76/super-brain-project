@@ -1,6 +1,6 @@
 "use client";
 
-import { useCompetition } from "@/components/CompetitionProvider";
+import FeaturedLeagueBanner from "@/components/FeaturedLeagueBanner";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -44,102 +44,7 @@ const MOCK_FEATURED: PredictionLeague = {
 };
 
 // ── Featured league card ───────────────────────────────────────
-function FeaturedLeagueCard({
-  league,
-  onJoin,
-  joining,
-  joined,
-}: {
-  league: PredictionLeague;
-  onJoin: (id: string) => void;
-  joining: boolean;
-  joined: boolean;
-}) {
-  const { slug: competitionSlug } = useCompetition();
-  return (
-    <div
-      className="relative rounded-xl overflow-hidden"
-      style={{
-        background:  CARD,
-        border:      `1px solid ${BORDER}`,
-        borderTop:   `3px solid ${GOLD}`,
-      }}
-    >
-      <div className="p-5 flex flex-col gap-4">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            {/* Logo / initial */}
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm"
-              style={{ background: `${GOLD}18`, color: GOLD, border: `1px solid ${GOLD}30` }}
-            >
-              {league.sponsorLogoUrl
-                ? <img src={league.sponsorLogoUrl} alt={league.sponsorName ?? ""} className="w-full h-full object-contain rounded-lg" />
-                : (league.sponsorName?.[0] ?? "★")
-              }
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-bold text-sm leading-tight" style={{ color: TEXT1 }}>{league.name}</p>
-                <span
-                  className="text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full"
-                  style={{ color: GOLD, background: `${GOLD}18`, border: `1px solid ${GOLD}30` }}
-                >
-                  Featured
-                </span>
-              </div>
-              {league.sponsorName && (
-                <p className="text-xs mt-0.5" style={{ color: MUTED }}>
-                  Sponsored by{" "}
-                  {league.sponsorUrl
-                    ? <a href={league.sponsorUrl} target="_blank" rel="noopener noreferrer"
-                        className="hover:underline" style={{ color: GOLD }}>{league.sponsorName}</a>
-                    : <span style={{ color: TEXT2 }}>{league.sponsorName}</span>
-                  }
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="text-center shrink-0">
-            <p className="font-bold text-base tabular-nums" style={{ color: GREEN }}>
-              {league.memberCount ?? "—"}
-            </p>
-            <p className="text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>members</p>
-          </div>
-        </div>
-
-        {/* Description */}
-        {league.sponsorDescription && (
-          <p className="text-xs leading-relaxed" style={{ color: TEXT2 }}>{league.sponsorDescription}</p>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onJoin(league.id)}
-            disabled={joining || joined}
-            className="flex-1 font-bold py-2.5 px-4 rounded-lg text-xs tracking-widest uppercase transition-all duration-150 disabled:opacity-60"
-            style={{
-              background:  joined ? `${GREEN}15` : GREEN,
-              color:       joined ? GREEN        : "#fff",
-              border:      joined ? `1px solid ${GREEN}30` : "none",
-            }}
-          >
-            {joining ? "Joining…" : joined ? "✓ Joined" : "Join League →"}
-          </button>
-          <Link
-            href={`/${competitionSlug}/leagues/${league.id}`}
-            className="py-2.5 px-4 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors hover:underline"
-            style={{ color: TEXT2, background: BG, border: `1px solid ${BORDER}` }}
-          >
-            View
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
+// (The old small featured card was replaced by FeaturedLeagueBanner.)
 
 // ── Public league card ─────────────────────────────────────────
 function PublicLeagueCard({
@@ -294,12 +199,13 @@ export default function DiscoverPage() {
               <h2 className="font-semibold text-sm" style={{ color: TEXT1 }}>Featured Leagues</h2>
             </div>
             {featured.map((league) => (
-              <FeaturedLeagueCard
+              <FeaturedLeagueBanner
                 key={league.id}
                 league={league}
                 onJoin={handleJoin}
                 joining={joiningId === league.id}
                 joined={joinedIds.has(league.id)}
+                competitionSlug={competitionSlug}
               />
             ))}
           </section>
