@@ -406,8 +406,8 @@ function LandingStyles() {
       .pl-cta:active { transform: scale(0.98); }
       @keyframes plMarqueeL { from { transform: translateX(0); } to { transform: translateX(-33.333%); } }
       @keyframes plMarqueeR { from { transform: translateX(-33.333%); } to { transform: translateX(0); } }
-      .pl-marquee-l { animation: plMarqueeL 40s linear infinite; }
-      .pl-marquee-r { animation: plMarqueeR 40s linear infinite; }
+      .pl-marquee-l { animation: plMarqueeL 90s linear infinite; }
+      .pl-marquee-r { animation: plMarqueeR 90s linear infinite; }
       @media (prefers-reduced-motion: reduce) {
         .pl-in { animation: none; opacity: 1; }
         .pl-pulse, .pl-marquee-l, .pl-marquee-r { animation: none; }
