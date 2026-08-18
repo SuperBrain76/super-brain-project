@@ -224,6 +224,19 @@ describe("pickCurrentRound", () => {
   it("returns null for a season with no rounds", () => {
     expect(pickCurrentRound([], Date.now())).toBeNull();
   });
+
+  // Allsvenskan 2026: MW10 was played in May, but two postponed games were
+  // replayed in September, so its ends_at sits months after MW11-MW17 finished.
+  // Landing users on that dead matchweek was the bug this guards.
+  it("skips a round left open by a postponed match once later rounds have finished", () => {
+    const RESCHEDULED: Round[] = [
+      round({ sortOrder: 1, startsAt: "2026-08-01T14:00:00Z", endsAt: "2026-09-03T16:00:00Z" }),
+      round({ sortOrder: 2, startsAt: "2026-08-08T14:00:00Z", endsAt: "2026-08-09T16:00:00Z" }),
+      round({ sortOrder: 3, startsAt: "2026-08-22T14:00:00Z", endsAt: "2026-08-23T16:00:00Z" }),
+    ];
+    const now = new Date("2026-08-18T12:00:00Z").getTime();
+    expect(pickCurrentRound(RESCHEDULED, now)?.sortOrder).toBe(3);
+  });
 });
 
 describe("isRoundLocked — challenge locking", () => {

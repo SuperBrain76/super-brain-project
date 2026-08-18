@@ -21,6 +21,7 @@ const COMPETITION_LABELS: Record<string, string> = {
   "bundesliga":     "Bundesliga",
   "serie-a":        "Serie A",
   "ligue-1":        "Ligue 1",
+  "allsvenskan":    "Allsvenskan",
   "shl":            "SHL",
 };
 

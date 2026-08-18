@@ -52,6 +52,7 @@ import { LA_LIGA_CLUBS } from "@/lib/leagues/laLiga";
 import { BUNDESLIGA_CLUBS } from "@/lib/leagues/bundesliga";
 import { SERIE_A_CLUBS } from "@/lib/leagues/serieA";
 import { LIGUE_1_CLUBS } from "@/lib/leagues/ligue1";
+import { ALLSVENSKAN_CLUBS } from "@/lib/leagues/allsvenskan";
 import { SHL_CLUBS } from "@/lib/hockey/shl";
 import { NHL_CLUBS } from "@/lib/hockey/nhl";
 
@@ -61,6 +62,7 @@ export const ALL_CLUBS: Club[] = [
   ...BUNDESLIGA_CLUBS,
   ...SERIE_A_CLUBS,
   ...LIGUE_1_CLUBS,
+  ...ALLSVENSKAN_CLUBS,
   ...SHL_CLUBS,
   ...NHL_CLUBS,
 ];

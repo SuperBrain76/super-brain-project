@@ -21,6 +21,7 @@ export const LEAGUES: LeagueEntry[] = [
   { slug: "serie-a",        name: "Serie A",        country: "🇮🇹 Italy",   clubs: ["JUV", "MIL", "INT", "NAP", "ROM", "ATA"], sport: "football" },
   { slug: "ligue-1",        name: "Ligue 1",        country: "🇫🇷 France",  clubs: ["PSG", "MAR", "LYO", "ASM", "LIL", "NIC"], sport: "football" },
   { slug: "champions-league", name: "Champions League", country: "🇪🇺 Europe", clubs: ["RMA", "BAR", "BAY", "MCI", "PSG", "LIV"], sport: "football" },
+  { slug: "allsvenskan",    name: "Allsvenskan",    country: "🇸🇪 Sweden",  clubs: ["MFF", "AIK", "DJU", "HAM", "IFG", "HAK"], sport: "football" },
   { slug: "shl",            name: "SHL",            country: "🇸🇪 Sweden",  clubs: ["FRL", "SKE", "LUL", "DIF", "FBK", "HV7"], sport: "ice_hockey" },
   { slug: "nhl",            name: "NHL",            country: "🇺🇸 North America", clubs: ["EDM", "TML", "BOS", "NYR", "COL", "VGK"], sport: "ice_hockey" },
 ];

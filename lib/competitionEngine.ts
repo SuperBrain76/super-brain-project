@@ -515,14 +515,27 @@ export async function getRounds(seasonId: string): Promise<Round[]> {
  * The first round that has not finished, else the last. "Not finished"
  * uses `ends_at` (the last kickoff) plus a 3-hour tail so a round stays
  * current while its final match is still being played.
+ *
+ * ⚠️ A round is skipped once a LATER round has already finished. A single
+ * postponed match drags its round's `ends_at` months forward — Allsvenskan
+ * MW10 was played in May with two make-up games in September — and without
+ * this, "first unfinished round" landed users on a long-dead May matchweek
+ * for the rest of the season. In a season running to schedule no later round
+ * finishes first, so this changes nothing.
  */
 export function pickCurrentRound(rounds: Round[], nowMs: number = Date.now()): Round | null {
   if (rounds.length === 0) return null;
   const TAIL_MS = 3 * 60 * 60 * 1000;
-  const live = rounds.find((r) => {
-    if (!r.endsAt) return false;
-    return new Date(r.endsAt).getTime() + TAIL_MS > nowMs;
-  });
+  const finished = (r: Round) =>
+    r.endsAt !== null && new Date(r.endsAt).getTime() + TAIL_MS <= nowMs;
+
+  // Everything from just after the last finished round onwards. Rounds are
+  // ordered by sort_order, so this drops rounds the season has moved past.
+  let lastFinished = -1;
+  rounds.forEach((r, i) => { if (finished(r)) lastFinished = i; });
+  const ahead = rounds.slice(lastFinished + 1);
+
+  const live = ahead.find((r) => !finished(r) && r.endsAt !== null);
   return live ?? rounds[rounds.length - 1];
 }
 
