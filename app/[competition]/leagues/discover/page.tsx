@@ -27,18 +27,18 @@ const BG     = "#f0f3ef";
 const MOCK_FEATURED: PredictionLeague = {
   id:                 "mock-featured-001",
   competitionId:      "mock",
-  name:               "Dubai Business League",
-  normalizedName:     "dubai business league",
-  inviteCode:         "DUBAI001",
+  name:               "The McCafferty's Cup",
+  normalizedName:     "the mccaffertys cup",
+  inviteCode:         "MCCAF001",
   createdBy:          "admin",
   createdAt:          new Date().toISOString(),
   maxMembers:         null,
-  memberCount:        142,
+  memberCount:        178,
   visibility:         "public",
   isFeatured:         true,
-  sponsorName:        "SmartSpace Solutions",
-  sponsorUrl:         "https://smartspace-me.com",
-  sponsorDescription: "Dubai's leading workspace design consultancy. Join our league and compete for exclusive prizes.",
+  sponsorName:        "McCafferty's Irish Bars",
+  sponsorUrl:         null,
+  sponsorDescription: "Predict the weekend at Dubai's home of live sport. Climb the table, win at the bar — the winner's round is on the house.",
   sponsorLogoUrl:     null,
   suspended:          false,
 };
@@ -206,6 +206,8 @@ export default function DiscoverPage() {
                 joining={joiningId === league.id}
                 joined={joinedIds.has(league.id)}
                 competitionSlug={competitionSlug}
+                color={league.id === MOCK_FEATURED.id ? "#1C7A3E" : undefined}
+                viewHref={league.id === MOCK_FEATURED.id ? "/venues/mccaffertys" : undefined}
               />
             ))}
           </section>
