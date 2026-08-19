@@ -24,7 +24,7 @@ import type { PlaceResult } from "@/lib/prospecting";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 800;
+export const maxDuration = 300; // Hobby-plan cap (max 300s); batch smaller if enrichment needs longer.
 
 const MIN_FIT     = Number(process.env.OUTREACH_MIN_FIT_SCORE ?? 60);
 const CONCURRENCY = 5;
