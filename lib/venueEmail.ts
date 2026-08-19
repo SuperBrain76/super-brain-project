@@ -1,0 +1,200 @@
+/**
+ * lib/venueEmail.ts — transactional email to VENUE OWNERS (not players).
+ *
+ * Deliberately separate from lib/email.ts:
+ *   • different audience (a business, not a player) and different footer —
+ *     no player unsubscribe link, because these are transactional messages
+ *     about a paid subscription;
+ *   • different FROM address, so venue billing mail is never confused with
+ *     the matchday blasts;
+ *   • localised — a bar in Milan gets Italian, not English.
+ *
+ * COLD OUTREACH DOES NOT GO THROUGH HERE. Resend's terms prohibit it and
+ * this is the same account that sends the product's transactional mail.
+ * Prospecting goes out through the dedicated cold-email platform — see
+ * lib/outreach.ts.
+ */
+
+import { getResend } from "./email";
+import { SITE } from "./stripe";
+
+export const VENUE_FROM =
+  process.env.VENUE_FROM_EMAIL || "SuperBrain Venues <venues@superbrain.social>";
+
+type Lang = "en" | "de" | "es" | "fr" | "it";
+const lang = (l: string): Lang =>
+  (["en", "de", "es", "fr", "it"].includes(l) ? l : "en") as Lang;
+
+interface WelcomeInput {
+  to: string;
+  venueName: string;
+  ownerName?: string | null;
+  language: string;
+  leagueName: string;
+  competitionName: string;
+  joinUrl: string;
+  qrUrl: string;
+  posterUrl: string;
+}
+
+// ── Copy, per language ────────────────────────────────────────
+const COPY: Record<Lang, (i: WelcomeInput) => {
+  subject: string; hi: string; lead: string; live: string;
+  step1: string; step2: string; step3: string;
+  cta: string; poster: string; trial: string; sign: string;
+}> = {
+  en: (i) => ({
+    subject: `${i.venueName} — your league is live`,
+    hi: i.ownerName ? `Hi ${i.ownerName},` : "Hi,",
+    lead: `${i.leagueName} is live. Your regulars can join it tonight.`,
+    live: "Everything below is already set up — there is nothing to configure.",
+    step1: "Print the table poster and put one on every table.",
+    step2: "Customers scan the QR code and they are in your league in 20 seconds.",
+    step3: `They predict every ${i.competitionName} match and the table updates live on your screens.`,
+    cta: "Open your league",
+    poster: "Download the table poster",
+    trial: "Your 7-day trial has started. We will email you before it converts — cancel any time from the link in your receipt.",
+    sign: "Any question at all, just reply to this email.",
+  }),
+  es: (i) => ({
+    subject: `${i.venueName} — tu liga ya está activa`,
+    hi: i.ownerName ? `Hola ${i.ownerName}:` : "Hola:",
+    lead: `${i.leagueName} ya está activa. Tus clientes pueden unirse esta misma noche.`,
+    live: "Todo está configurado. No tienes que hacer nada más.",
+    step1: "Imprime el cartel y coloca uno en cada mesa.",
+    step2: "Tus clientes escanean el código QR y entran en tu liga en 20 segundos.",
+    step3: `Pronostican cada partido de ${i.competitionName} y la clasificación se actualiza en directo en tus pantallas.`,
+    cta: "Abrir mi liga",
+    poster: "Descargar el cartel de mesa",
+    trial: "Tu prueba de 7 días ha comenzado. Te avisaremos por email antes de que se convierta en suscripción; puedes cancelar cuando quieras desde el enlace de tu recibo.",
+    sign: "Cualquier duda, responde a este email.",
+  }),
+  it: (i) => ({
+    subject: `${i.venueName} — il tuo campionato è attivo`,
+    hi: i.ownerName ? `Ciao ${i.ownerName},` : "Ciao,",
+    lead: `${i.leagueName} è attivo. I tuoi clienti possono iscriversi già stasera.`,
+    live: "È già tutto configurato: non devi impostare nulla.",
+    step1: "Stampa la locandina e mettine una su ogni tavolo.",
+    step2: "I clienti inquadrano il QR code ed entrano nel tuo campionato in 20 secondi.",
+    step3: `Pronosticano ogni partita di ${i.competitionName} e la classifica si aggiorna in diretta sui tuoi schermi.`,
+    cta: "Apri il tuo campionato",
+    poster: "Scarica la locandina da tavolo",
+    trial: "La tua prova di 7 giorni è iniziata. Ti avviseremo via email prima del rinnovo; puoi annullare quando vuoi dal link nella ricevuta.",
+    sign: "Per qualsiasi domanda, rispondi a questa email.",
+  }),
+  fr: (i) => ({
+    subject: `${i.venueName} — votre ligue est en ligne`,
+    hi: i.ownerName ? `Bonjour ${i.ownerName},` : "Bonjour,",
+    lead: `${i.leagueName} est en ligne. Vos habitués peuvent la rejoindre dès ce soir.`,
+    live: "Tout est déjà configuré, vous n'avez rien à paramétrer.",
+    step1: "Imprimez l'affichette et posez-en une sur chaque table.",
+    step2: "Vos clients scannent le QR code et rejoignent votre ligue en 20 secondes.",
+    step3: `Ils pronostiquent chaque match de ${i.competitionName} et le classement se met à jour en direct sur vos écrans.`,
+    cta: "Ouvrir ma ligue",
+    poster: "Télécharger l'affichette de table",
+    trial: "Votre essai de 7 jours a commencé. Nous vous préviendrons par email avant le prélèvement — annulation à tout moment depuis le lien de votre reçu.",
+    sign: "La moindre question, répondez simplement à cet email.",
+  }),
+  de: (i) => ({
+    subject: `${i.venueName} — Ihre Liga ist online`,
+    hi: i.ownerName ? `Hallo ${i.ownerName},` : "Hallo,",
+    lead: `${i.leagueName} ist online. Ihre Stammgäste können noch heute Abend mitspielen.`,
+    live: "Alles ist bereits eingerichtet — Sie müssen nichts konfigurieren.",
+    step1: "Drucken Sie den Tischaufsteller und stellen Sie ihn auf jeden Tisch.",
+    step2: "Ihre Gäste scannen den QR-Code und sind in 20 Sekunden in Ihrer Liga.",
+    step3: `Sie tippen jedes ${i.competitionName}-Spiel und die Tabelle aktualisiert sich live auf Ihren Bildschirmen.`,
+    cta: "Zur Liga",
+    poster: "Tischaufsteller herunterladen",
+    trial: "Ihre 7-tägige Testphase hat begonnen. Wir informieren Sie per E-Mail vor der Umwandlung — jederzeit kündbar über den Link in Ihrer Rechnung.",
+    sign: "Bei Fragen antworten Sie einfach auf diese E-Mail.",
+  }),
+};
+
+// ── Shell ─────────────────────────────────────────────────────
+function shell(inner: string) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8f5f0;font-family:Georgia,serif;">
+<div style="max-width:560px;margin:0 auto;padding:24px 16px;">
+  <div style="background:#1a3a2a;border-radius:12px 12px 0 0;padding:20px 24px;text-align:center;">
+    <p style="margin:0;font-size:11px;letter-spacing:3px;color:#b8972a;font-family:sans-serif;text-transform:uppercase;">SuperBrain</p>
+    <p style="margin:4px 0 0;font-size:11px;color:#7a8f82;font-family:sans-serif;">For venues</p>
+  </div>
+  <div style="background:#fff;padding:28px 24px;border:1px solid #e6e0d6;border-top:none;border-radius:0 0 12px 12px;">
+    ${inner}
+  </div>
+  <p style="font-size:11px;color:#9a9284;text-align:center;font-family:sans-serif;margin-top:18px;">
+    SuperBrain · <a href="${SITE}" style="color:#b8972a;">superbrain.social</a>
+  </p>
+</div></body></html>`;
+}
+
+/** The one email a venue gets the moment their league goes live. */
+export async function sendVenueWelcome(input: WelcomeInput) {
+  const c = COPY[lang(input.language)](input);
+
+  const html = shell(`
+    <p style="font-size:16px;color:#1a3a2a;margin:0 0 14px;">${c.hi}</p>
+    <p style="font-size:17px;color:#1a3a2a;margin:0 0 8px;font-weight:bold;">${c.lead}</p>
+    <p style="font-size:14px;color:#5a6b5f;margin:0 0 22px;">${c.live}</p>
+
+    <div style="text-align:center;margin:0 0 22px;">
+      <img src="${input.qrUrl}" width="160" height="160" alt="QR"
+           style="border:8px solid #f4f1ea;border-radius:12px;display:block;margin:0 auto;">
+    </div>
+
+    <ol style="font-size:14px;color:#1a3a2a;line-height:1.7;padding-left:20px;margin:0 0 24px;">
+      <li>${c.step1}</li>
+      <li>${c.step2}</li>
+      <li>${c.step3}</li>
+    </ol>
+
+    <div style="text-align:center;margin:0 0 12px;">
+      <a href="${input.joinUrl}" style="display:inline-block;background:#b8972a;color:#fff;
+         text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
+         font-weight:bold;font-size:15px;">${c.cta}</a>
+    </div>
+    <div style="text-align:center;margin:0 0 24px;">
+      <a href="${input.posterUrl}" style="color:#b8972a;font-size:13px;font-family:sans-serif;">${c.poster} →</a>
+    </div>
+
+    <p style="font-size:12px;color:#7a8f82;border-top:1px solid #e6e0d6;padding-top:16px;margin:0 0 8px;">${c.trial}</p>
+    <p style="font-size:13px;color:#5a6b5f;margin:0;">${c.sign}</p>
+  `);
+
+  return getResend().emails.send({
+    from: VENUE_FROM,
+    to: input.to,
+    subject: c.subject,
+    html,
+    replyTo: process.env.VENUE_REPLY_TO || undefined,
+  });
+}
+
+/** Payment failed — sent before the league is suspended (Workflow 3). */
+export async function sendPaymentFailed(opts: {
+  to: string; venueName: string; language: string; updateUrl: string; daysLeft: number;
+}) {
+  const L = lang(opts.language);
+  const t = {
+    en: { s: `${opts.venueName} — payment failed`, b: `We could not take this month's payment. Your league stays live for ${opts.daysLeft} more days, then it pauses until the card is updated.`, c: "Update payment method" },
+    es: { s: `${opts.venueName} — pago rechazado`, b: `No hemos podido cobrar la cuota de este mes. Tu liga sigue activa ${opts.daysLeft} días más y luego se pausará hasta que actualices la tarjeta.`, c: "Actualizar método de pago" },
+    it: { s: `${opts.venueName} — pagamento non riuscito`, b: `Non siamo riusciti a incassare il pagamento di questo mese. Il tuo campionato resta attivo ancora ${opts.daysLeft} giorni, poi verrà sospeso finché non aggiorni la carta.`, c: "Aggiorna metodo di pagamento" },
+    fr: { s: `${opts.venueName} — paiement refusé`, b: `Nous n'avons pas pu prélever le paiement de ce mois. Votre ligue reste active encore ${opts.daysLeft} jours, puis sera suspendue jusqu'à la mise à jour de la carte.`, c: "Mettre à jour le paiement" },
+    de: { s: `${opts.venueName} — Zahlung fehlgeschlagen`, b: `Die Zahlung für diesen Monat konnte nicht eingezogen werden. Ihre Liga bleibt noch ${opts.daysLeft} Tage aktiv und wird dann pausiert, bis die Karte aktualisiert ist.`, c: "Zahlungsmethode aktualisieren" },
+  }[L];
+
+  return getResend().emails.send({
+    from: VENUE_FROM,
+    to: opts.to,
+    subject: t.s,
+    html: shell(`
+      <p style="font-size:15px;color:#1a3a2a;line-height:1.6;margin:0 0 22px;">${t.b}</p>
+      <div style="text-align:center;">
+        <a href="${opts.updateUrl}" style="display:inline-block;background:#b8972a;color:#fff;
+           text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
+           font-weight:bold;font-size:15px;">${t.c}</a>
+      </div>`),
+    replyTo: process.env.VENUE_REPLY_TO || undefined,
+  });
+}

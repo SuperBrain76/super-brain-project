@@ -1,0 +1,101 @@
+[
+ {
+  "id": "28e0133a-553d-4238-8c49-6f320f395a9e",
+  "name": "The Saints and The Scholars",
+  "city": "Milan",
+  "country": "IT",
+  "url": "https://www.saintsandscholars.com",
+  "email": null,
+  "phone": null
+ },
+ {
+  "id": "54a9d4b7-faab-4c0c-ad56-fce2814df778",
+  "name": "Chez Papa 19",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.chezpapa19.fr",
+  "email": null,
+  "phone": "+33142083820"
+ },
+ {
+  "id": "bd169015-9def-4e19-bd06-3cab3426bf37",
+  "name": "Cotte 23",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://cotte23.fr",
+  "email": "nom@domain.com",
+  "phone": "+33180065305"
+ },
+ {
+  "id": "0bbda5c3-47f0-4ffe-854e-b1bb3ddb0335",
+  "name": "Hall's Beer Tavern",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.hallsbeertavern.fr",
+  "email": null,
+  "phone": null
+ },
+ {
+  "id": "c6eec325-afa8-450e-b490-ad0332959fbd",
+  "name": "Le Bistrot du Croissant",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.bistrotducroissant.fr",
+  "email": null,
+  "phone": null
+ },
+ {
+  "id": "efd567fd-9819-4c63-a01b-45a0e8e42c56",
+  "name": "La Terrasse d'Italie",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://laterrasseditalie.fr",
+  "email": null,
+  "phone": "+33142169789"
+ },
+ {
+  "id": "44eaef10-1d8f-4b6c-91a2-58c8a65bd50c",
+  "name": "Le Grand Pan",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.legrandpan.fr",
+  "email": null,
+  "phone": "+33142500250"
+ },
+ {
+  "id": "f01d99f3-ae95-4db2-a041-93e8a193fb6b",
+  "name": "French Flair",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://frenchflair.com",
+  "email": null,
+  "phone": null
+ },
+ {
+  "id": "96a60b18-e6ad-46a0-8155-45c1f2fc3a96",
+  "name": "Little Big Bear",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.little-big-bear.com",
+  "email": null,
+  "phone": null
+ },
+ {
+  "id": "a2398cfd-b8db-46d9-85c6-58509b5f8fbc",
+  "name": "Pub Saint-Hilaire",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.sainthilaire.fr",
+  "email": "...@saint-hilaire.fr",
+  "phone": null
+ },
+ {
+  "id": "23252c6f-4f17-49fb-a48f-6e5bcee95afe",
+  "name": "The Moose",
+  "city": "Paris",
+  "country": "FR",
+  "url": "https://www.the-moose.com",
+  "email": null,
+  "phone": null
+ }
+]

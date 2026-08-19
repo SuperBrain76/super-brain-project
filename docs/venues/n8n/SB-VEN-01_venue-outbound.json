@@ -1,0 +1,271 @@
+{
+  "name": "SB-VEN-01 · Venue provisioned → outbound · v01",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## SB-VEN-01 · Venue provisioned → outbound\n\n**Trigger:** the SuperBrain app POSTs here after a venue's league is already\nbuilt. Set `N8N_VENUE_WEBHOOK_URL` in Vercel to this webhook's production URL,\nand `N8N_WEBHOOK_SECRET` to the same value as the header check below.\n\n**This workflow never provisions anything.** The league, the owner account, the\nQR and the welcome email are all done by the time this fires. If this workflow\nis broken or switched off, the customer is unaffected — that is the point.\n\n**Events it receives** (`event` field):\n- `venue.provisioned`  → WhatsApp Dylan, create Zoho customer + invoice, social post\n- `venue.paid`         → WhatsApp Dylan\n- `venue.trial_will_end` → nudge (T-3d, fired by Stripe)\n- `venue.payment_failed` → WhatsApp Dylan\n- `venue.churned`      → WhatsApp Dylan\n\n**After ANY API PUT to this workflow, deactivate and reactivate it** or the\nwebhook silently stops firing.\n\n**Configure:** replace `__WHATSAPP_TO__` and attach Zoho + WhatsApp credentials.",
+        "height": 420,
+        "width": 460
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000001",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "superbrain/venue-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a001",
+      "name": "Venue event webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "superbrain-venue-event"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reject anything that does not carry the shared secret. n8n webhooks are\n// public URLs; without this check anyone could forge a 'venue.paid'.\nconst expected = $env.SB_WEBHOOK_SECRET;\nconst got = $input.first().json.headers?.['x-webhook-secret'];\nif (!expected || got !== expected) {\n  throw new Error('unauthorized webhook call');\n}\nconst body = $input.first().json.body ?? {};\nreturn [{ json: body }];"
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a002",
+      "name": "Verify secret",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "venue.provisioned",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "provisioned"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "venue.paid",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "paid"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "venue.payment_failed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "payment_failed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a003",
+      "name": "Route by event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// One WhatsApp line per event type. Kept as plain text on purpose —\n// this is a notification to one person, not a marketing asset.\nconst v = $input.first().json;\nconst money = (c) => c ? '\\u20ac' + (c / 100).toFixed(2) : '';\nconst text = {\n  'venue.provisioned': `\\u2705 NEW VENUE LIVE\\n${v.venue} (${v.city || ''} ${v.country})\\n${v.competition}\\nCode: ${v.invite_code}\\n${v.join_url}`,\n  'venue.paid': `\\ud83d\\udcb0 PAID \\u2014 ${money(v.amount)} ${(v.currency||'').toUpperCase()}`,\n  'venue.payment_failed': `\\u26a0\\ufe0f PAYMENT FAILED\\n${v.venue} (${v.email})\\nAttempt ${v.attempt}`,\n  'venue.churned': `\\ud83d\\udd34 CHURNED\\nvenue ${v.venue_id}`,\n  'venue.trial_will_end': `\\u23f3 TRIAL ENDS IN 3 DAYS\\n${v.venue} (${v.email})`,\n}[v.event] || `SuperBrain venue event: ${v.event}`;\nreturn [{ json: { to: '__WHATSAPP_TO__', text, raw: v } }];"
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a004",
+      "name": "Build WhatsApp message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Zoho customer + invoice payload. Only built for a real provisioning\n// event; the amount comes from Stripe, never recomputed here.\nconst v = $input.first().json;\nreturn [{ json: {\n  contact_name: v.venue,\n  company_name: v.venue,\n  email: v.email,\n  phone: v.phone || '',\n  billing_address: { city: v.city || '', country: v.country || '' },\n  custom_fields: [\n    { label: 'Venue ID', value: v.venue_id },\n    { label: 'League', value: v.competition },\n    { label: 'Stripe customer', value: v.stripe_customer_id },\n  ],\n} }];"
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a005",
+      "name": "Build Zoho customer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Social proof post. Names the venue and city only \\u2014 never the owner,\n// never the amount paid.\nconst v = $input.first().json;\nconst where = v.city ? `${v.city}, ${v.country}` : v.country;\nreturn [{ json: {\n  text: `${v.venue} in ${where} just launched their own ${v.competition} prediction league. Their regulars are picking this weekend's scores now. \\u26bd`,\n  link: v.join_url,\n} }];"
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a006",
+      "name": "Build social post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {}
+      },
+      "id": "c0ffee00-0000-4000-8000-00000000a007",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        960,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Venue event webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify secret": {
+      "main": [
+        [
+          {
+            "node": "Route by event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by event": {
+      "main": [
+        [
+          {
+            "node": "Build WhatsApp message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Zoho customer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build social post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "meta": {
+    "instanceId": "superbrain-venues"
+  }
+}
