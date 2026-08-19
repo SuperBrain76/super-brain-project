@@ -24,15 +24,26 @@ export async function GET(req: NextRequest) {
     .eq("id", r.venueId).maybeSingle();
   if (!v) return NextResponse.json({ ready: false }, { status: 202 });
 
-  const { data: leagues } = await r.db
-    .from("prediction_leagues")
-    .select("invite_code, name, competition:competitions(slug, name)")
-    .eq("venue_id", r.venueId);
-
-  const haveSlugs = new Set((leagues ?? []).map((l: any) => l.competition?.slug));
-
+  // Fetch competitions once and resolve league → competition locally.
+  // NOTE: an embedded `competition:competitions(...)` select on prediction_leagues
+  // returned ZERO league rows in production (the wizard then couldn't see an
+  // activated league and Continue stayed disabled). The plain query below —
+  // the same shape the /leagues endpoint uses successfully — does see them.
   const { data: comps } = await r.db
-    .from("competitions").select("slug, name, sport_code").eq("status", "active").order("name");
+    .from("competitions").select("id, slug, name, sport_code, status").order("name");
+  const compById = new Map((comps ?? []).map((c: any) => [c.id, c]));
+
+  const { data: leagueRows, error: leaguesErr } = await r.db
+    .from("prediction_leagues")
+    .select("invite_code, name, competition_id")
+    .eq("venue_id", r.venueId);
+  if (leaguesErr) console.error("[onboarding/state] leagues query failed", leaguesErr.message);
+
+  const leagues = (leagueRows ?? []).map((l: any) => {
+    const c = compById.get(l.competition_id);
+    return { slug: c?.slug ?? null, competition: c?.name ?? null, name: l.name, inviteCode: l.invite_code };
+  });
+  const haveSlugs = new Set(leagues.map((l) => l.slug).filter(Boolean));
 
   return NextResponse.json({
     ready: true,
@@ -44,13 +55,12 @@ export async function GET(req: NextRequest) {
       staffEmails: v.staff_emails ?? [], onboardingStep: v.onboarding_step,
       onboardedAt: v.onboarded_at,
     },
-    leagues: (leagues ?? []).map((l: any) => ({
-      slug: l.competition?.slug, competition: l.competition?.name,
-      name: l.name, inviteCode: l.invite_code,
-    })),
-    competitions: (comps ?? []).map((c: any) => ({
-      slug: c.slug, name: c.name, sport: c.sport_code, hasLeague: haveSlugs.has(c.slug),
-    })),
+    leagues,
+    competitions: (comps ?? [])
+      .filter((c: any) => c.status === "active")
+      .map((c: any) => ({
+        slug: c.slug, name: c.name, sport: c.sport_code, hasLeague: haveSlugs.has(c.slug),
+      })),
     assetKinds: ASSET_KINDS.map((a) => ({ kind: a.kind, label: a.label, hint: a.hint, printable: a.printable })),
     urls: {
       launchPack: `${SITE}/venues/${v.slug}/launch-pack`,
