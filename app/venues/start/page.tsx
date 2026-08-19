@@ -28,10 +28,18 @@ interface Prefill {
   already_live: boolean; venue_slug: string | null;
 }
 
+/** Every competition is included — a marketing promise, not a picker. Proper
+ *  nouns stay the same across languages; the headings below are localised. */
+const INCLUDED = [
+  "Premier League", "Champions League", "La Liga", "Bundesliga",
+  "Serie A", "Ligue 1", "SHL", "NHL",
+];
+
 const COPY: Record<Lang, {
   kicker: string; h1: (v: string) => string; sub: string;
   b1: string; b2: string; b3: string;
-  venue: string; league: string; yourName: string; email: string; phone: string;
+  includedTitle: string; futureNote: string;
+  venue: string; yourName: string; email: string; phone: string;
   monthly: string; annual: string; annualNote: string;
   cta: string; trial: string; busy: string;
   liveTitle: string; liveBody: string; liveCta: string;
@@ -44,7 +52,9 @@ const COPY: Record<Lang, {
     b1: "Your name, your colours, your league",
     b2: "A table poster with a QR code — customers join in 20 seconds",
     b3: "You see who is playing, and whether they keep coming back",
-    venue: "Venue name", league: "Which league?", yourName: "Your name",
+    includedTitle: "One subscription — every competition included",
+    futureNote: "Future competitions included automatically",
+    venue: "Venue name", yourName: "Your name",
     email: "Email", phone: "Phone (optional)",
     monthly: "€99 / month", annual: "€990 / year", annualNote: "two months free",
     cta: "Start 7-day free trial", trial: "Card required. Cancel any time in the first 7 days and you pay nothing.",
@@ -61,7 +71,9 @@ const COPY: Record<Lang, {
     b1: "Tu nombre, tus colores, tu liga",
     b2: "Un cartel de mesa con código QR: se unen en 20 segundos",
     b3: "Ves quién juega y si siguen volviendo",
-    venue: "Nombre del local", league: "¿Qué liga?", yourName: "Tu nombre",
+    includedTitle: "Una suscripción: todas las competiciones incluidas",
+    futureNote: "Competiciones futuras incluidas automáticamente",
+    venue: "Nombre del local", yourName: "Tu nombre",
     email: "Email", phone: "Teléfono (opcional)",
     monthly: "99 € / mes", annual: "990 € / año", annualNote: "dos meses gratis",
     cta: "Empezar prueba de 7 días", trial: "Se requiere tarjeta. Cancela en los primeros 7 días y no pagas nada.",
@@ -78,7 +90,9 @@ const COPY: Record<Lang, {
     b1: "Votre nom, vos couleurs, votre ligue",
     b2: "Une affichette de table avec QR code : ils rejoignent en 20 secondes",
     b3: "Vous voyez qui joue, et s'ils reviennent",
-    venue: "Nom de l'établissement", league: "Quelle ligue ?", yourName: "Votre nom",
+    includedTitle: "Un seul abonnement : toutes les compétitions incluses",
+    futureNote: "Compétitions futures incluses automatiquement",
+    venue: "Nom de l'établissement", yourName: "Votre nom",
     email: "Email", phone: "Téléphone (facultatif)",
     monthly: "99 € / mois", annual: "990 € / an", annualNote: "deux mois offerts",
     cta: "Démarrer l'essai de 7 jours", trial: "Carte requise. Annulez dans les 7 jours et vous ne payez rien.",
@@ -95,7 +109,9 @@ const COPY: Record<Lang, {
     b1: "Il tuo nome, i tuoi colori, il tuo campionato",
     b2: "Una locandina da tavolo con QR code: entrano in 20 secondi",
     b3: "Vedi chi gioca e se continuano a tornare",
-    venue: "Nome del locale", league: "Quale campionato?", yourName: "Il tuo nome",
+    includedTitle: "Un unico abbonamento: tutte le competizioni incluse",
+    futureNote: "Competizioni future incluse automaticamente",
+    venue: "Nome del locale", yourName: "Il tuo nome",
     email: "Email", phone: "Telefono (facoltativo)",
     monthly: "99 € / mese", annual: "990 € / anno", annualNote: "due mesi gratis",
     cta: "Inizia la prova di 7 giorni", trial: "Carta richiesta. Annulli entro 7 giorni e non paghi nulla.",
@@ -112,7 +128,9 @@ const COPY: Record<Lang, {
     b1: "Ihr Name, Ihre Farben, Ihre Liga",
     b2: "Ein Tischaufsteller mit QR-Code — Gäste sind in 20 Sekunden dabei",
     b3: "Sie sehen, wer mitspielt und ob sie wiederkommen",
-    venue: "Name des Lokals", league: "Welche Liga?", yourName: "Ihr Name",
+    includedTitle: "Ein Abo – alle Wettbewerbe inklusive",
+    futureNote: "Zukünftige Wettbewerbe automatisch inklusive",
+    venue: "Name des Lokals", yourName: "Ihr Name",
     email: "E-Mail", phone: "Telefon (optional)",
     monthly: "99 € / Monat", annual: "990 € / Jahr", annualNote: "zwei Monate gratis",
     cta: "7 Tage kostenlos testen", trial: "Karte erforderlich. Innerhalb von 7 Tagen kündbar, dann zahlen Sie nichts.",
@@ -132,21 +150,13 @@ function VenueStartPageInner() {
   const venueId = params.get("v");
 
   const [pre, setPre]   = useState<Prefill | null>(null);
-  const [comps, setComps] = useState<Array<{ slug: string; name: string }>>([]);
   const [plan, setPlan] = useState<"monthly" | "annual">("monthly");
   const [busy, setBusy] = useState(false);
   const [err, setErr]   = useState("");
 
   const [form, setForm] = useState({
-    venueName: "", competitionSlug: "premier-league",
-    ownerName: "", email: "", phone: "", country: "GB", language: "en",
+    venueName: "", ownerName: "", email: "", phone: "", country: "GB", language: "en",
   });
-
-  useEffect(() => {
-    supabase.rpc("get_sellable_competitions").then(({ data }) => {
-      if (data) setComps(data as Array<{ slug: string; name: string }>);
-    });
-  }, []);
 
   useEffect(() => {
     if (!venueId) return;
@@ -157,7 +167,6 @@ function VenueStartPageInner() {
       setForm((f) => ({
         ...f,
         venueName: p.venue_name,
-        competitionSlug: p.competition_slug,
         country: p.country,
         language: p.language,
       }));
@@ -178,7 +187,6 @@ function VenueStartPageInner() {
         body: JSON.stringify({
           venueId, plan,
           venueName: form.venueName,
-          competitionSlug: form.competitionSlug,
           ownerName: form.ownerName,
           email: form.email,
           phone: form.phone,
@@ -219,7 +227,7 @@ function VenueStartPageInner() {
       </h1>
       <p className="text-base mb-8 max-w-xl" style={{ color: MUTED }}>{t.sub}</p>
 
-      <ul className="mb-10 flex flex-col gap-2.5">
+      <ul className="mb-8 flex flex-col gap-2.5">
         {[t.b1, t.b2, t.b3].map((b) => (
           <li key={b} className="flex gap-3 items-start text-sm">
             <span style={{ color: AMBER }}>✓</span>
@@ -227,6 +235,21 @@ function VenueStartPageInner() {
           </li>
         ))}
       </ul>
+
+      {/* Everything included — one subscription, every competition */}
+      <div className="mb-10 rounded-2xl p-5" style={{ background: "rgba(245,179,1,0.06)", border: `1px solid ${LINE}` }}>
+        <p className="text-[13px] font-black mb-3" style={{ color: CREAM }}>{t.includedTitle}</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          {INCLUDED.map((c) => (
+            <div key={c} className="flex gap-2 items-center text-[13px]">
+              <span style={{ color: AMBER }}>✓</span><span style={{ color: CREAM }}>{c}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[12px] mt-3 flex gap-2 items-center" style={{ color: MUTED }}>
+          <span style={{ color: AMBER }}>✓</span>{t.futureNote}
+        </p>
+      </div>
 
       {/* Plan */}
       <div className="flex gap-3 mb-8 flex-wrap">
@@ -237,16 +260,6 @@ function VenueStartPageInner() {
       <form onSubmit={submit} className="flex flex-col gap-4 max-w-md">
         <Field label={t.venue} value={form.venueName}
                onChange={(v) => setForm({ ...form, venueName: v })} required />
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] uppercase tracking-[0.18em]" style={{ color: MUTED }}>{t.league}</span>
-          <select value={form.competitionSlug}
-                  onChange={(e) => setForm({ ...form, competitionSlug: e.target.value })}
-                  className="px-4 py-3 rounded-lg text-base"
-                  style={{ background: "rgba(255,255,255,0.05)", color: CREAM, border: `1px solid ${LINE}` }}>
-            {comps.map((c) => <option key={c.slug} value={c.slug} style={{ color: "#000" }}>{c.name}</option>)}
-          </select>
-        </label>
 
         <Field label={t.yourName} value={form.ownerName} onChange={(v) => setForm({ ...form, ownerName: v })} />
         <Field label={t.email} type="email" value={form.email}

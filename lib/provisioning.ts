@@ -25,7 +25,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeName } from "./leagueName";
 import { logEvent, uniqueSlug } from "./venueDb";
 import { SITE } from "./stripe";
-import { sendVenueWelcome } from "./venueEmail";
+import { sendVenueWelcome, sendVenueSetup } from "./venueEmail";
 
 export interface ProvisionInput {
   venueId?: string | null;       // set when the payer was already a prospect
@@ -33,22 +33,24 @@ export interface ProvisionInput {
   country: string;               // ISO-2
   city?: string | null;
   language: string;              // en de es fr it
-  competitionSlug: string;       // premier-league | la-liga | ...
+  competitionSlug?: string | null; // OPTIONAL — leagues are now activated in
+                                   // the onboarding wizard, not bought up front
   ownerEmail: string;
   ownerName?: string | null;
   ownerPhone?: string | null;
   website?: string | null;
   stripeCustomerId: string;
+  checkoutSessionId?: string | null; // powers the "finish setup" resume link
 }
 
 export interface ProvisionResult {
   venueId: string;
   slug: string;
-  leagueId: string;
-  inviteCode: string;
-  joinUrl: string;
-  qrUrl: string;
-  posterUrl: string;
+  leagueId: string | null;       // null until the owner activates a competition
+  inviteCode: string | null;
+  joinUrl: string | null;
+  qrUrl: string | null;
+  posterUrl: string | null;
   ownerUserId: string;
   created: boolean;              // false when this was a webhook retry
 }
@@ -65,14 +67,15 @@ export async function provisionVenue(
 ): Promise<ProvisionResult> {
   const email = input.ownerEmail.toLowerCase().trim();
 
-  // ── 1. Competition ────────────────────────────────────────
-  const { data: comp, error: compErr } = await db
-    .from("competitions")
-    .select("id, name, slug")
-    .eq("slug", input.competitionSlug)
-    .single();
-  if (compErr || !comp) {
-    throw new Error(`Unknown competition "${input.competitionSlug}"`);
+  // ── 1. Competition (optional) ─────────────────────────────
+  // Leagues are activated in the onboarding wizard now, so a checkout carries
+  // no competition. Only look one up when a slug was explicitly passed.
+  let comp: { id: string; name: string; slug: string } | null = null;
+  if (input.competitionSlug) {
+    const { data } = await db
+      .from("competitions").select("id, name, slug")
+      .eq("slug", input.competitionSlug).maybeSingle();
+    comp = data;
   }
 
   // ── 2. Venue row ──────────────────────────────────────────
@@ -102,7 +105,7 @@ export async function provisionVenue(
       city:             input.city ?? undefined,
       language:         input.language,
       website:          input.website ?? undefined,
-      competition_slug: comp.slug,
+      competition_slug: input.competitionSlug ?? undefined,
       contact_email:    email,
       contact_name:     input.ownerName ?? undefined,
       contact_phone:    input.ownerPhone ?? undefined,
@@ -115,7 +118,7 @@ export async function provisionVenue(
       city:             input.city,
       language:         input.language,
       website:          input.website,
-      competition_slug: comp.slug,
+      competition_slug: input.competitionSlug ?? null,
       contact_email:    email,
       contact_email_status: "valid",     // they typed it and paid with it
       contact_name:     input.ownerName,
@@ -132,74 +135,88 @@ export async function provisionVenue(
   const ownerUserId = await ensureOwnerUser(db, email, input.venueName, venueId);
   await db.from("venues").update({ owner_user_id: ownerUserId }).eq("id", venueId);
 
-  // ── 4. Branded league (idempotent) ────────────────────────
-  const { data: existing } = await db
-    .from("prediction_leagues")
-    .select("id, invite_code")
-    .eq("venue_id", venueId)
-    .eq("competition_id", comp.id)
-    .maybeSingle();
+  // ── 4. Branded league — ONLY when a competition was passed ────
+  // The default path now provisions no league: the owner activates their
+  // competitions in the wizard (/api/venues/onboarding/leagues). A slug here
+  // is the legacy/explicit path and still works.
+  let leagueId: string | null = null;
+  let inviteCode: string | null = null;
+  let joinUrl: string | null = null;
 
-  let leagueId: string;
-  let inviteCode: string;
-  let created = false;
+  if (comp) {
+    const { data: existing } = await db
+      .from("prediction_leagues")
+      .select("id, invite_code")
+      .eq("venue_id", venueId)
+      .eq("competition_id", comp.id)
+      .maybeSingle();
 
-  if (existing) {
-    leagueId   = existing.id;
-    inviteCode = existing.invite_code;
-    // A previously suspended league (failed payment) comes back to life.
-    await db.from("prediction_leagues").update({ suspended: false }).eq("id", leagueId);
-  } else {
-    const name = brandedLeagueName(input.venueName, comp.name);
-    const { data, error } = await db.from("prediction_leagues").insert({
-      competition_id:      comp.id,
-      name,
-      normalized_name:     normalizeName(name),
-      created_by:          ownerUserId,
-      visibility:          "public",
-      is_featured:         true,
-      venue_id:            venueId,
-      sponsor_name:        input.venueName,
-      sponsor_url:         input.website,
-      sponsor_description: input.city
-        ? `${input.venueName} — ${input.city}`
-        : input.venueName,
-    }).select("id, invite_code").single();
-    if (error) throw new Error(`league insert failed: ${error.message}`);
-    leagueId   = data.id;
-    inviteCode = data.invite_code;
-    created    = true;
+    if (existing) {
+      leagueId   = existing.id;
+      inviteCode = existing.invite_code;
+      await db.from("prediction_leagues").update({ suspended: false }).eq("id", leagueId);
+    } else {
+      const name = brandedLeagueName(input.venueName, comp.name);
+      const { data, error } = await db.from("prediction_leagues").insert({
+        competition_id:      comp.id,
+        name,
+        normalized_name:     normalizeName(name),
+        created_by:          ownerUserId,
+        visibility:          "public",
+        is_featured:         true,
+        venue_id:            venueId,
+        sponsor_name:        input.venueName,
+        sponsor_url:         input.website,
+        sponsor_description: input.city ? `${input.venueName} — ${input.city}` : input.venueName,
+      }).select("id, invite_code").single();
+      if (error) throw new Error(`league insert failed: ${error.message}`);
+      leagueId   = data.id;
+      inviteCode = data.invite_code;
+    }
+
+    await db.from("prediction_league_members")
+      .upsert({ league_id: leagueId, user_id: ownerUserId },
+              { onConflict: "league_id,user_id", ignoreDuplicates: true });
+
+    joinUrl = `${SITE}/${comp.slug}/leagues/join?code=${inviteCode}`;
   }
 
-  // ── 5. Owner joins their own league ───────────────────────
-  await db.from("prediction_league_members")
-    .upsert({ league_id: leagueId, user_id: ownerUserId },
-            { onConflict: "league_id,user_id", ignoreDuplicates: true });
+  const qrUrl     = leagueId ? `${SITE}/api/venues/${slug}/qr.png` : null;
+  const posterUrl = leagueId ? `${SITE}/venues/${slug}/poster` : null;
 
-  // ── 6. URLs (QR + poster render on demand — nothing stored) ──
-  // The real join route is /{competition}/leagues/join?code=… — this URL is
-  // printed on physical table posters, so it has to be the live one.
-  const joinUrl   = `${SITE}/${comp.slug}/leagues/join?code=${inviteCode}`;
-  const qrUrl     = `${SITE}/api/venues/${slug}/qr.png`;
-  const posterUrl = `${SITE}/venues/${slug}/poster`;
-
-  // ── 7. Log + notify ───────────────────────────────────────
-  await logEvent(db, venueId, created ? "provisioned" : "provision_retry", {
-    league_id: leagueId, invite_code: inviteCode, competition: comp.slug,
-  });
+  // ── 5. Log + notify (once — webhook retries must not re-email) ──
+  const { data: priorEvt } = await db.from("venue_events")
+    .select("id").eq("venue_id", venueId).eq("kind", "provisioned").limit(1).maybeSingle();
+  const created = !priorEvt;
 
   if (created) {
-    await sendVenueWelcome({
-      to: email, venueName: input.venueName, ownerName: input.ownerName,
-      language: input.language, leagueName: brandedLeagueName(input.venueName, comp.name),
-      joinUrl, qrUrl, posterUrl, competitionName: comp.name,
-    }).catch((e) => console.error("[provision] welcome email failed", e));
+    await logEvent(db, venueId, "provisioned", {
+      league_id: leagueId, invite_code: inviteCode, competition: comp?.slug ?? null,
+    });
+
+    if (leagueId && comp && joinUrl && qrUrl && posterUrl) {
+      await sendVenueWelcome({
+        to: email, venueName: input.venueName, ownerName: input.ownerName,
+        language: input.language, leagueName: brandedLeagueName(input.venueName, comp.name),
+        joinUrl, qrUrl, posterUrl, competitionName: comp.name,
+      }).catch((e) => console.error("[provision] welcome email failed", e));
+    } else {
+      // No league yet — send the "finish your setup" email whose CTA resumes
+      // the exact wizard via the checkout session id.
+      await sendVenueSetup({
+        to: email, venueName: input.venueName, ownerName: input.ownerName,
+        language: input.language,
+        setupUrl: input.checkoutSessionId
+          ? `${SITE}/venues/welcome?session_id=${input.checkoutSessionId}`
+          : `${SITE}/venues`,
+      }).catch((e) => console.error("[provision] setup email failed", e));
+    }
 
     await notifyN8n({
       event: "venue.provisioned",
       venue_id: venueId, venue: input.venueName, country: input.country,
       city: input.city, email, phone: input.ownerPhone,
-      competition: comp.name, league_id: leagueId, invite_code: inviteCode,
+      competition: comp?.name ?? null, league_id: leagueId, invite_code: inviteCode,
       join_url: joinUrl, poster_url: posterUrl,
       stripe_customer_id: input.stripeCustomerId,
     }).catch((e) => console.error("[provision] n8n notify failed", e));

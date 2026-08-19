@@ -126,12 +126,13 @@ async function onCheckoutCompleted(db: any, s: Stripe.Checkout.Session) {
     country:         m.country || "GB",
     city:            m.city || null,
     language:        m.language || "en",
-    competitionSlug: m.competition_slug || "premier-league",
+    competitionSlug: m.competition_slug || null,   // leagues activated in the wizard now
     ownerEmail:      email,
     ownerName:       m.owner_name || s.customer_details?.name || null,
     ownerPhone:      m.owner_phone || s.customer_details?.phone || null,
     website:         m.website || null,
     stripeCustomerId: String(s.customer ?? ""),
+    checkoutSessionId: s.id,
   });
 
   // Trial starts the moment checkout completes.

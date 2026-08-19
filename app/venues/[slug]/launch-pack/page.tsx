@@ -29,9 +29,12 @@ export default async function LaunchPackPage({ params }: { params: { slug: strin
   return (
     <>
       <style>{`
-        @page { size: A4 portrait; margin: 0; }
+        @page A4portrait { size: A4 portrait; margin: 0; }
+        @page A3portrait { size: A3 portrait; margin: 0; }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page { width: ${A4.width}px; height: ${A4.height}px; overflow: hidden; page-break-after: always; position: relative; margin: 0 auto; background: #fff; }
+        .page { overflow: hidden; page-break-after: always; position: relative; margin: 0 auto; background: #fff; }
+        .page-a4 { width: ${A4.width}px; height: ${A4.height}px; page: A4portrait; }
+        .page-a3 { width: 1123px; height: 1587px; page: A3portrait; }
         .page:last-child { page-break-after: auto; }
         @media screen {
           body { background: #0c0c0e; }
@@ -48,7 +51,7 @@ export default async function LaunchPackPage({ params }: { params: { slug: strin
       </div>
 
       {/* ── Cover ── */}
-      <div className="page" style={{ background: brand.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 72, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div className="page page-a4" style={{ background: brand.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 72, fontFamily: "'Inter', system-ui, sans-serif" }}>
         <div style={{ position: "absolute", inset: 0, background: `radial-gradient(90% 50% at 50% 0%, ${brand.primary}2a, transparent 55%)` }} />
         <div style={{ zIndex: 1 }}>
           {brand.logoUrl
@@ -65,15 +68,15 @@ export default async function LaunchPackPage({ params }: { params: { slug: strin
         <div style={{ position: "absolute", bottom: 40, fontSize: 13, color: "#ffffff66", letterSpacing: "0.2em", zIndex: 1 }}>Powered by SuperBrain · superbrain.social</div>
       </div>
 
-      {/* ── Printables, one per A4 page ── */}
+      {/* ── Printables, each on its own correctly-sized page ── */}
       {printables.map((a) => (
-        <div key={a.kind} className="page">
+        <div key={a.kind} className={`page ${a.page === "A3" ? "page-a3" : "page-a4"}`}>
           <Artboard kind={a.kind} data={data} />
         </div>
       ))}
 
       {/* ── Digital contact sheet ── */}
-      <div className="page" style={{ background: "#fff", color: brand.ink, padding: 56, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div className="page page-a4" style={{ background: "#fff", color: brand.ink, padding: 56, fontFamily: "'Inter', system-ui, sans-serif" }}>
         <div style={{ fontSize: 13, letterSpacing: "0.3em", textTransform: "uppercase", color: brand.primary, fontWeight: 900 }}>Post these online</div>
         <div style={{ fontSize: 30, fontWeight: 900, marginTop: 8, letterSpacing: "-0.02em" }}>Your digital graphics</div>
         <div style={{ fontSize: 15, color: "#555", marginTop: 8, lineHeight: 1.5 }}>

@@ -123,45 +123,45 @@ export function textOn(hex: string): string {
 const COPY: Record<Lang, {
   kicker: string; scan: string; free: string; join: string; playFree: string;
   steps: string[]; foot: string; leaderboard: string; live: string;
-  thisWeek: string; announce: string; announceSub: string;
+  thisWeek: string; announce: string; announceSub: string; window: string;
 }> = {
   en: { kicker: "Official prediction league", scan: "Scan to join", free: "Free to play",
         join: "Join our league", playFree: "Play free on your phone",
         steps: ["Scan the code", "Predict this week's matches", "Top of the table wins"],
         foot: "Powered by SuperBrain", leaderboard: "Leaderboard", live: "LIVE",
         thisWeek: "This week", announce: "Our prediction league is LIVE",
-        announceSub: "Predict the football. Top the table. Free to play." },
+        announceSub: "Predict the football. Top the table. Free to play.", window: "Predict & win" },
   es: { kicker: "Liga oficial de pronósticos", scan: "Escanea para unirte", free: "Gratis",
         join: "Únete a nuestra liga", playFree: "Juega gratis en tu móvil",
         steps: ["Escanea el código", "Pronostica los partidos", "Gana quien lidere la tabla"],
         foot: "Con tecnología de SuperBrain", leaderboard: "Clasificación", live: "EN VIVO",
         thisWeek: "Esta semana", announce: "Nuestra liga de pronósticos ya está aquí",
-        announceSub: "Pronostica el fútbol. Lidera la tabla. Gratis." },
+        announceSub: "Pronostica el fútbol. Lidera la tabla. Gratis.", window: "Pronostica y gana" },
   it: { kicker: "Campionato ufficiale di pronostici", scan: "Inquadra per partecipare", free: "Gratis",
         join: "Entra nel campionato", playFree: "Gioca gratis dal telefono",
         steps: ["Inquadra il codice", "Pronostica le partite", "Vince chi guida la classifica"],
         foot: "Powered by SuperBrain", leaderboard: "Classifica", live: "LIVE",
         thisWeek: "Questa settimana", announce: "Il nostro campionato pronostici è LIVE",
-        announceSub: "Pronostica il calcio. Guida la classifica. Gratis." },
+        announceSub: "Pronostica il calcio. Guida la classifica. Gratis.", window: "Pronostica e vinci" },
   fr: { kicker: "Ligue officielle de pronostics", scan: "Scannez pour participer", free: "Gratuit",
         join: "Rejoignez notre ligue", playFree: "Jouez gratuitement sur mobile",
         steps: ["Scannez le code", "Pronostiquez les matchs", "Le premier du classement gagne"],
         foot: "Propulsé par SuperBrain", leaderboard: "Classement", live: "EN DIRECT",
         thisWeek: "Cette semaine", announce: "Notre ligue de pronostics est LANCÉE",
-        announceSub: "Pronostiquez le foot. Dominez le classement. Gratuit." },
+        announceSub: "Pronostiquez le foot. Dominez le classement. Gratuit.", window: "Pronostiquez & gagnez" },
   de: { kicker: "Offizielle Tippliga", scan: "Zum Mitspielen scannen", free: "Kostenlos",
         join: "Tritt unserer Liga bei", playFree: "Kostenlos am Handy spielen",
         steps: ["Code scannen", "Spiele der Woche tippen", "Tabellenführer gewinnt"],
         foot: "Powered by SuperBrain", leaderboard: "Tabelle", live: "LIVE",
         thisWeek: "Diese Woche", announce: "Unsere Tippliga ist LIVE",
-        announceSub: "Fußball tippen. Tabelle anführen. Kostenlos." },
+        announceSub: "Fußball tippen. Tabelle anführen. Kostenlos.", window: "Tippen & gewinnen" },
 };
 
 // ── Asset registry ──────────────────────────────────────────────────────────
 
 export type AssetKind =
-  | "poster" | "table-tent" | "tv-leaderboard"
-  | "social-square" | "instagram-story" | "facebook-post";
+  | "poster" | "poster-a3" | "window-poster" | "table-tent"
+  | "tv-leaderboard" | "instagram-story" | "facebook-cover";
 
 export interface AssetSpec {
   kind: AssetKind;
@@ -170,16 +170,17 @@ export interface AssetSpec {
   w: number;              // artboard px
   h: number;
   printable: boolean;     // goes in the printed Launch Pack PDF
-  page?: "A4" | "A4-landscape"; // paper when printed
+  page?: "A4" | "A3" | "A4-landscape"; // paper when printed
 }
 
 export const ASSET_KINDS: AssetSpec[] = [
-  { kind: "poster",          label: "Table & wall poster", hint: "A4 · print one per table",       w: 794,  h: 1123, printable: true,  page: "A4" },
-  { kind: "table-tent",      label: "Table tent card",     hint: "Folded card for the bar top",     w: 794,  h: 1123, printable: true,  page: "A4" },
-  { kind: "tv-leaderboard",  label: "TV leaderboard",      hint: "Cast to the big screen on matchday", w: 1280, h: 720,  printable: false },
-  { kind: "social-square",   label: "Announcement post",   hint: "Instagram / Facebook feed",       w: 1080, h: 1080, printable: false },
-  { kind: "instagram-story", label: "Instagram / TikTok story", hint: "9:16 vertical",              w: 1080, h: 1920, printable: false },
-  { kind: "facebook-post",   label: "Facebook / X banner", hint: "1200 × 630 link card",            w: 1200, h: 630,  printable: false },
+  { kind: "poster",          label: "A4 poster",         hint: "Print one per table & the wall",     w: 794,  h: 1123, printable: true,  page: "A4" },
+  { kind: "poster-a3",       label: "A3 poster",         hint: "Big wall / entrance poster",         w: 1123, h: 1587, printable: true,  page: "A3" },
+  { kind: "table-tent",      label: "Table tent card",   hint: "Folded card for the bar top",        w: 794,  h: 1123, printable: true,  page: "A4" },
+  { kind: "window-poster",   label: "Window poster",     hint: "Face it out to the street",          w: 794,  h: 1123, printable: true,  page: "A4" },
+  { kind: "tv-leaderboard",  label: "TV leaderboard",    hint: "Cast to the big screen on matchday", w: 1280, h: 720,  printable: false },
+  { kind: "instagram-story", label: "Instagram / TikTok story", hint: "9:16 vertical",               w: 1080, h: 1920, printable: false },
+  { kind: "facebook-cover",  label: "Facebook / X cover", hint: "1500 × 500 header",                 w: 1500, h: 500,  printable: false },
 ];
 
 export function assetSpec(kind: string): AssetSpec | undefined {
@@ -209,6 +210,33 @@ function Qr({ data, size }: { data: AssetData; size: number }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={data.qr(Math.min(1200, Math.round(size * 2)))} alt="QR"
            style={{ width: size, height: size, display: "block" }} />
+    </div>
+  );
+}
+
+// ── Co-brand: every asset is venue-branded but ALWAYS carries the official
+// SuperBrain identity. This is co-branding, not white-label. ──────────────────
+const SB_GREEN = "#1a3a2a", SB_GOLD = "#b8972a";
+
+function SBMark({ size }: { size: number }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: size * 0.22, background: SB_GREEN, display: "grid", placeItems: "center", flexShrink: 0 }}>
+      <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontSize: size * 0.52, color: SB_GOLD, letterSpacing: `-${size * 0.03}px`, lineHeight: 1 }}>SB</span>
+    </div>
+  );
+}
+
+/** "Powered by SuperBrain · www.superbrain.social" — small but always visible. */
+function PoweredBy({ scale = 1, onLight = false }: { scale?: number; onLight?: boolean }) {
+  const ink = onLight ? "#12100E" : "#ffffff";
+  const muted = onLight ? "#00000077" : "#ffffff99";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9 * scale }}>
+      <SBMark size={30 * scale} />
+      <div style={{ lineHeight: 1.15 }}>
+        <div style={{ fontSize: 12 * scale, fontWeight: 800, color: ink, letterSpacing: 0.2 * scale }}>Powered by SuperBrain</div>
+        <div style={{ fontSize: 10 * scale, color: muted, letterSpacing: 0.5 * scale }}>www.superbrain.social</div>
+      </div>
     </div>
   );
 }
@@ -263,7 +291,7 @@ function Poster({ data }: { data: AssetData }) {
           </div>
         ))}
       </div>
-      <div style={{ fontSize: 13, color: "#ffffff66", letterSpacing: "0.2em", zIndex: 1 }}>{t.foot} · superbrain.social</div>
+      <div style={{ zIndex: 1 }}><PoweredBy scale={1.1} /></div>
     </Board>
   );
 }
@@ -282,6 +310,7 @@ function TableTent({ data }: { data: AssetData }) {
       </div>
       <div style={{ zIndex: 1 }}><Qr data={data} size={150} /></div>
       <div style={{ zIndex: 1, fontSize: 18, fontWeight: 900, color: brand.primary }}>{t.scan}</div>
+      <div style={{ zIndex: 1 }}><PoweredBy scale={0.72} /></div>
     </div>
   );
   return (
@@ -327,38 +356,39 @@ function TvLeaderboard({ data }: { data: AssetData }) {
           ))}
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "#ffffff0a", border: "1px solid #ffffff14", borderRadius: 18, padding: 24 }}>
-          <Qr data={data} size={190} />
+          <Qr data={data} size={172} />
           <div style={{ fontSize: 22, fontWeight: 900, color: brand.primary }}>{t.scan}</div>
           <div style={{ fontSize: 14, color: "#ffffffaa", letterSpacing: "0.24em" }}>{data.inviteCode}</div>
+          <div style={{ marginTop: 4 }}><PoweredBy scale={0.82} /></div>
         </div>
       </div>
     </Board>
   );
 }
 
-/** Square social announcement — 1080×1080. */
-function SocialSquare({ data }: { data: AssetData }) {
+/** Window poster — A4 portrait, built to be read from the street. Giant offer
+ *  headline in the venue's colour, big QR to stop passers-by. */
+function WindowPoster({ data }: { data: AssetData }) {
   const { brand } = data;
   const t = COPY[brand.language];
   return (
-    <Board w={1080} h={1080} style={{ background: brand.ink, color: "#fff", padding: 88, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(80% 50% at 50% -5%, ${brand.primary}2a, transparent 55%)` }} />
-      <div style={{ zIndex: 1, display: "flex", alignItems: "center", gap: 20 }}>
-        <Logo brand={brand} max={80} />
-        {brand.logoUrl && <div style={{ fontSize: 26, fontWeight: 900 }}>{brand.name.toUpperCase()}</div>}
+    <Board w={794} h={1123} style={{ background: brand.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "56px 48px", textAlign: "center" }}>
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(100% 55% at 50% 0%, ${brand.primary}26, transparent 55%), radial-gradient(100% 45% at 50% 100%, ${brand.secondary}1f, transparent 55%)` }} />
+      <div style={{ zIndex: 1 }}>
+        <Logo brand={brand} max={92} />
+        {brand.logoUrl && <div style={{ fontSize: 26, fontWeight: 900, marginTop: 12 }}>{brand.name.toUpperCase()}</div>}
       </div>
       <div style={{ zIndex: 1 }}>
-        <div style={{ display: "inline-block", padding: "8px 20px", borderRadius: 999, background: brand.primary, color: textOn(brand.primary), fontWeight: 900, fontSize: 18, letterSpacing: "0.06em" }}>{t.live}</div>
-        <div style={{ fontSize: 62, fontWeight: 900, lineHeight: 1.02, marginTop: 22, letterSpacing: "-0.02em" }}>{t.announce}</div>
-        <div style={{ fontSize: 26, color: "#ffffffcc", marginTop: 18, lineHeight: 1.4 }}>{t.announceSub}</div>
+        <div style={{ fontSize: 96, fontWeight: 900, lineHeight: 0.95, letterSpacing: "-0.03em", color: brand.primary }}>{t.window}</div>
+        <div style={{ fontSize: 30, fontWeight: 800, marginTop: 20, lineHeight: 1.25 }}>{t.announceSub}</div>
       </div>
-      <div style={{ zIndex: 1, display: "flex", alignItems: "center", gap: 28 }}>
-        <Qr data={data} size={190} />
-        <div>
-          <div style={{ fontSize: 30, fontWeight: 900, color: brand.primary }}>{t.scan}</div>
-          <div style={{ fontSize: 20, color: "#ffffffaa", marginTop: 6, letterSpacing: "0.2em" }}>{t.free} · {data.inviteCode}</div>
+      <div style={{ zIndex: 1 }}>
+        <div style={{ background: "#fff", padding: 18, borderRadius: 22, display: "inline-block" }}>
+          <Qr data={data} size={300} />
         </div>
+        <div style={{ fontSize: 42, fontWeight: 900, marginTop: 20, color: brand.primary }}>{t.scan}</div>
       </div>
+      <div style={{ zIndex: 1 }}><PoweredBy scale={1.1} /></div>
     </Board>
   );
 }
@@ -382,30 +412,32 @@ function InstagramStory({ data }: { data: AssetData }) {
         <Qr data={data} size={300} />
         <div style={{ fontSize: 40, fontWeight: 900, marginTop: 26, color: brand.primary }}>{t.scan}</div>
         <div style={{ fontSize: 24, color: "#ffffffaa", marginTop: 10, letterSpacing: "0.24em" }}>{t.playFree}</div>
+        <div style={{ marginTop: 30, display: "flex", justifyContent: "center" }}><PoweredBy scale={1.35} /></div>
       </div>
     </Board>
   );
 }
 
-/** Facebook / X link banner — 1200×630. */
-function FacebookPost({ data }: { data: AssetData }) {
+/** Facebook / X cover banner — 1500×500 header. */
+function FacebookCover({ data }: { data: AssetData }) {
   const { brand } = data;
   const t = COPY[brand.language];
   return (
-    <Board w={1200} h={630} style={{ background: brand.ink, color: "#fff", padding: 64, display: "flex", alignItems: "center", gap: 48 }}>
-      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(70% 90% at 0% 50%, ${brand.primary}26, transparent 60%)` }} />
+    <Board w={1500} h={500} style={{ background: brand.ink, color: "#fff", padding: "44px 80px", display: "flex", alignItems: "center", gap: 60 }}>
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(60% 120% at 0% 50%, ${brand.primary}26, transparent 60%), radial-gradient(50% 120% at 100% 50%, ${brand.secondary}1c, transparent 60%)` }} />
       <div style={{ zIndex: 1, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Logo brand={brand} max={64} />
-          {brand.logoUrl && <div style={{ fontSize: 22, fontWeight: 900 }}>{brand.name.toUpperCase()}</div>}
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <Logo brand={brand} max={62} />
+          {brand.logoUrl && <div style={{ fontSize: 24, fontWeight: 900 }}>{brand.name.toUpperCase()}</div>}
         </div>
-        <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.03, marginTop: 22, letterSpacing: "-0.02em" }}>{t.announce}</div>
-        <div style={{ fontSize: 22, color: "#ffffffcc", marginTop: 16 }}>{t.announceSub}</div>
+        <div style={{ fontSize: 50, fontWeight: 900, lineHeight: 1.03, marginTop: 18, letterSpacing: "-0.02em" }}>{t.announce}</div>
+        <div style={{ fontSize: 22, color: "#ffffffcc", marginTop: 12 }}>{t.announceSub}</div>
       </div>
       <div style={{ zIndex: 1, textAlign: "center" }}>
-        <Qr data={data} size={230} />
-        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 16, color: brand.primary }}>{t.scan}</div>
+        <Qr data={data} size={210} />
+        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 14, color: brand.primary }}>{t.scan}</div>
       </div>
+      <div style={{ position: "absolute", left: 80, bottom: 26, zIndex: 1 }}><PoweredBy scale={0.9} /></div>
     </Board>
   );
 }
@@ -414,10 +446,18 @@ function FacebookPost({ data }: { data: AssetData }) {
 export function Artboard({ kind, data }: { kind: AssetKind; data: AssetData }) {
   switch (kind) {
     case "poster":          return <Poster data={data} />;
+    case "poster-a3":       return (
+      // Same A4 poster, scaled up to A3 (√2) so one design serves both sizes.
+      <div style={{ width: 1123, height: 1587, overflow: "hidden" }}>
+        <div style={{ width: 794, height: 1123, transform: "scale(1.4143)", transformOrigin: "top left" }}>
+          <Poster data={data} />
+        </div>
+      </div>
+    );
+    case "window-poster":   return <WindowPoster data={data} />;
     case "table-tent":      return <TableTent data={data} />;
     case "tv-leaderboard":  return <TvLeaderboard data={data} />;
-    case "social-square":   return <SocialSquare data={data} />;
     case "instagram-story": return <InstagramStory data={data} />;
-    case "facebook-post":   return <FacebookPost data={data} />;
+    case "facebook-cover":  return <FacebookCover data={data} />;
   }
 }

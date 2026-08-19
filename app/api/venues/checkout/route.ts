@@ -18,7 +18,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, priceId, currencyFor, checkoutLocale, SITE, TRIAL_DAYS, type Plan } from "@/lib/stripe";
-import { admin } from "@/lib/venueDb";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,27 +32,19 @@ export async function POST(req: NextRequest) {
   const venueName = String(body.venueName ?? "").trim();
   const email     = String(body.email ?? "").trim().toLowerCase();
   const country   = String(body.country ?? "").trim().toUpperCase();
-  const compSlug  = String(body.competitionSlug ?? "").trim();
   const plan: Plan = body.plan === "annual" ? "annual" : "monthly";
   const language  = LANGS.includes(body.language) ? body.language : "en";
 
-  if (!venueName || !email || !country || !compSlug) {
+  // No competition is chosen at signup any more — the subscription includes
+  // every competition and leagues are activated in the onboarding wizard.
+  if (!venueName || !email || !country) {
     return NextResponse.json(
-      { error: "venueName, email, country and competitionSlug are required" },
+      { error: "venueName, email and country are required" },
       { status: 400 },
     );
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ error: "invalid email" }, { status: 400 });
-  }
-
-  // The competition must exist and be active — otherwise we would take money
-  // for a league we cannot provision.
-  const db = admin();
-  const { data: comp } = await db
-    .from("competitions").select("slug, status").eq("slug", compSlug).maybeSingle();
-  if (!comp || comp.status !== "active") {
-    return NextResponse.json({ error: "competition not available" }, { status: 400 });
   }
 
   const currency = currencyFor(country);
@@ -68,7 +59,6 @@ export async function POST(req: NextRequest) {
     country,
     city:             String(body.city ?? ""),
     language,
-    competition_slug: compSlug,
     owner_name:       String(body.ownerName ?? ""),
     owner_phone:      String(body.phone ?? ""),
     website:          String(body.website ?? ""),

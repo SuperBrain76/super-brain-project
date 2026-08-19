@@ -118,7 +118,7 @@ function Wizard({ sessionId, initial }: { sessionId: string; initial: State }) {
           {step === 0 && <BrandingStep v={v} patch={patch} sessionId={sessionId} busy={busy} setBusy={setBusy}
             onNext={async () => { setBusy(true);
               try { await post("/api/venues/onboarding/branding", {
-                primary: v.primary, ink: v.ink, secondary: v.secondary || "",
+                primary: v.primary, secondary: v.secondary || "",
                 website: v.website || "", instagram: v.instagram || "", facebook: v.facebook || "", step: "competitions" });
                 go(1); } finally { setBusy(false); } }} />}
 
@@ -202,10 +202,9 @@ function BrandingStep({ v, patch, sessionId, busy, setBusy, onNext }: {
             {err && <p className="text-xs mt-2" style={{ color: "#ff8a8a" }}>{err}</p>}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <ColorField label="Primary" value={v.primary} onChange={(c) => patch({ primary: c })} />
-            <ColorField label="Background" value={v.ink} onChange={(c) => patch({ ink: c })} />
-            <ColorField label="Accent" value={v.secondary || v.primary} onChange={(c) => patch({ secondary: c })} optional />
+          <div className="grid grid-cols-2 gap-3">
+            <ColorField label="Primary colour" value={v.primary} onChange={(c) => patch({ primary: c })} />
+            <ColorField label="Secondary" value={v.secondary || v.primary} onChange={(c) => patch({ secondary: c })} optional />
           </div>
 
           <div className="flex flex-col gap-3">
@@ -266,33 +265,36 @@ function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
   const [sel, setSel] = useState<string[]>([]);
   const available = comps.filter((c) => !c.hasLeague);
   const toggle = (slug: string) => setSel((s) => s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]);
+  const canContinue = leagues.length > 0;
 
   return (
     <div>
       <Kicker>Step 2 of 5</Kicker>
-      <H1>Your competitions</H1>
+      <H1>Activate your competitions</H1>
       <P>Your subscription includes <b style={{ color: CREAM }}>every competition</b> — Premier League,
-         Champions League, La Liga and the rest, plus ice hockey. Run as many leagues as you like at no
-         extra cost. You&apos;re already live on the one you chose; add more any time.</P>
+         Champions League, La Liga, the rest, plus ice hockey — and future ones automatically. Activate the
+         ones you want to run. Each becomes its own branded league; add or remove any time, at no extra cost.</P>
 
-      <div className="mt-7">
-        <Label>Live now</Label>
-        <div className="flex flex-col gap-2 mt-2">
-          {leagues.map((l) => (
-            <div key={l.slug} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
-              <div>
-                <div className="font-bold text-sm">{l.name}</div>
-                <div className="text-xs" style={{ color: MUTED }}>{l.competition} · code {l.inviteCode}</div>
+      {leagues.length > 0 && (
+        <div className="mt-7">
+          <Label>Live now</Label>
+          <div className="flex flex-col gap-2 mt-2">
+            {leagues.map((l) => (
+              <div key={l.slug} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
+                <div>
+                  <div className="font-bold text-sm">{l.name}</div>
+                  <div className="text-xs" style={{ color: MUTED }}>{l.competition} · code {l.inviteCode}</div>
+                </div>
+                <span className="text-[11px] font-black px-2.5 py-1 rounded-full" style={{ background: `${AMBER}22`, color: AMBER }}>LIVE</span>
               </div>
-              <span className="text-[11px] font-black px-2.5 py-1 rounded-full" style={{ background: `${AMBER}22`, color: AMBER }}>LIVE</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {available.length > 0 && (
         <div className="mt-7">
-          <Label>Add more leagues — included free</Label>
+          <Label>{leagues.length ? "Add more — all included free" : "Choose your first competition — all included free"}</Label>
           <div className="grid sm:grid-cols-2 gap-2 mt-2">
             {available.map((c) => (
               <button key={c.slug} onClick={() => toggle(c.slug)}
@@ -307,15 +309,16 @@ function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
             ))}
           </div>
           <SecondaryBtn className="mt-3" disabled={!sel.length || busy} onClick={() => { onAdd(sel); setSel([]); }}>
-            {busy ? "Creating…" : `Add ${sel.length || ""} selected league${sel.length === 1 ? "" : "s"}`}
+            {busy ? "Activating…" : `Activate ${sel.length || ""} league${sel.length === 1 ? "" : "s"}`}
           </SecondaryBtn>
         </div>
       )}
 
       <NavRow>
         <BackBtn onClick={onBack} />
-        <PrimaryBtn onClick={onNext}>Continue →</PrimaryBtn>
+        <PrimaryBtn disabled={!canContinue} onClick={onNext}>Continue →</PrimaryBtn>
       </NavRow>
+      {!canContinue && <p className="text-xs mt-3 text-right" style={{ color: MUTED }}>Activate at least one competition to build your Launch Pack.</p>}
     </div>
   );
 }

@@ -24,10 +24,13 @@ export default async function AssetPage({ params }: { params: { slug: string; ki
     ? "Print this page (Cmd/Ctrl + P) → Save as PDF, or screenshot it."
     : "Screenshot this graphic (or right-click the image area) to post it.";
 
+  const pageSize = spec.page === "A3" ? "A3 portrait"
+    : spec.page === "A4-landscape" ? "A4 landscape" : "A4 portrait";
+
   return (
     <>
       <style>{`
-        @page { size: ${spec.page === "A4-landscape" ? "A4 landscape" : "A4 portrait"}; margin: 0; }
+        @page { size: ${pageSize}; margin: 0; }
         @media print {
           .no-print { display: none !important; }
           html, body { background: #fff !important; }

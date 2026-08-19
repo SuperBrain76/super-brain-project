@@ -171,6 +171,43 @@ export async function sendVenueWelcome(input: WelcomeInput) {
   });
 }
 
+/**
+ * Sent the moment checkout completes, when the venue still has setup to do:
+ * pick competitions, add branding, download the Launch Pack. The CTA resumes
+ * the exact wizard via the checkout session id.
+ */
+export async function sendVenueSetup(opts: {
+  to: string; venueName: string; ownerName?: string | null; language: string; setupUrl: string;
+}) {
+  const L = lang(opts.language);
+  const t = {
+    en: { s: `${opts.venueName} — finish your 2-minute setup`, hi: "Hi ", lead: "Your SuperBrain Venue trial has started.", body: "Finish setting up to pick your competitions, add your logo and colours, and download your branded Launch Pack — posters, table tents, a TV leaderboard and social graphics, all ready to print and post.", cta: "Finish setup & get my Launch Pack", trial: "Your 7-day trial has started — cancel any time in the first 7 days and you pay nothing.", sign: "Any question at all, just reply to this email." },
+    es: { s: `${opts.venueName} — termina tu configuración de 2 minutos`, hi: "Hola ", lead: "Tu prueba de SuperBrain para locales ha comenzado.", body: "Termina la configuración para elegir tus competiciones, añadir tu logo y colores y descargar tu Launch Pack con tu marca: carteles, displays de mesa, una clasificación para TV y gráficos para redes, listos para imprimir y publicar.", cta: "Terminar configuración y obtener mi Launch Pack", trial: "Tu prueba de 7 días ha comenzado: cancela en los primeros 7 días y no pagas nada.", sign: "Cualquier duda, responde a este email." },
+    it: { s: `${opts.venueName} — completa la configurazione di 2 minuti`, hi: "Ciao ", lead: "La tua prova SuperBrain per locali è iniziata.", body: "Completa la configurazione per scegliere le competizioni, aggiungere logo e colori e scaricare il tuo Launch Pack brandizzato: locandine, display da tavolo, una classifica per la TV e grafiche social, pronti da stampare e pubblicare.", cta: "Completa la configurazione e ottieni il Launch Pack", trial: "La tua prova di 7 giorni è iniziata: annulla entro 7 giorni e non paghi nulla.", sign: "Per qualsiasi domanda, rispondi a questa email." },
+    fr: { s: `${opts.venueName} — terminez votre configuration de 2 minutes`, hi: "Bonjour ", lead: "Votre essai SuperBrain pour établissements a commencé.", body: "Terminez la configuration pour choisir vos compétitions, ajouter votre logo et vos couleurs, et télécharger votre Launch Pack à votre marque : affiches, chevalets de table, un classement pour la TV et des visuels pour les réseaux, prêts à imprimer et à publier.", cta: "Terminer la configuration et obtenir mon Launch Pack", trial: "Votre essai de 7 jours a commencé — annulez dans les 7 jours et vous ne payez rien.", sign: "La moindre question, répondez simplement à cet email." },
+    de: { s: `${opts.venueName} — Einrichtung in 2 Minuten abschließen`, hi: "Hallo ", lead: "Ihre SuperBrain-Testphase für Lokale hat begonnen.", body: "Schließen Sie die Einrichtung ab, um Ihre Wettbewerbe zu wählen, Logo und Farben hinzuzufügen und Ihr gebrandetes Launch Pack herunterzuladen: Poster, Tischaufsteller, eine TV-Tabelle und Social-Grafiken – fertig zum Drucken und Posten.", cta: "Einrichtung abschließen & Launch Pack holen", trial: "Ihre 7-tägige Testphase hat begonnen – innerhalb von 7 Tagen kündbar, dann zahlen Sie nichts.", sign: "Bei Fragen antworten Sie einfach auf diese E-Mail." },
+  }[L];
+
+  return getResend().emails.send({
+    from: VENUE_FROM,
+    to: opts.to,
+    subject: t.s,
+    html: shell(`
+      <p style="font-size:16px;color:#1a3a2a;margin:0 0 14px;">${t.hi}${opts.ownerName ?? ""}</p>
+      <p style="font-size:17px;color:#1a3a2a;margin:0 0 8px;font-weight:bold;">${t.lead}</p>
+      <p style="font-size:14px;color:#5a6b5f;line-height:1.6;margin:0 0 22px;">${t.body}</p>
+      <div style="text-align:center;margin:0 0 22px;">
+        <a href="${opts.setupUrl}" style="display:inline-block;background:#b8972a;color:#fff;
+           text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
+           font-weight:bold;font-size:15px;">${t.cta}</a>
+      </div>
+      <p style="font-size:12px;color:#7a8f82;border-top:1px solid #e6e0d6;padding-top:16px;margin:0 0 8px;">${t.trial}</p>
+      <p style="font-size:13px;color:#5a6b5f;margin:0;">${t.sign}</p>
+    `),
+    replyTo: process.env.VENUE_REPLY_TO || undefined,
+  });
+}
+
 /** Payment failed — sent before the league is suspended (Workflow 3). */
 export async function sendPaymentFailed(opts: {
   to: string; venueName: string; language: string; updateUrl: string; daysLeft: number;
