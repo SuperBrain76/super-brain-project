@@ -116,18 +116,30 @@ function Wizard({ sessionId, initial }: { sessionId: string; initial: State }) {
 
         <div className="mt-9">
           {step === 0 && <BrandingStep v={v} patch={patch} sessionId={sessionId} busy={busy} setBusy={setBusy}
+            hasLeague={leagues.length > 0}
             onNext={async () => { setBusy(true);
               try { await post("/api/venues/onboarding/branding", {
                 primary: v.primary, secondary: v.secondary || "",
                 website: v.website || "", instagram: v.instagram || "", facebook: v.facebook || "", step: "competitions" });
                 go(1); } finally { setBusy(false); } }} />}
 
-          {step === 1 && <CompetitionsStep leagues={leagues} comps={comps} busy={busy}
-            onAdd={async (slugs) => { setBusy(true);
-              try { await post("/api/venues/onboarding/leagues", { competitionSlugs: slugs });
-                const s = await (await fetch(`/api/venues/onboarding/state?session_id=${encodeURIComponent(sessionId)}`)).json();
-                setLeagues(s.leagues); setComps(s.competitions);
-              } finally { setBusy(false); } }}
+          {step === 1 && <CompetitionsStep leagues={leagues} comps={comps}
+            onAdd={async (slugs) => {
+              try {
+                const res = await post("/api/venues/onboarding/leagues", { competitionSlugs: slugs });
+                // Refetch state; if it isn't ready yet, fall back to the
+                // response so Continue can still enable.
+                const sres = await fetch(`/api/venues/onboarding/state?session_id=${encodeURIComponent(sessionId)}`);
+                const s = sres.ok ? await sres.json() : null;
+                if (s?.ready && Array.isArray(s.leagues)) { setLeagues(s.leagues); setComps(s.competitions ?? comps); }
+                else if (Array.isArray(res?.active) && res.active.length) {
+                  setLeagues((prev) => prev.length ? prev : res.active.map((a: any) => ({ slug: a.slug, competition: a.slug, name: a.slug, inviteCode: a.inviteCode })));
+                }
+                return { ok: true as const };
+              } catch (e: any) {
+                return { ok: false as const, error: e?.error || e?.message || "Could not activate that competition. Please try again." };
+              }
+            }}
             onNext={() => { post("/api/venues/onboarding/branding", { step: "posters" }).catch(() => {}); go(2); }}
             onBack={() => go(0)} />}
 
@@ -151,9 +163,9 @@ function Wizard({ sessionId, initial }: { sessionId: string; initial: State }) {
 
 // ── Step 1: Branding ─────────────────────────────────────────────────────────
 
-function BrandingStep({ v, patch, sessionId, busy, setBusy, onNext }: {
+function BrandingStep({ v, patch, sessionId, busy, setBusy, hasLeague, onNext }: {
   v: Brand; patch: (p: Partial<Brand>) => void; sessionId: string;
-  busy: boolean; setBusy: (b: boolean) => void; onNext: () => void;
+  busy: boolean; setBusy: (b: boolean) => void; hasLeague: boolean; onNext: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
@@ -220,7 +232,7 @@ function BrandingStep({ v, patch, sessionId, busy, setBusy, onNext }: {
         <div>
           <Label>Live preview</Label>
           <div className="mt-2 rounded-2xl overflow-hidden" style={{ border: `1px solid ${LINE}` }}>
-            <PosterMock v={v} />
+            <PosterMock v={v} slug={v.slug} hasLeague={hasLeague} />
           </div>
         </div>
       </div>
@@ -236,43 +248,76 @@ function BrandingStep({ v, patch, sessionId, busy, setBusy, onNext }: {
   );
 }
 
-/** A CSS mock of the poster that updates instantly as branding changes. */
-function PosterMock({ v }: { v: Brand }) {
+/** A mock of the poster that updates instantly as branding changes. The QR is
+ *  the REAL scannable code once a league exists; until then a spinner — never a
+ *  fake QR pattern. */
+function PosterMock({ v, slug, hasLeague }: { v: Brand; slug: string; hasLeague: boolean }) {
   return (
     <div style={{ background: v.ink, color: "#fff", aspectRatio: "210/297", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "8% 7%", fontFamily: "'Inter',system-ui,sans-serif" }}>
+      <style>{`@keyframes pmSpin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign: "center" }}>
         {v.logoUrl
           /* eslint-disable-next-line @next/next/no-img-element */
           ? <img src={v.logoUrl} alt="" style={{ maxHeight: "14%", maxWidth: "70%", height: 42, objectFit: "contain" }} />
           : <div style={{ fontWeight: 900, fontSize: 22, color: v.primary }}>{v.name.toUpperCase()}</div>}
-        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 10 }}>{v.name.toUpperCase()}</div>
+        {v.logoUrl && <div style={{ fontSize: 20, fontWeight: 900, marginTop: 10 }}>{v.name.toUpperCase()}</div>}
         <div style={{ fontSize: 9, letterSpacing: "0.34em", textTransform: "uppercase", color: v.primary, marginTop: 8 }}>Official prediction league</div>
       </div>
-      <div style={{ background: "#fff", padding: 8, borderRadius: 10 }}>
-        <div style={{ width: 90, height: 90, background: `repeating-conic-gradient(${v.ink} 0% 25%, #fff 0% 50%) 50% / 12px 12px` }} />
+
+      {hasLeague ? (
+        <div style={{ background: "#fff", padding: 8, borderRadius: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/venues/${slug}/qr.png?size=180`} alt="Join QR code" width={92} height={92} style={{ display: "block" }} />
+        </div>
+      ) : (
+        <div style={{ width: 108, height: 108, borderRadius: 10, background: "#ffffff10", border: `1px solid ${LINE}`, display: "grid", placeItems: "center", textAlign: "center", padding: 8 }}>
+          <div>
+            <div style={{ width: 22, height: 22, margin: "0 auto 7px", borderRadius: 999, border: `2px solid ${v.primary}`, borderTopColor: "transparent", animation: "pmSpin 0.8s linear infinite" }} />
+            <div style={{ fontSize: 9, color: MUTED, lineHeight: 1.3 }}>Generating<br />QR code…</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
+        <div style={{ display: "inline-block", padding: "5px 16px", borderRadius: 999, background: v.primary, color: contrast(v.primary), fontWeight: 900, fontSize: 12 }}>Scan to join · Free</div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 13, height: 13, borderRadius: 3, background: "#1a3a2a", color: "#b8972a", fontSize: 7, fontWeight: 900, display: "grid", placeItems: "center", fontFamily: "Georgia, serif" }}>SB</span>
+          <span style={{ fontSize: 8, color: MUTED }}>Powered by SuperBrain</span>
+        </div>
       </div>
-      <div style={{ display: "inline-block", padding: "5px 16px", borderRadius: 999, background: v.primary, color: contrast(v.primary), fontWeight: 900, fontSize: 12 }}>Scan to join · Free</div>
     </div>
   );
 }
 
 // ── Step 2: Competitions ─────────────────────────────────────────────────────
 
-function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
-  leagues: League[]; comps: Comp[]; busy: boolean;
-  onAdd: (slugs: string[]) => void; onNext: () => void; onBack: () => void;
+function CompetitionsStep({ leagues, comps, onAdd, onNext, onBack }: {
+  leagues: League[]; comps: Comp[];
+  onAdd: (slugs: string[]) => Promise<{ ok: boolean; error?: string }>;
+  onNext: () => void; onBack: () => void;
 }) {
   const [sel, setSel] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
   const available = comps.filter((c) => !c.hasLeague);
   const toggle = (slug: string) => setSel((s) => s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]);
   const canContinue = leagues.length > 0;
 
+  const save = async () => {
+    if (!sel.length || busy) return;
+    setBusy(true); setErr("");
+    const res = await onAdd(sel);
+    setBusy(false);
+    if (res.ok) setSel([]);            // keep the selection on failure so they can retry
+    else setErr(res.error || "Couldn't save your competitions. Please try again.");
+  };
+
   return (
     <div>
       <Kicker>Step 2 of 5</Kicker>
-      <H1>Activate your competitions</H1>
+      <H1>Choose your competitions</H1>
       <P>Your subscription includes <b style={{ color: CREAM }}>every competition</b> — Premier League,
-         Champions League, La Liga, the rest, plus ice hockey — and future ones automatically. Activate the
+         Champions League, La Liga, the rest, plus ice hockey — and future ones automatically. Pick the
          ones you want to run. Each becomes its own branded league; add or remove any time, at no extra cost.</P>
 
       {leagues.length > 0 && (
@@ -282,7 +327,7 @@ function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
             {leagues.map((l) => (
               <div key={l.slug} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
                 <div>
-                  <div className="font-bold text-sm">{l.name}</div>
+                  <div className="font-bold text-sm">{l.name || l.competition}</div>
                   <div className="text-xs" style={{ color: MUTED }}>{l.competition} · code {l.inviteCode}</div>
                 </div>
                 <span className="text-[11px] font-black px-2.5 py-1 rounded-full" style={{ background: `${AMBER}22`, color: AMBER }}>LIVE</span>
@@ -294,7 +339,7 @@ function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
 
       {available.length > 0 && (
         <div className="mt-7">
-          <Label>{leagues.length ? "Add more — all included free" : "Choose your first competition — all included free"}</Label>
+          <Label>{leagues.length ? "Add more — all included free" : "Choose your competitions — all included free"}</Label>
           <div className="grid sm:grid-cols-2 gap-2 mt-2">
             {available.map((c) => (
               <button key={c.slug} onClick={() => toggle(c.slug)}
@@ -308,9 +353,10 @@ function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
               </button>
             ))}
           </div>
-          <SecondaryBtn className="mt-3" disabled={!sel.length || busy} onClick={() => { onAdd(sel); setSel([]); }}>
-            {busy ? "Activating…" : `Activate ${sel.length || ""} league${sel.length === 1 ? "" : "s"}`}
+          <SecondaryBtn className="mt-3" disabled={!sel.length || busy} onClick={save}>
+            {busy ? "Saving…" : `Save ${sel.length || ""} competition${sel.length === 1 ? "" : "s"}`}
           </SecondaryBtn>
+          {err && <p className="text-xs mt-2" style={{ color: "#ff8a8a" }}>{err}</p>}
         </div>
       )}
 
@@ -318,7 +364,7 @@ function CompetitionsStep({ leagues, comps, busy, onAdd, onNext, onBack }: {
         <BackBtn onClick={onBack} />
         <PrimaryBtn disabled={!canContinue} onClick={onNext}>Continue →</PrimaryBtn>
       </NavRow>
-      {!canContinue && <p className="text-xs mt-3 text-right" style={{ color: MUTED }}>Activate at least one competition to build your Launch Pack.</p>}
+      {!canContinue && <p className="text-xs mt-3 text-right" style={{ color: MUTED }}>Choose at least one competition to build your Launch Pack.</p>}
     </div>
   );
 }

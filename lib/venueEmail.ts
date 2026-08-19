@@ -193,7 +193,7 @@ export async function sendVenueSetup(opts: {
     to: opts.to,
     subject: t.s,
     html: shell(`
-      <p style="font-size:16px;color:#1a3a2a;margin:0 0 14px;">${t.hi}${opts.ownerName ?? ""}</p>
+      <p style="font-size:16px;color:#1a3a2a;margin:0 0 14px;">${opts.ownerName ? `${t.hi}${opts.ownerName},` : `${t.hi.trim()},`}</p>
       <p style="font-size:17px;color:#1a3a2a;margin:0 0 8px;font-weight:bold;">${t.lead}</p>
       <p style="font-size:14px;color:#5a6b5f;line-height:1.6;margin:0 0 22px;">${t.body}</p>
       <div style="text-align:center;margin:0 0 22px;">

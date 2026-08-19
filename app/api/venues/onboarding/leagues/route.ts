@@ -38,17 +38,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "venue not fully provisioned yet" }, { status: 409 });
   }
 
-  const created: { slug: string; inviteCode: string }[] = [];
-  const skipped: string[] = [];
+  // active   = leagues this venue now has for the requested competitions
+  //            (whether we just created them or they already existed)
+  // failed   = competitions we could NOT activate, with the reason — surfaced
+  //            to the UI so a blocked venue never sees a silent reset.
+  const active: { slug: string; inviteCode: string }[] = [];
+  const failed: { slug: string; error: string }[] = [];
 
   for (const slug of slugs) {
     const { data: comp } = await r.db.from("competitions")
       .select("id, name, slug, status").eq("slug", slug).maybeSingle();
-    if (!comp || comp.status !== "active") { skipped.push(slug); continue; }
+    if (!comp || comp.status !== "active") {
+      failed.push({ slug, error: "competition is not currently available" });
+      continue;
+    }
 
+    // Already activated for this venue → success, not a skip.
     const { data: existing } = await r.db.from("prediction_leagues")
       .select("id, invite_code").eq("venue_id", r.venueId).eq("competition_id", comp.id).maybeSingle();
-    if (existing) { skipped.push(slug); continue; }
+    if (existing) { active.push({ slug: comp.slug, inviteCode: existing.invite_code }); continue; }
 
     const name = brandedLeagueName(venue.name, comp.name);
     const { data: league, error } = await r.db.from("prediction_leagues").insert({
@@ -63,17 +71,32 @@ export async function POST(req: NextRequest) {
       sponsor_url:         venue.website,
       sponsor_description: venue.city ? `${venue.name} — ${venue.city}` : venue.name,
     }).select("id, invite_code").single();
-    if (error) { console.error("[onboarding/leagues]", slug, error.message); skipped.push(slug); continue; }
+    if (error || !league) {
+      const msg = error?.message ?? "insert returned no row";
+      console.error("[onboarding/leagues] insert failed", slug, msg);
+      await logEvent(r.db, r.venueId, "league_activation_failed", { slug, error: msg });
+      failed.push({ slug, error: msg });
+      continue;
+    }
 
     await r.db.from("prediction_league_members").upsert(
       { league_id: league.id, user_id: venue.owner_user_id },
       { onConflict: "league_id,user_id", ignoreDuplicates: true },
     );
-    created.push({ slug: comp.slug, inviteCode: league.invite_code });
+    active.push({ slug: comp.slug, inviteCode: league.invite_code });
   }
 
-  if (created.length) {
-    await logEvent(r.db, r.venueId, "leagues_added", { slugs: created.map((c) => c.slug) });
+  if (active.length) {
+    await logEvent(r.db, r.venueId, "leagues_added", { slugs: active.map((c) => c.slug) });
   }
-  return NextResponse.json({ ok: true, created, skipped });
+
+  // If nothing could be activated and we have a reason, tell the client so it
+  // can show the error instead of silently disabling Continue forever.
+  if (!active.length && failed.length) {
+    return NextResponse.json(
+      { ok: false, active, failed, error: failed[0].error },
+      { status: 422 },
+    );
+  }
+  return NextResponse.json({ ok: true, active, failed });
 }
