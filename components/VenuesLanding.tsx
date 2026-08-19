@@ -67,16 +67,17 @@ export default function VenuesLanding() {
         </div>
       </section>
 
-      {/* ── 2. THE FLOW / 60-SEC ── */}
-      <Section title="See it in 60 seconds">
-        <div className="rounded-2xl overflow-hidden mb-6" style={{ border: `1px solid ${C.line}`, aspectRatio: "16/7", background: `linear-gradient(120deg, ${C.panel2}, ${C.bg})`, display: "grid", placeItems: "center" }}>
+      {/* ── 2. THE FLOW — leads to the live demo venue (no dead video button) ── */}
+      <Section title="See it live">
+        <Link href="/venues/mccaffertys" className="vl-btn block rounded-2xl overflow-hidden mb-6" style={{ border: `1px solid ${C.line}`, aspectRatio: "16/7", background: `linear-gradient(120deg, ${C.panel2}, ${C.bg})`, display: "grid", placeItems: "center" }}>
           <div className="text-center">
             <div className="w-16 h-16 rounded-full mx-auto grid place-items-center" style={{ background: C.gold, color: "#1a1405", animation: "vlPulse 2.2s ease-in-out infinite" }}>
               <span style={{ fontSize: 26, marginLeft: 4 }}>▶</span>
             </div>
-            <p className="text-xs mt-3 font-bold tracking-widest uppercase" style={{ color: C.muted }}>60-second demo</p>
+            <p className="text-sm mt-3 font-black" style={{ color: C.ink }}>See a real venue's live league →</p>
+            <p className="text-[11px] mt-1" style={{ color: C.muted }}>McCafferty's, Dubai — exactly what yours would look like</p>
           </div>
-        </div>
+        </Link>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {STEPS.map((s) => (
             <div key={s.n} className="rounded-xl p-4 text-center" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
