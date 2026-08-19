@@ -16,6 +16,7 @@ import { signInWithGoogle } from "@/lib/googleAuth";
 import { track } from "@/lib/analytics";
 import { WhatsAppChannelCard } from "@/components/WhatsAppChannelCard";
 import { GrandPrizeJoinCard } from "@/components/GrandPrize";
+import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -270,7 +271,9 @@ export default function JoinContent({ code }: { code: string }) {
           </div>
 
           {/* Grand Prize — shown before sign-in to motivate conversion */}
-          <GrandPrizeJoinCard />
+          {/* Grand Prize is a World-Cup-only promotion — never show it for
+              venue leagues or any other competition (no prize by default). */}
+          {competitionSlug === FALLBACK_COMPETITION_SLUG && <GrandPrizeJoinCard />}
 
           {/* ── Sign-in card ── */}
           <div className="rounded-xl p-5 flex flex-col gap-4"
@@ -363,10 +366,9 @@ export default function JoinContent({ code }: { code: string }) {
           </h1>
         </div>
 
-        {/* Grand Prize — show on success */}
-        {(status === "success" || status === "already-member") && (
-          <GrandPrizeJoinCard />
-        )}
+        {/* Grand Prize — show on success, World-Cup-only (never venue leagues) */}
+        {(status === "success" || status === "already-member") &&
+          competitionSlug === FALLBACK_COMPETITION_SLUG && <GrandPrizeJoinCard />}
 
         {/* WhatsApp channel — show on success */}
         {(status === "success" || status === "already-member") && (

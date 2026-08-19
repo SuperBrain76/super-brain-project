@@ -24,7 +24,7 @@ import {
   formatKickoff,
   stageLabel,
 } from "@/lib/predictor";
-import { getCompetitionSettings } from "@/lib/competitionEngine";
+import { getCompetitionSettings, FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 import PremierLeagueHome from "@/components/premier/PremierLeagueHome";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -326,7 +326,7 @@ export default function PredictHub() {
                 className="text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: "#b8972a" }}
               >
-                WC 2026 · Predictor
+                2026 · Predictor
               </span>
             </div>
 
@@ -337,7 +337,7 @@ export default function PredictHub() {
                   Predict Every Match.<br />Win The Watch.
                 </h1>
                 <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  WC 2026 Championship
+                  2026 Championship
                 </p>
               </div>
               <a
@@ -637,7 +637,8 @@ export default function PredictHub() {
           </svg>
         </Link>
 
-        {/* ── Prize card ───────────────────────────────────── */}
+        {/* ── Prize card — World-Cup-only; hidden for venue/other leagues ── */}
+        {competitionSlug === FALLBACK_COMPETITION_SLUG && (
         <Link
           href={`/${competitionSlug}/prize`}
           onClick={() => { track.grandPrizeCardClicked("predict_hub"); track.grandPrizeDetailsViewed("predict_hub"); }}
@@ -679,6 +680,7 @@ export default function PredictHub() {
             </span>
           </div>
         </Link>
+        )}
 
         {/* ── Rules link + bracket path + lock notice ──────── */}
         <div className="flex flex-col items-center gap-1">

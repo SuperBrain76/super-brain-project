@@ -215,12 +215,14 @@ function Qr({ data, size }: { data: AssetData; size: number }) {
 }
 
 // ── Co-brand: every asset is venue-branded but ALWAYS carries the official
-// SuperBrain identity. This is co-branding, not white-label. ──────────────────
-const SB_GREEN = "#1a3a2a", SB_GOLD = "#b8972a";
+// SuperBrain identity. This is co-branding, not white-label. The official mark
+// is black/gold (Midnight Gold brand — see lib/brand.ts), NOT the legacy
+// green/gold. ─────────────────────────────────────────────────────────────────
+const SB_BLACK = "#0B0B0D", SB_GOLD = "#E8C15A";
 
 function SBMark({ size }: { size: number }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: size * 0.22, background: SB_GREEN, display: "grid", placeItems: "center", flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: size * 0.22, background: SB_BLACK, border: `1px solid ${SB_GOLD}55`, display: "grid", placeItems: "center", flexShrink: 0 }}>
       <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontSize: size * 0.52, color: SB_GOLD, letterSpacing: `-${size * 0.03}px`, lineHeight: 1 }}>SB</span>
     </div>
   );

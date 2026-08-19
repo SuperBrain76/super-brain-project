@@ -116,15 +116,15 @@ function shell(inner: string) {
 <meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f8f5f0;font-family:Georgia,serif;">
 <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
-  <div style="background:#1a3a2a;border-radius:12px 12px 0 0;padding:20px 24px;text-align:center;">
-    <p style="margin:0;font-size:11px;letter-spacing:3px;color:#b8972a;font-family:sans-serif;text-transform:uppercase;">SuperBrain</p>
+  <div style="background:#0B0B0D;border-radius:12px 12px 0 0;padding:20px 24px;text-align:center;">
+    <p style="margin:0;font-size:11px;letter-spacing:3px;color:#E8C15A;font-family:sans-serif;text-transform:uppercase;">SuperBrain</p>
     <p style="margin:4px 0 0;font-size:11px;color:#7a8f82;font-family:sans-serif;">For venues</p>
   </div>
   <div style="background:#fff;padding:28px 24px;border:1px solid #e6e0d6;border-top:none;border-radius:0 0 12px 12px;">
     ${inner}
   </div>
   <p style="font-size:11px;color:#9a9284;text-align:center;font-family:sans-serif;margin-top:18px;">
-    SuperBrain · <a href="${SITE}" style="color:#b8972a;">superbrain.social</a>
+    SuperBrain · <a href="${SITE}" style="color:#E8C15A;">superbrain.social</a>
   </p>
 </div></body></html>`;
 }
@@ -134,8 +134,8 @@ export async function sendVenueWelcome(input: WelcomeInput) {
   const c = COPY[lang(input.language)](input);
 
   const html = shell(`
-    <p style="font-size:16px;color:#1a3a2a;margin:0 0 14px;">${c.hi}</p>
-    <p style="font-size:17px;color:#1a3a2a;margin:0 0 8px;font-weight:bold;">${c.lead}</p>
+    <p style="font-size:16px;color:#0B0B0D;margin:0 0 14px;">${c.hi}</p>
+    <p style="font-size:17px;color:#0B0B0D;margin:0 0 8px;font-weight:bold;">${c.lead}</p>
     <p style="font-size:14px;color:#5a6b5f;margin:0 0 22px;">${c.live}</p>
 
     <div style="text-align:center;margin:0 0 22px;">
@@ -143,19 +143,19 @@ export async function sendVenueWelcome(input: WelcomeInput) {
            style="border:8px solid #f4f1ea;border-radius:12px;display:block;margin:0 auto;">
     </div>
 
-    <ol style="font-size:14px;color:#1a3a2a;line-height:1.7;padding-left:20px;margin:0 0 24px;">
+    <ol style="font-size:14px;color:#0B0B0D;line-height:1.7;padding-left:20px;margin:0 0 24px;">
       <li>${c.step1}</li>
       <li>${c.step2}</li>
       <li>${c.step3}</li>
     </ol>
 
     <div style="text-align:center;margin:0 0 12px;">
-      <a href="${input.joinUrl}" style="display:inline-block;background:#b8972a;color:#fff;
+      <a href="${input.joinUrl}" style="display:inline-block;background:#E8C15A;color:#2A2205;
          text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
          font-weight:bold;font-size:15px;">${c.cta}</a>
     </div>
     <div style="text-align:center;margin:0 0 24px;">
-      <a href="${input.posterUrl}" style="color:#b8972a;font-size:13px;font-family:sans-serif;">${c.poster} →</a>
+      <a href="${input.posterUrl}" style="color:#E8C15A;font-size:13px;font-family:sans-serif;">${c.poster} →</a>
     </div>
 
     <p style="font-size:12px;color:#7a8f82;border-top:1px solid #e6e0d6;padding-top:16px;margin:0 0 8px;">${c.trial}</p>
@@ -193,11 +193,11 @@ export async function sendVenueSetup(opts: {
     to: opts.to,
     subject: t.s,
     html: shell(`
-      <p style="font-size:16px;color:#1a3a2a;margin:0 0 14px;">${opts.ownerName ? `${t.hi}${opts.ownerName},` : `${t.hi.trim()},`}</p>
-      <p style="font-size:17px;color:#1a3a2a;margin:0 0 8px;font-weight:bold;">${t.lead}</p>
+      <p style="font-size:16px;color:#0B0B0D;margin:0 0 14px;">${opts.ownerName ? `${t.hi}${opts.ownerName},` : `${t.hi.trim()},`}</p>
+      <p style="font-size:17px;color:#0B0B0D;margin:0 0 8px;font-weight:bold;">${t.lead}</p>
       <p style="font-size:14px;color:#5a6b5f;line-height:1.6;margin:0 0 22px;">${t.body}</p>
       <div style="text-align:center;margin:0 0 22px;">
-        <a href="${opts.setupUrl}" style="display:inline-block;background:#b8972a;color:#fff;
+        <a href="${opts.setupUrl}" style="display:inline-block;background:#E8C15A;color:#2A2205;
            text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
            font-weight:bold;font-size:15px;">${t.cta}</a>
       </div>
@@ -226,9 +226,9 @@ export async function sendPaymentFailed(opts: {
     to: opts.to,
     subject: t.s,
     html: shell(`
-      <p style="font-size:15px;color:#1a3a2a;line-height:1.6;margin:0 0 22px;">${t.b}</p>
+      <p style="font-size:15px;color:#0B0B0D;line-height:1.6;margin:0 0 22px;">${t.b}</p>
       <div style="text-align:center;">
-        <a href="${opts.updateUrl}" style="display:inline-block;background:#b8972a;color:#fff;
+        <a href="${opts.updateUrl}" style="display:inline-block;background:#E8C15A;color:#2A2205;
            text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
            font-weight:bold;font-size:15px;">${t.c}</a>
       </div>`),

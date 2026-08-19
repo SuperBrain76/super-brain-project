@@ -281,7 +281,7 @@ function PosterMock({ v, slug, hasLeague }: { v: Brand; slug: string; hasLeague:
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
         <div style={{ display: "inline-block", padding: "5px 16px", borderRadius: 999, background: v.primary, color: contrast(v.primary), fontWeight: 900, fontSize: 12 }}>Scan to join · Free</div>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <span style={{ width: 13, height: 13, borderRadius: 3, background: "#1a3a2a", color: "#b8972a", fontSize: 7, fontWeight: 900, display: "grid", placeItems: "center", fontFamily: "Georgia, serif" }}>SB</span>
+          <span style={{ width: 13, height: 13, borderRadius: 3, background: "#0B0B0D", border: "0.5px solid #E8C15A88", color: "#E8C15A", fontSize: 7, fontWeight: 900, display: "grid", placeItems: "center", fontFamily: "Georgia, serif" }}>SB</span>
           <span style={{ fontSize: 8, color: MUTED }}>Powered by SuperBrain</span>
         </div>
       </div>

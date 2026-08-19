@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GrandPrizeRulesSection } from "@/components/GrandPrize";
+import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -462,10 +463,12 @@ export default function RulesPage(
           </Card>
         </Section>
 
-        {/* ── 5b. Grand Prize ──────────────────────────────── */}
-        <div id="prize">
-          <GrandPrizeRulesSection />
-        </div>
+        {/* ── 5b. Grand Prize — World-Cup-only; hidden for venue/other leagues ── */}
+        {competitionSlug === FALLBACK_COMPETITION_SLUG && (
+          <div id="prize">
+            <GrandPrizeRulesSection />
+          </div>
+        )}
 
         {/* ── 6. Disclaimer ────────────────────────────────── */}
         <Section id="disclaimer" title="Disclaimer">
