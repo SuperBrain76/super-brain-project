@@ -149,6 +149,8 @@ const LINE = "rgba(255,255,255,0.12)";
 function VenueStartPageInner() {
   const params  = useSearchParams();
   const venueId = params.get("v");
+  const comp    = params.get("comp");   // complimentary-access secret (validated server-side)
+  const isComp  = !!comp;
 
   const [pre, setPre]   = useState<Prefill | null>(null);
   const [plan, setPlan] = useState<"monthly" | "annual">("monthly");
@@ -190,7 +192,7 @@ function VenueStartPageInner() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          venueId, plan,
+          venueId, plan, comp,
           venueName: form.venueName,
           ownerName: form.ownerName,
           email: form.email,
@@ -256,11 +258,21 @@ function VenueStartPageInner() {
         </p>
       </div>
 
-      {/* Plan */}
-      <div className="flex gap-3 mb-8 flex-wrap">
-        <PlanCard active={plan === "monthly"} onClick={() => setPlan("monthly")} label={t.monthly} />
-        <PlanCard active={plan === "annual"}  onClick={() => setPlan("annual")}  label={t.annual} note={t.annualNote} />
-      </div>
+      {/* Plan — hidden for complimentary access (it's free) */}
+      {isComp ? (
+        <div className="mb-8 rounded-2xl p-5 flex items-center gap-3" style={{ background: "rgba(53,197,111,0.10)", border: "1px solid rgba(53,197,111,0.4)" }}>
+          <span className="text-2xl">🎁</span>
+          <div>
+            <div className="text-sm font-black" style={{ color: "#7DE8A8" }}>Complimentary access</div>
+            <div className="text-[13px]" style={{ color: CREAM }}>Free for as long as you like — no card, no charge.</div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-3 mb-8 flex-wrap">
+          <PlanCard active={plan === "monthly"} onClick={() => setPlan("monthly")} label={t.monthly} />
+          <PlanCard active={plan === "annual"}  onClick={() => setPlan("annual")}  label={t.annual} note={t.annualNote} />
+        </div>
+      )}
 
       <form onSubmit={submit} className="flex flex-col gap-4 max-w-md">
         <Field label={t.venue} value={form.venueName}
@@ -276,9 +288,11 @@ function VenueStartPageInner() {
         <button type="submit" disabled={busy}
                 className="mt-2 font-black px-6 py-4 rounded-full text-base disabled:opacity-60"
                 style={{ background: AMBER, color: INK }}>
-          {busy ? t.busy : t.cta}
+          {busy ? t.busy : isComp ? "Activate free access →" : t.cta}
         </button>
-        <p className="text-xs" style={{ color: MUTED }}>{t.trial}</p>
+        <p className="text-xs" style={{ color: MUTED }}>
+          {isComp ? "No card required. Complimentary access — free for as long as you like." : t.trial}
+        </p>
       </form>
     </Shell>
   );

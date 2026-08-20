@@ -53,6 +53,13 @@ export async function POST(req: NextRequest) {
   const currency = currencyFor(country);
   const stripe   = getStripe();
 
+  // Comp mode: a secret link (…/venues/start?comp=<VENUE_COMP_SECRET>) gives a
+  // hand-picked venue free access with NO card. Gated by a server-only secret,
+  // so a guessed ?comp= just falls through to the normal paid checkout.
+  const isComp = !!process.env.VENUE_COMP_SECRET
+    && !!process.env.STRIPE_COMP_COUPON
+    && String(body.comp ?? "") === process.env.VENUE_COMP_SECRET;
+
   // Metadata rides on BOTH the session and the subscription: the session so
   // checkout.session.completed can provision, the subscription so later
   // billing events can still find the venue without a database join.
@@ -66,6 +73,7 @@ export async function POST(req: NextRequest) {
     owner_phone:      String(body.phone ?? ""),
     website:          String(body.website ?? ""),
     plan,
+    comp:             isComp ? "true" : "",
   };
 
   try {
@@ -74,21 +82,32 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: priceId(plan, currency), quantity: 1 }],
       customer_email: email,
       locale: checkoutLocale(language),
-      allow_promotion_codes: true,
       // EU B2B: let a VAT-registered venue enter its number so the invoice
       // reverse-charges correctly instead of us eating the VAT.
       tax_id_collection: { enabled: true },
       ...(process.env.STRIPE_TAX_ENABLED === "true"
         ? { automatic_tax: { enabled: true } }
         : {}),
+      ...(isComp
+        // 100%-forever coupon + no card ever + no trial → £0 today and forever.
+        // (discounts and allow_promotion_codes are mutually exclusive.)
+        ? {
+            discounts: [{ coupon: process.env.STRIPE_COMP_COUPON! }],
+            payment_method_collection: "if_required" as const,
+          }
+        : { allow_promotion_codes: true }),
       subscription_data: {
-        trial_period_days: TRIAL_DAYS,
         metadata,
-        trial_settings: {
-          // If the card fails when the trial ends, cancel rather than leaving
-          // an unpaid subscription hanging around forever.
-          end_behavior: { missing_payment_method: "cancel" },
-        },
+        ...(isComp
+          ? {}
+          : {
+              trial_period_days: TRIAL_DAYS,
+              trial_settings: {
+                // If the card fails when the trial ends, cancel rather than
+                // leaving an unpaid subscription hanging around forever.
+                end_behavior: { missing_payment_method: "cancel" as const },
+              },
+            }),
       },
       metadata,
       success_url: `${SITE}/venues/welcome?session_id={CHECKOUT_SESSION_ID}`,

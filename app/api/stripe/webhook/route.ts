@@ -159,6 +159,8 @@ async function onSubscriptionChanged(db: any, sub: Stripe.Subscription, ageSec =
   const plan     = planFromInterval(interval);
   const amount   = item?.price?.unit_amount ?? 0;
   const periodEnd = (item as any)?.current_period_end ?? (sub as any).current_period_end;
+  // A comp (100%-off-forever) sub is £0 — never count it toward MRR.
+  const isComp   = (sub.metadata ?? {}).comp === "true";
 
   await db.from("venue_subscriptions").upsert({
     venue_id:               venueId,
@@ -169,7 +171,7 @@ async function onSubscriptionChanged(db: any, sub: Stripe.Subscription, ageSec =
     status:                 sub.status,
     currency:               item?.price?.currency ?? "eur",
     amount_cents:           amount,
-    mrr_cents:              ["active", "trialing"].includes(sub.status)
+    mrr_cents:              (!isComp && ["active", "trialing"].includes(sub.status))
                               ? toMrrCents(amount, plan) : 0,
     trial_ends_at:          sub.trial_end ? iso(sub.trial_end) : null,
     current_period_end:     periodEnd ? iso(periodEnd) : null,
