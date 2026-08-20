@@ -470,6 +470,11 @@ function LaunchStep({ v, leagues, urls }: { v: Brand; leagues: League[]; urls: S
            className="font-black px-6 py-3.5 rounded-full" style={{ background: AMBER, color: INK }}>Open Launch Pack</a>
         <a href={urls.dashboard} className="font-bold px-6 py-3.5 rounded-full" style={{ border: `1px solid ${LINE}`, color: CREAM }}>Open your dashboard</a>
       </div>
+      <div className="mt-4">
+        <a href="/venues/challenges" className="text-sm font-bold" style={{ color: AMBER }}>
+          New: run a one-day Matchday Challenge across competitions →
+        </a>
+      </div>
 
       {joinUrl && (
         <div className="max-w-md mx-auto mt-8 rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>

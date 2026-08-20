@@ -147,6 +147,39 @@ export async function fetchLeagueOGById(leagueId: string): Promise<LeagueOGData 
   }
 }
 
+// ── Matchday Challenge OG data ────────────────────────────────
+
+export interface ChallengeOGData {
+  name: string; venueName: string; prize: string | null; fixtures: number; participants: number;
+}
+
+/** Fetch challenge data for the /c/<code> OG image + metadata (edge-safe). */
+export async function fetchChallengeOG(code: string): Promise<ChallengeOGData | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key || !code) return null;
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/get_challenge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ p_code: code.toUpperCase() }),
+      next: { revalidate: 120 },
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d || !d.found) return null;
+    return {
+      name: (d.name as string) || "Matchday Challenge",
+      venueName: d.venue?.name ?? "",
+      prize: d.prize ?? null,
+      fixtures: Array.isArray(d.fixtures) ? d.fixtures.length : 0,
+      participants: Number(d.participants ?? 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Public profile OG data ────────────────────────────────────
 
 export interface ProfileOGData {
