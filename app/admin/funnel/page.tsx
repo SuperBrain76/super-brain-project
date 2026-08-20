@@ -84,7 +84,9 @@ export default function FunnelPage() {
                 const prev = i === 0 ? val : Number(f[STAGES[i - 1].key] ?? 0);
                 const top = Number(f[STAGES[0].key] ?? 0) || 1;
                 const pctOfTop = Math.round((val / top) * 100);
-                const conv = i === 0 ? null : prev > 0 ? Math.round((val / prev) * 100) : 0;
+                // "—" when there is no prior-stage volume to convert from
+                // (e.g. pre-outreach, or inbound venues that skipped email).
+                const conv = (i === 0 || prev === 0) ? null : Math.round((val / prev) * 100);
                 return (
                   <div key={s.key} className="flex items-center gap-3">
                     <div className="w-28 text-sm font-bold shrink-0">{s.label}</div>
@@ -103,6 +105,11 @@ export default function FunnelPage() {
             <div className="text-[11px] mt-4" style={{ color: MUTED }}>
               {f.prospects} prospects in CRM · {f.paying} paying · {f.venues_with_predictions} venues with live predictions ·
               updated {new Date(f.generated_at).toLocaleTimeString()}
+            </div>
+            <div className="text-[11px] mt-1.5" style={{ color: "#6b6b73" }}>
+              Each stage is an independent count of venues that reached it. A venue can enter mid-funnel (a direct/inbound
+              signup skips Emails &amp; Clicks) — once outreach runs, Emails is the top and the funnel fills top-down.
+              &ldquo;Active venues&rdquo; = a real customer (not the owner) has joined a league.
             </div>
           </div>
         )}
