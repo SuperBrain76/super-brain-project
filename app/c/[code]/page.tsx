@@ -101,6 +101,11 @@ export default function ChallengePage() {
           <div className="text-xs mt-1" style={{ color: "#ffffff99" }}>
             {d.venue.name} · {d.participants} playing · {d.status === "ended" ? "Final" : `${openCount} still open`}
           </div>
+          <div className="inline-flex items-center gap-2 mt-2 text-[11px]" style={{ color: "#ffffff88" }}>
+            <span>Join code</span>
+            <span className="font-black tracking-[0.15em] px-2 py-0.5 rounded" style={{ color: ACC, background: `${ACC}18`, border: `1px solid ${ACC}55` }}>{d.code}</span>
+            <span className="hidden sm:inline">· superbrain.social/sports</span>
+          </div>
           {d.prize && (
             <div className="inline-block mt-3 text-xs font-black px-4 py-2 rounded-full" style={{ background: `${ACC}22`, color: ACC, border: `1px solid ${ACC}66` }}>
               🏆 Prize: {d.prize}

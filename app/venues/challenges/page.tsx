@@ -88,8 +88,12 @@ export default function ChallengeBuilder() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`/api/challenges/${created.code}/qr.png?size=240`} alt="QR" width={110} height={110} style={{ background: "#fff", borderRadius: 10, padding: 6 }} />
               <div className="min-w-0">
-                <div className="text-xs" style={{ color: MUTED }}>Print this QR / share the link:</div>
-                <a href={`/c/${created.code}`} className="text-sm font-bold break-all" style={{ color: GOLD }}>{SITE}/c/{created.code}</a>
+                <div className="text-[11px] font-black tracking-widest uppercase" style={{ color: MUTED }}>Join code</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-3xl font-black tracking-[0.2em]" style={{ color: GOLD }}>{created.code}</div>
+                  <button onClick={() => navigator.clipboard?.writeText(created.code)} className="text-[10px] font-bold px-2 py-1 rounded-full" style={{ border: `1px solid ${LINE}`, color: MUTED }}>Copy</button>
+                </div>
+                <div className="text-xs mt-1.5" style={{ color: MUTED }}>Scan the QR — or go to <span style={{ color: CREAM, fontWeight: 700 }}>superbrain.social/sports</span> and enter this code.</div>
                 <div className="mt-2 flex gap-2">
                   <a href={`/c/${created.code}`} target="_blank" rel="noopener noreferrer" className="text-xs font-black px-3 py-1.5 rounded-full" style={{ background: GOLD, color: "#12100E" }}>Open</a>
                   <button onClick={() => navigator.clipboard?.writeText(`${SITE}/c/${created.code}`)} className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ border: `1px solid ${LINE}`, color: CREAM }}>Copy link</button>
@@ -138,9 +142,12 @@ export default function ChallengeBuilder() {
             <Label>Your challenges</Label>
             <div className="flex flex-col gap-2 mt-2">
               {mine.map((c) => (
-                <a key={c.code} href={`/c/${c.code}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
-                  <div><div className="font-bold text-sm">{c.name}</div><div className="text-xs" style={{ color: MUTED }}>{c.fixtures} matches · {c.participants} playing · code {c.code}</div></div>
-                  <span className="text-xs font-bold" style={{ color: GOLD }}>Open →</span>
+                <a key={c.code} href={`/c/${c.code}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
+                  <div className="min-w-0"><div className="font-bold text-sm truncate">{c.name}</div><div className="text-xs" style={{ color: MUTED }}>{c.fixtures} matches · {c.participants} playing</div></div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-sm font-black tracking-[0.15em] px-2.5 py-1 rounded-lg" style={{ color: GOLD, background: `${GOLD}14`, border: `1px solid ${GOLD}44` }}>{c.code}</span>
+                    <span className="text-xs font-bold" style={{ color: GOLD }}>Open →</span>
+                  </div>
                 </a>
               ))}
             </div>
