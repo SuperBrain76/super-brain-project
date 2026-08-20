@@ -7,6 +7,7 @@
  */
 
 import LeagueChooser from "@/components/LeagueChooser";
+import MatchdayEntry from "@/components/MatchdayEntry";
 import { BRAND } from "@/lib/brand";
 
 export default function SportsHubPage() {
@@ -34,6 +35,10 @@ export default function SportsHubPage() {
           <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>Ice Hockey</h2>
         </div>
         <LeagueChooser sport="ice_hockey" />
+
+        {/* Matchday Challenge — the cross-league venue game; no home under any
+            single competition, so it gets its own entry point here. */}
+        <MatchdayEntry />
 
         {/* Room to grow */}
         <div className="mt-8 rounded-2xl p-5 text-center" style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
