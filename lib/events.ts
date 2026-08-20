@@ -42,6 +42,16 @@ export const EVENT = {
   WELCOME_EMAIL_SENT:    "welcome_email_sent",
   LEAGUE_SUSPENDED:      "league_suspended",
   PROVISIONING_FAILED:   "provisioning_failed",
+  // funnel — top-of-funnel web beacons (see /api/venues/track)
+  LANDING_VIEWED:        "landing_viewed",
+  START_CLICKED:         "start_clicked",
+  SIGNUP_STARTED:        "signup_started",
+  CHECKOUT_OPENED:       "checkout_opened",
+  // funnel — lifecycle + product engagement
+  TRIAL_CREATED:         "trial_created",
+  LAUNCH_PACK_GENERATED: "launch_pack_generated",
+  QR_SCANNED:            "qr_scanned",
+  PLAYER_JOINED:         "player_joined",
   // system
   N8N_FAILED:            "n8n_failed",
   SCRAPER_RUN:           "scraper_run",
@@ -50,7 +60,7 @@ export const EVENT = {
 
 export type EventKind = typeof EVENT[keyof typeof EVENT];
 export type Severity  = "info" | "warn" | "error";
-export type Source    = "app" | "stripe" | "instantly" | "n8n" | "scraper" | "admin";
+export type Source    = "app" | "stripe" | "instantly" | "n8n" | "scraper" | "admin" | "web";
 
 /** Severity is implied by the kind unless a caller overrides it. */
 const IMPLIED: Partial<Record<EventKind, Severity>> = {

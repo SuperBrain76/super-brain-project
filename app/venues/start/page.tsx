@@ -19,6 +19,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { leadTrackOnce } from "@/lib/leadTrack";
 
 type Lang = "en" | "es" | "fr" | "it" | "de";
 
@@ -158,6 +159,10 @@ function VenueStartPageInner() {
     venueName: "", ownerName: "", email: "", phone: "", country: "GB", language: "en",
   });
 
+  // Funnel: landing on the signup page is a click-through (the email's
+  // signup_url points straight here). signup_started fires on first interaction.
+  useEffect(() => { leadTrackOnce("landing_viewed"); }, []);
+
   useEffect(() => {
     if (!venueId) return;
     supabase.rpc("get_venue_prefill", { p_id: venueId }).then(({ data }) => {
@@ -259,7 +264,7 @@ function VenueStartPageInner() {
 
       <form onSubmit={submit} className="flex flex-col gap-4 max-w-md">
         <Field label={t.venue} value={form.venueName}
-               onChange={(v) => setForm({ ...form, venueName: v })} required />
+               onChange={(v) => { leadTrackOnce("signup_started"); setForm({ ...form, venueName: v }); }} required />
 
         <Field label={t.yourName} value={form.ownerName} onChange={(v) => setForm({ ...form, ownerName: v })} />
         <Field label={t.email} type="email" value={form.email}

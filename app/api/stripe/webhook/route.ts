@@ -31,6 +31,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe, planFromInterval, toMrrCents, SITE } from "@/lib/stripe";
 import { admin, logEvent, advanceStatus } from "@/lib/venueDb";
+import { emit, EVENT } from "@/lib/events";
 import { provisionVenue, notifyN8n } from "@/lib/provisioning";
 import { sendPaymentFailed } from "@/lib/venueEmail";
 
@@ -140,6 +141,12 @@ async function onCheckoutCompleted(db: any, s: Stripe.Checkout.Session) {
     signed_up_at:     new Date().toISOString(),
     trial_started_at: new Date().toISOString(),
   });
+  // Funnel: a clean "trial created" event (status/timestamps alone don't
+  // produce a venue_event row).
+  await emit(db, EVENT.TRIAL_CREATED, {
+    venueId: result.venueId, source: "stripe",
+    detail: { league_created: result.created },
+  }).catch(() => {});
 }
 
 /** Mirror Stripe's subscription into venue_subscriptions. */

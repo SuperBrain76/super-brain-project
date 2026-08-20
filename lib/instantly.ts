@@ -110,9 +110,11 @@ export async function pushLead(input: LeadInput) {
   const label = COMPETITION_LABEL[comp] ?? "the league";
   const first = (input.contactName ?? "").trim().split(/\s+/)[0] || "";
 
-  // Carries the CRM row id into checkout, so a venue that converts keeps ONE
-  // row from cold prospect to paying customer and attribution survives.
+  // Carries the CRM row id (the lead_id) into EVERY outbound link, so a venue
+  // that converts keeps ONE row from cold prospect to paying customer and every
+  // funnel event — landing view, click, signup, checkout — attributes back to it.
   const signupUrl = `${input.siteUrl}/venues/start?v=${input.venueId}`;
+  const demoUrl   = `${input.siteUrl}/venues?v=${input.venueId}`;
 
   return call("/leads", {
     method: "POST",
@@ -133,7 +135,7 @@ export async function pushLead(input: LeadInput) {
         competition:  label,
         league_name:  `${input.venueName} ${label} Cup`.slice(0, 60),
         signup_url:   signupUrl,
-        demo_url:     `${input.siteUrl}/venues`,
+        demo_url:     demoUrl,
         country:      input.country.toUpperCase(),
       },
     }),

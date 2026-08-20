@@ -35,10 +35,12 @@ export async function GET(
     .maybeSingle();
   if (!league) return new Response("No league", { status: 404 });
 
-  const compSlug = (league.competition as any)?.slug ?? "premier-league";
-  const joinUrl  = `${SITE}/${compSlug}/leagues/join?code=${league.invite_code}`;
+  // Encode the scan-tracking hop (/j/<slug>) rather than the join URL directly,
+  // so a physical scan is observable (see app/j/[slug]/route.ts). It 302s to the
+  // real join page, so the customer experience is unchanged.
+  const scanUrl = `${SITE}/j/${params.slug}`;
 
-  const png = await QRCode.toBuffer(joinUrl, {
+  const png = await QRCode.toBuffer(scanUrl, {
     type: "png",
     width: size,
     margin: 1,

@@ -13,14 +13,29 @@
 
 import { notFound } from "next/navigation";
 import { loadAssetData, Artboard, ASSET_KINDS, textOn, type AssetData } from "@/lib/venueAssets";
+import { admin } from "@/lib/venueDb";
+import { emit, EVENT } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
 const A4 = { width: 794, height: 1123 };
 
+/** Funnel: log the FIRST time a venue's Launch Pack is generated. */
+async function logLaunchPack(slug: string) {
+  try {
+    const db = admin();
+    const { data: v } = await db.from("venues").select("id").eq("slug", slug).maybeSingle();
+    if (!v) return;
+    const { data: seen } = await db.from("venue_events")
+      .select("id").eq("venue_id", v.id).eq("kind", "launch_pack_generated").limit(1).maybeSingle();
+    if (!seen) await emit(db, EVENT.LAUNCH_PACK_GENERATED, { venueId: v.id });
+  } catch { /* analytics must never break the page */ }
+}
+
 export default async function LaunchPackPage({ params }: { params: { slug: string } }) {
   const data = await loadAssetData(params.slug);
   if (!data) notFound();
+  await logLaunchPack(params.slug);
   const { brand } = data;
 
   const printables = ASSET_KINDS.filter((a) => a.printable);

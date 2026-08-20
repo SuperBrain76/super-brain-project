@@ -9,6 +9,8 @@
  */
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { leadTrack, leadTrackOnce } from "@/lib/leadTrack";
 
 const C = {
   bg: "#05130C", panel: "#0C1A12", panel2: "#10231A", line: "#20342A",
@@ -40,6 +42,8 @@ const FAQ = [
 ];
 
 export default function VenuesLanding() {
+  useEffect(() => { leadTrackOnce("landing_viewed"); }, []);
+  const onStart = () => leadTrack("start_clicked");
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: "100vh" }}>
       <style>{`
@@ -60,7 +64,7 @@ export default function VenuesLanding() {
             Your bar's own free prediction league — <b style={{ color: C.ink }}>your name, your logo, your prizes.</b> Customers predict the weekend's football on their phones and climb your table. Set it up online in minutes. No app, no hardware, no staff effort.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-            <a href={START} className="vl-btn text-base font-black px-8 py-4 rounded-full" style={{ background: C.gold, color: "#1a1405", boxShadow: `0 14px 34px -12px ${C.gold}` }}>Create your league →</a>
+            <a href={START} onClick={onStart} className="vl-btn text-base font-black px-8 py-4 rounded-full" style={{ background: C.gold, color: "#1a1405", boxShadow: `0 14px 34px -12px ${C.gold}` }}>Create your league →</a>
             <Link href="/venues/mccaffertys" className="vl-btn text-base font-bold px-7 py-4 rounded-full" style={{ color: C.ink, background: "#ffffff10", border: `1px solid ${C.line}` }}>See a live venue</Link>
           </div>
           <p className="text-xs mt-5" style={{ color: C.muted }}>From £89 / €99 a month · <b style={{ color: C.green }}>first matchweek free</b> · cancel anytime</p>
@@ -114,7 +118,7 @@ export default function VenuesLanding() {
               </div>
             ))}
           </div>
-          <a href={START} className="vl-btn inline-block mt-8 text-base font-black px-8 py-4 rounded-full" style={{ background: C.gold, color: "#1a1405" }}>Start free →</a>
+          <a href={START} onClick={onStart} className="vl-btn inline-block mt-8 text-base font-black px-8 py-4 rounded-full" style={{ background: C.gold, color: "#1a1405" }}>Start free →</a>
         </div>
       </Section>
 
@@ -135,7 +139,7 @@ export default function VenuesLanding() {
         <div className="max-w-3xl mx-auto rounded-3xl p-9 text-center" style={{ background: `linear-gradient(135deg, ${C.green} 0%, ${C.green2} 100%)`, color: "#04130a" }}>
           <h2 className="text-3xl sm:text-4xl font-black">Start your bar's league today.</h2>
           <p className="text-sm font-semibold opacity-80 mt-2">First matchweek's on us. Live the same day. Cancel anytime.</p>
-          <a href={START} className="vl-btn inline-block mt-6 text-lg font-black px-10 py-4 rounded-full" style={{ background: C.gold, color: "#1a1405", boxShadow: "0 16px 40px -14px #000" }}>Create your league →</a>
+          <a href={START} onClick={onStart} className="vl-btn inline-block mt-6 text-lg font-black px-10 py-4 rounded-full" style={{ background: C.gold, color: "#1a1405", boxShadow: "0 16px 40px -14px #000" }}>Create your league →</a>
         </div>
       </section>
 

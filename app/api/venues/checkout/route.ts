@@ -18,11 +18,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, priceId, currencyFor, checkoutLocale, SITE, TRIAL_DAYS, type Plan } from "@/lib/stripe";
+import { admin } from "@/lib/venueDb";
+import { emit, EVENT } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const LANGS = ["en", "de", "es", "fr", "it"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
   let body: any;
@@ -91,6 +94,14 @@ export async function POST(req: NextRequest) {
       success_url: `${SITE}/venues/welcome?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${SITE}/venues?checkout=cancelled`,
     });
+
+    // Funnel: the venue reached Stripe. Attribute to the lead when we have one.
+    if (UUID.test(String(body.venueId ?? ""))) {
+      await emit(admin(), EVENT.CHECKOUT_OPENED, {
+        venueId: String(body.venueId), source: "web",
+        detail: { plan, currency },
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (e: any) {
