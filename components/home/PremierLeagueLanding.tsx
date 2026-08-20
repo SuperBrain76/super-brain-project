@@ -6,7 +6,7 @@
  * The logged-out landing, rebuilt around the live product: the Premier League.
  * Dark premium brand shell (BRAND tokens) with real football energy — club
  * colours, a scrolling crest wall, an interactive "try it" prediction card,
- * and the IQ ladder. No World Cup. No dependency on a DB query that can fail
+ * and the IQ ladder. No 2026 Tournament. No dependency on a DB query that can fail
  * for an anonymous visitor: everything here is evergreen and always renders.
  *
  * Motion is pure CSS (no framer-motion dependency): entrance keyframes on the

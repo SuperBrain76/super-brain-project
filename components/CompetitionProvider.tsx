@@ -167,7 +167,7 @@ export function useCompetitionSlug(): string | null {
  * Name and slug of the competition the navigation should present.
  *
  * Falls back to a generic label rather than a competition name while
- * resolving — navigation that flashes "WC 2026" before correcting
+ * resolving — navigation that flashes "2026" before correcting
  * itself to "Premier League" is worse than one that briefly says "Sports".
  */
 export function useCompetitionNav(): { slug: string | null; name: string } {

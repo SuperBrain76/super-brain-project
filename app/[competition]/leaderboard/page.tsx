@@ -95,7 +95,7 @@ export default function PredictorLeaderboardPage() {
 
   // The Grand Prize (Custom Champion Watch) is a World-Cup-2026-only
   // promotion — there is no generic prize concept in the Competition Engine,
-  // so the banner and /prize page belong to the World Cup alone. Show it for
+  // so the banner and /prize page belong to the 2026 Tournament alone. Show it for
   // that competition, hide it for every other (Premier League, etc.).
   const isWorldCup = competition?.slug === FALLBACK_COMPETITION_SLUG;
 
@@ -198,7 +198,7 @@ export default function PredictorLeaderboardPage() {
           </div>
         )}
 
-        {/* Grand Prize banner — World Cup only (see isWorldCup above) */}
+        {/* Grand Prize banner — 2026 Tournament only (see isWorldCup above) */}
         {isWorldCup && <GrandPrizeLeaderboardBanner participantCount={rows.length} />}
 
         {/* Tab toggle */}

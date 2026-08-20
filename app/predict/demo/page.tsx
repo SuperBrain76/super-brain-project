@@ -1,5 +1,5 @@
 /**
- * /predict/demo — Realistic WC 2026 league mockup.
+ * /predict/demo — Realistic 2026 league mockup.
  *
  * 100% static — no Supabase, no auth, no useEffect.
  * Halfway through the group stage: 20 of 64 matches played.

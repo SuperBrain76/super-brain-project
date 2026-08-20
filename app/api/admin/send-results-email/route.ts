@@ -251,7 +251,7 @@ export async function GET(req: NextRequest) {
     const emails = chunk.map((user) => ({
       from: FROM,
       to: user.email as string,
-      subject: "SuperBrain WC 2026 — Official Results 🏆",
+      subject: "SuperBrain 2026 — Official Results 🏆",
       html: resultsHtml(user.id),
     }));
 

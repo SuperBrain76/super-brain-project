@@ -5,7 +5,7 @@
  *
  * Two tabs for a league competition: the real league Table (standings + form)
  * and the Predictor table (who's winning the prediction game). A group-stage
- * competition (e.g. the World Cup) keeps its group-by-group view instead.
+ * competition (e.g. the 2026 Tournament) keeps its group-by-group view instead.
  */
 
 import { useParams } from "next/navigation";

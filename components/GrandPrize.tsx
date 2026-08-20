@@ -72,7 +72,7 @@ export function GrandPrizeHomepageSection() {
                 className="text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: GOLD }}
               >
-                Grand Prize · SuperBrain WC 2026
+                Grand Prize · SuperBrain 2026
               </span>
             </div>
 

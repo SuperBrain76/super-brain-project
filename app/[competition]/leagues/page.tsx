@@ -30,7 +30,7 @@ const BG     = "#f0f3ef";
 // ── Helpers ───────────────────────────────────────────────────
 const SITE = "https://www.superbrain.social";
 // Invite links must land in the competition the league belongs to. These used
-// to hardcode /predict/ — the legacy World Cup slug — so an SHL or Premier
+// to hardcode /predict/ — the legacy 2026 Tournament slug — so an SHL or Premier
 // League invite opened the wrong competition.
 function inviteUrl(competitionSlug: string, code: string) {
   return `${SITE}/${competitionSlug}/leagues/join?code=${code}`;
