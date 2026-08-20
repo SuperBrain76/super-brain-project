@@ -475,6 +475,9 @@ function LaunchStep({ v, leagues, urls }: { v: Brand; leagues: League[]; urls: S
           New: run a one-day Matchday Challenge across competitions →
         </a>
       </div>
+      <p className="mt-6 text-xs" style={{ color: MUTED }}>
+        Come back anytime: sign in and open <a href="/venues/admin" style={{ color: AMBER, fontWeight: 700 }}>My Venue</a> from the top menu to reach all of this again.
+      </p>
 
       {joinUrl && (
         <div className="max-w-md mx-auto mt-8 rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>

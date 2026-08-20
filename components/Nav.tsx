@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCompetitionNav, useIsCompetitionRoute } from "@/components/CompetitionProvider";
+import { supabase } from "@/lib/supabase";
 import { BRAND } from "@/lib/brand";
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "";
@@ -12,6 +14,15 @@ export default function Nav() {
   const { user, loading, signOut } = useAuth();
   const pathname = usePathname();
   const isAdmin = !!user && user.email === ADMIN_EMAIL;
+
+  // Venue owners get a way into their backoffice from any page. The venues
+  // "owner reads own venue" RLS policy makes this a cheap, safe client read.
+  const [ownsVenue, setOwnsVenue] = useState(false);
+  useEffect(() => {
+    if (!user) { setOwnsVenue(false); return; }
+    supabase.from("venues").select("id").eq("owner_user_id", user.id).limit(1).maybeSingle()
+      .then(({ data }) => setOwnsVenue(!!data));
+  }, [user]);
 
   // Competition Engine V2: the predictor no longer lives under a single
   // /predict prefix — it is /premier-league, /la-liga, /wc2026. Section
@@ -84,6 +95,15 @@ export default function Nav() {
               >
                 Settings
               </Link>
+              {ownsVenue && (
+                <Link
+                  href="/venues/admin"
+                  className="text-xs px-2.5 py-1.5 rounded-md transition-colors whitespace-nowrap"
+                  style={{ color: BRAND.gold, border: `0.5px solid ${BRAND.hairlineStrong}` }}
+                >
+                  My Venue
+                </Link>
+              )}
               {isAdmin && (
                 <Link
                   href="/admin"
