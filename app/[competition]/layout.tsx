@@ -79,10 +79,10 @@ export async function generateMetadata(
   const desc  = `Predict every ${name} match, create private leagues and compete with friends on SuperBrain.`;
   const url   = `${SITE}/${params.competition}`;
 
-  // Per-competition OG art is Phase 3 (it needs crests and a template).
-  // Until then the existing static card is used for every competition,
-  // which is accurate about the product if not about the competition.
-  const ogImage = `${SITE}/og/world-cup-predictor.jpg`;
+  // Per-competition OG image (app/[competition]/opengraph-image.tsx) — the
+  // right competition name, in the current brand. Absolute URL because
+  // crawlers don't follow the 307 from superbrain.social → www.
+  const ogImage = `${SITE}/${params.competition}/opengraph-image`;
 
   return {
     title,
@@ -94,7 +94,7 @@ export async function generateMetadata(
       title,
       description: desc,
       url,
-      images: [{ url: ogImage, width: 1200, height: 630, type: "image/jpeg", alt: title }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card:        "summary_large_image",

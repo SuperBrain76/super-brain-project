@@ -77,12 +77,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // ── Dynamic: league resolved ───────────────────────────────
   // The member count is the strongest signal in the preview: an invite that
   // shows a populated league converts better than one that shows a product.
+  // Use the per-LEAGUE image so the preview carries the league/venue name.
   const { name, memberCount } = league;
   const compPart = label ? ` ${label}` : "";
   const title = `Join ${name} —${compPart} Prediction League`;
   const desc  = memberCount > 1
     ? `Predict every${compPart} match and compete with ${memberCount} others in ${name}. Free to play.`
     : `Predict every${compPart} match and compete in ${name}. Free to play.`;
+  const LEAGUE_IMAGE = `${BASE_URL}/${slug}/leagues/${league.id}/opengraph-image`;
 
   return {
     title,
@@ -92,13 +94,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       description: desc,
       type:        "website",
       url:         joinPath,
-      images:      [{ url: IMAGE, width: 1200, height: 630, alt: title }],
+      images:      [{ url: LEAGUE_IMAGE, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card:        "summary_large_image",
       title,
       description: desc,
-      images:      [IMAGE],
+      images:      [LEAGUE_IMAGE],
     },
   };
 }

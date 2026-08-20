@@ -10,8 +10,8 @@ import DailyHomeRedirect from "@/components/DailyHomeRedirect";
 import OnboardingGate from "@/components/OnboardingGate";
 
 const BASE_URL = "https://www.superbrain.social";
-const TITLE    = "SuperBrain — Test Your Mind Under Pressure";
-const DESC     = "Fast, intense cognitive tests for reaction speed, memory, and decision-making. Find out where you really stand — in under 3 minutes.";
+const TITLE    = "SuperBrain — Free Sports Prediction Leagues";
+const DESC     = "Predict the Premier League, Champions League, La Liga, ice hockey and more. Start a free private league, compete with your mates and top the table. No app, no stakes — just bragging rights.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),

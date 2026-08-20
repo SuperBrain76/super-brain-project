@@ -1,7 +1,7 @@
 {
   "name": "SuperBrain",
   "short_name": "SuperBrain",
-  "description": "Fast, intense cognitive tests for reaction speed, memory, and decision-making.",
+  "description": "Free sports prediction leagues — predict the Premier League, Champions League, La Liga, ice hockey and more with your mates.",
   "start_url": "/tests",
   "display": "standalone",
   "orientation": "portrait",
@@ -25,7 +25,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "SuperBrain cognitive tests"
+      "label": "SuperBrain prediction leagues"
     }
   ],
   "shortcuts": [
