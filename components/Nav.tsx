@@ -101,7 +101,7 @@ export default function Nav() {
                   className="text-xs px-2.5 py-1.5 rounded-md transition-colors whitespace-nowrap"
                   style={{ color: BRAND.gold, border: `0.5px solid ${BRAND.hairlineStrong}` }}
                 >
-                  My Venue
+                  Venue Dashboard
                 </Link>
               )}
               {isAdmin && (

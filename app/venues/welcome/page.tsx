@@ -476,7 +476,7 @@ function LaunchStep({ v, leagues, urls }: { v: Brand; leagues: League[]; urls: S
         </a>
       </div>
       <p className="mt-6 text-xs" style={{ color: MUTED }}>
-        Come back anytime: sign in and open <a href="/venues/admin" style={{ color: AMBER, fontWeight: 700 }}>My Venue</a> from the top menu to reach all of this again.
+        Come back anytime: sign in and open <a href="/venues/admin" style={{ color: AMBER, fontWeight: 700 }}>Venue Dashboard</a> from the top menu to reach all of this again.
       </p>
 
       {joinUrl && (
