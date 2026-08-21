@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Fixture } from "@/lib/predictor";
-import { upsertPrediction, setBanker } from "@/lib/predictor";
+import { upsertPrediction, setBanker, matchScoreState } from "@/lib/predictor";
 import {
   type Outcome, type ScorePick, type BulkTarget,
   scoreForOutcome, pickFromFixture, selectedOutcome,
@@ -418,6 +418,7 @@ function FixtureRow({
   onBanker:  () => void;
 }) {
   const selected = pick ? selectedOutcome({ ...fixture, myPrediction: { homeScore: pick.home, awayScore: pick.away, pointsAwarded: null } }) : null;
+  const sc = matchScoreState(fixture);
   const home = fixture.homeTeam?.name ?? "TBD";
   const away = fixture.awayTeam?.name ?? "TBD";
   const homeClub  = fixture.homeTeam?.code ? club(fixture.homeTeam.code) : undefined;
@@ -499,9 +500,16 @@ function FixtureRow({
           )}
         </>
       ) : (
-        // Locked: show the prediction, greyed. Never remove the row.
+        // Locked: show the actual score (live/final) + your prediction. Never remove the row.
         <div className="flex items-center justify-between mt-1">
-          <span className="text-xs" style={{ color: MUTED }}>🔒 Locked</span>
+          {sc.show ? (
+            <span className="text-sm font-black tabular-nums flex items-center gap-1" style={{ color: sc.live ? "#e53e3e" : TEXT1 }}>
+              {sc.live && <span style={{ fontSize: 8 }}>●</span>}{fixture.homeScore}–{fixture.awayScore}
+              <span className="text-[10px] font-bold ml-0.5" style={{ color: sc.live ? "#e53e3e" : MUTED }}>{sc.live ? "LIVE" : "FT"}</span>
+            </span>
+          ) : (
+            <span className="text-xs" style={{ color: MUTED }}>🔒 Locked</span>
+          )}
           <span className="text-sm font-semibold" style={{ color: pick ? TEXT2 : MUTED }}>
             {isBanker && <span style={{ color: GOLD }}>⭐ </span>}
             {pick ? `Your pick: ${pick.home}–${pick.away}` : "No prediction"}

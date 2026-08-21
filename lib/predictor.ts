@@ -63,6 +63,17 @@ export interface Fixture {
   } | null;
 }
 
+/**
+ * The actual-score state of a fixture, for the "show the live/final score
+ * everywhere a match appears" rule. `show` is true once there's a real score to
+ * display (live or finished); `live` drives the red ● LIVE treatment, `done`
+ * the FT/Final label. One definition so every surface renders identically.
+ */
+export function matchScoreState(f: { status: string; homeScore: number | null; awayScore: number | null }) {
+  const show = (f.status === "live" || f.status === "completed") && f.homeScore != null && f.awayScore != null;
+  return { show, live: f.status === "live", done: f.status === "completed" };
+}
+
 export interface Prediction {
   id:           string;
   fixtureId:    string;

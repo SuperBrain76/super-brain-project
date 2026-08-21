@@ -205,9 +205,9 @@ export default function VenueDashboard() {
                     <div className="text-sm font-bold truncate">
                       {f.home_flag ? `${f.home_flag} ` : ""}{f.home} <span style={{ color: MUTED }}>v</span> {f.away}{f.away_flag ? ` ${f.away_flag}` : ""}
                     </div>
-                    <div className="text-xs shrink-0 ml-3" style={{ color: f.completed ? accent : MUTED }}>
-                      {f.completed ? `${f.home_score}–${f.away_score}`
-                        : f.started ? "Live"
+                    <div className="text-xs font-bold shrink-0 ml-3 tabular-nums" style={{ color: f.completed ? accent : f.started ? "#ff8a8a" : MUTED }}>
+                      {f.completed ? `${f.home_score}–${f.away_score} · FT`
+                        : f.started ? (f.home_score != null && f.away_score != null ? `● ${f.home_score}–${f.away_score}` : "Live")
                         : new Date(f.kicks_off_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>

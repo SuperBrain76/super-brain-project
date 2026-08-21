@@ -137,9 +137,14 @@ export default function ChallengePage() {
               <div className="flex items-center gap-2">
                 <div className="flex-1 text-sm font-bold text-right">{f.home_flag ? `${f.home_flag} ` : ""}{f.home}</div>
                 {f.locked ? (
-                  <div className="px-3 font-black text-base" style={{ color: f.completed ? ACC : "#ffffff99" }}>
-                    {f.completed ? `${f.actual_home}–${f.actual_away}` : "—"}
-                  </div>
+                  f.actual_home != null && f.actual_away != null ? (
+                    <div className="px-3 text-center leading-none">
+                      <div className="font-black text-base" style={{ color: f.completed ? ACC : "#ff8a8a" }}>{f.actual_home}–{f.actual_away}</div>
+                      <div className="text-[8px] font-bold mt-0.5" style={{ color: f.completed ? "#ffffff77" : "#ff8a8a" }}>{f.completed ? "FT" : "● LIVE"}</div>
+                    </div>
+                  ) : (
+                    <div className="px-3 font-black text-base" style={{ color: "#ffffff99" }}>—</div>
+                  )
                 ) : (
                   <div className="flex items-center gap-1 px-1">
                     <ScoreInput value={picks[f.id]?.h ?? ""} onChange={(v) => setPicks((p) => ({ ...p, [f.id]: { ...(p[f.id] ?? { h: "", a: "" }), h: v } }))} onCommit={() => save(f)} accent={ACC} />

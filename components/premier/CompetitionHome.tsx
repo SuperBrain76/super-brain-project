@@ -15,7 +15,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Fixture, MyStats } from "@/lib/predictor";
+import { matchScoreState, type Fixture, type MyStats } from "@/lib/predictor";
 import type { Round, CompetitionSettings } from "@/lib/competitionEngine";
 import { deriveMatchweekView, formatCountdown, type MatchweekView } from "@/lib/matchweek";
 import { iqStanding } from "@/lib/iqLevel";
@@ -186,7 +186,7 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
 }) {
   const f = data.biggestMatch;
   if (!f) return null;
-  const sc = liveScore(f);
+  const sc = matchScoreState(f);
   const homeClub = f.homeTeam?.code ? club(f.homeTeam.code) : undefined;
   const homeC = homeClub?.primary;
   const awayC = f.awayTeam?.code ? club(f.awayTeam.code)?.primary : undefined;
@@ -294,15 +294,9 @@ function ThisWeekMatches({ data, base }: { data: HomeData; base: string }) {
   );
 }
 
-// Actual/live score for a fixture — shown once a match is on, alongside the pick.
-function liveScore(f: Fixture) {
-  const show = (f.status === "live" || f.status === "completed") && f.homeScore != null && f.awayScore != null;
-  return { show, live: f.status === "live" };
-}
-
 function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolean }) {
   const pick = f.myPrediction;
-  const sc = liveScore(f);
+  const sc = matchScoreState(f);
   const ko = `${localDate(f.kicksOffAt, { weekday: "short" })} ${localTime(f.kicksOffAt)}`;
   return (
     <Link href={`${base}/predict`} className="flex items-center gap-2 px-3.5 py-2 hover:bg-[#f6f9f5]"

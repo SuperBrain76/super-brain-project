@@ -168,12 +168,12 @@ export default function FixturePredictPage() {
             </div>
 
             <div className="flex flex-col items-center gap-1">
-              {done && fixture.homeScore !== null ? (
+              {(done || fixture.status === "live") && fixture.homeScore !== null ? (
                 <div className="text-center">
-                  <p className="text-2xl font-black tabular-nums" style={{ color: TEXT1 }}>
-                    {fixture.homeScore}–{fixture.awayScore}
+                  <p className="text-2xl font-black tabular-nums" style={{ color: fixture.status === "live" ? "#e53e3e" : TEXT1 }}>
+                    {fixture.status === "live" && <span className="text-sm align-middle">● </span>}{fixture.homeScore}–{fixture.awayScore}
                   </p>
-                  <p className="text-[10px] uppercase font-semibold" style={{ color: MUTED }}>Final</p>
+                  <p className="text-[10px] uppercase font-semibold" style={{ color: fixture.status === "live" ? "#e53e3e" : MUTED }}>{fixture.status === "live" ? "Live" : "Final"}</p>
                 </div>
               ) : (
                 <div className="text-center">
