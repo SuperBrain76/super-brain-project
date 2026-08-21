@@ -186,6 +186,7 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
 }) {
   const f = data.biggestMatch;
   if (!f) return null;
+  const sc = liveScore(f);
   const homeClub = f.homeTeam?.code ? club(f.homeTeam.code) : undefined;
   const homeC = homeClub?.primary;
   const awayC = f.awayTeam?.code ? club(f.awayTeam.code)?.primary : undefined;
@@ -214,7 +215,14 @@ function FeaturedMatch({ data, view, base, nowMs, pointsSoFar }: {
             <ClubCrest code={f.homeTeam?.code} size={40} />
             <span className="text-xs font-bold text-center leading-tight" style={{ color: TEXT1 }}>{f.homeTeam?.name}</span>
           </div>
-          <span className="text-sm font-bold px-2" style={{ color: MUTED }}>v</span>
+          {sc.show ? (
+            <div className="flex flex-col items-center px-2 shrink-0">
+              <span className="text-[9px] font-black tracking-wide" style={{ color: sc.live ? LIVE : MUTED }}>{sc.live ? "● LIVE" : "FT"}</span>
+              <span className="text-2xl font-black tabular-nums leading-none" style={{ color: TEXT1 }}>{f.homeScore}–{f.awayScore}</span>
+            </div>
+          ) : (
+            <span className="text-sm font-bold px-2" style={{ color: MUTED }}>v</span>
+          )}
           <div className="flex flex-col items-center gap-1 flex-1">
             <ClubCrest code={f.awayTeam?.code} size={40} />
             <span className="text-xs font-bold text-center leading-tight" style={{ color: TEXT1 }}>{f.awayTeam?.name}</span>
@@ -286,8 +294,15 @@ function ThisWeekMatches({ data, base }: { data: HomeData; base: string }) {
   );
 }
 
+// Actual/live score for a fixture — shown once a match is on, alongside the pick.
+function liveScore(f: Fixture) {
+  const show = (f.status === "live" || f.status === "completed") && f.homeScore != null && f.awayScore != null;
+  return { show, live: f.status === "live" };
+}
+
 function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolean }) {
   const pick = f.myPrediction;
+  const sc = liveScore(f);
   const ko = `${localDate(f.kicksOffAt, { weekday: "short" })} ${localTime(f.kicksOffAt)}`;
   return (
     <Link href={`${base}/predict`} className="flex items-center gap-2 px-3.5 py-2 hover:bg-[#f6f9f5]"
@@ -296,9 +311,17 @@ function MiniFixture({ f, base, last }: { f: Fixture; base: string; last: boolea
         <span className="text-[12px] font-semibold truncate text-right" style={{ color: TEXT1 }}>{clubShort(f.homeTeam?.code)}</span>
         <ClubCrest code={f.homeTeam?.code} size={18} />
       </div>
-      {/* Keep the kickoff time visible even after a pick — show the score above it. */}
-      <div className="shrink-0 w-16 text-center px-1 leading-tight">
-        {pick ? (
+      {/* Live/final actual score takes over when the match is on; your pick sits under it. */}
+      <div className="shrink-0 w-[74px] text-center px-1 leading-tight">
+        {sc.show ? (
+          <>
+            <div className="text-[14px] font-black tabular-nums flex items-center justify-center gap-1" style={{ color: sc.live ? LIVE : TEXT1 }}>
+              {sc.live && <span style={{ fontSize: 7 }}>●</span>}{f.homeScore}–{f.awayScore}
+            </div>
+            <div className="text-[9px] font-bold" style={{ color: sc.live ? LIVE : MUTED }}>{sc.live ? "LIVE" : "FT"}</div>
+            {pick && <div className="text-[9px]" style={{ color: MUTED }}>pick {pick.homeScore}–{pick.awayScore}</div>}
+          </>
+        ) : pick ? (
           <>
             <div className="text-[13px] font-bold tabular-nums" style={{ color: TEXT1 }}>{pick.homeScore}–{pick.awayScore}</div>
             <div className="text-[9px]" style={{ color: MUTED }}>{ko}</div>
