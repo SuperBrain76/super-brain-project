@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
 import { LEAGUES } from "@/lib/leagues/list";
-import { club, textOn } from "@/lib/premierLeague/clubs";
+import ClubCrest from "@/components/premier/ClubCrest";
 import { listVisibleCompetitions } from "@/lib/competitionEngine";
 
 export default function LeagueChooser({ sport }: { sport?: string }) {
@@ -48,16 +48,9 @@ export default function LeagueChooser({ sport }: { sport?: string }) {
               <span className="text-[11px]" style={{ color: BRAND.dim }}>{lg.country}</span>
             </div>
             <div className="flex items-center gap-1">
-              {lg.clubs.map((code) => {
-                const c = club(code);
-                const bg = c?.primary ?? "#2a2a2e";
-                return (
-                  <span key={code} aria-hidden title={c?.name ?? code}
-                    style={{ width: 24, height: 24, borderRadius: 6, background: bg, color: textOn(bg), display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800 }}>
-                    {code}
-                  </span>
-                );
-              })}
+              {lg.clubs.map((code) => (
+                <ClubCrest key={code} code={code} size={24} />
+              ))}
             </div>
           </div>
           <span className="text-sm font-bold shrink-0 transition-transform group-hover:translate-x-1" style={{ color: BRAND.sports }}>Predict →</span>

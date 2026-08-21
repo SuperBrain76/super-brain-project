@@ -24,7 +24,7 @@ import { type LeagueRow, tableHasResults } from "@/lib/leagueTable";
 import { localTime, localDate, localZoneLabel } from "@/lib/localTime";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
-import { club, textOn } from "@/lib/premierLeague/clubs";
+import { club } from "@/lib/premierLeague/clubs";
 import type { FixtureStats } from "@/components/premier/MatchweekSheet";
 
 // ── Tokens ────────────────────────────────────────────────────
@@ -525,7 +525,7 @@ function LeagueTable({ rows, nowMs, nextKickoffMs }: { rows: LeagueRow[]; nowMs:
         {rows.map((r) => (
           <div key={r.code} className="flex items-center gap-1.5 px-3 py-1.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
             <span className="w-4 text-center text-[11px] tabular-nums" style={{ color: MUTED }}>{r.rank}</span>
-            <span aria-hidden style={{ width: 16, height: 16, borderRadius: 5, background: club(r.code)?.primary ?? "#e6ebe4", color: club(r.code) ? textOn(club(r.code)!.primary) : "#9aa89a", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 800 }}>{r.code}</span>
+            <ClubCrest code={r.code} size={16} />
             <span className="flex-1 text-[12px] font-semibold truncate" style={{ color: TEXT1 }}>{clubShort(r.code)}</span>
             <span className="w-5 text-center text-[11px] tabular-nums" style={{ color: MUTED }}>{r.played}</span>
             <span className="w-7 text-center text-[11px] tabular-nums" style={{ color: MUTED }}>{r.gd > 0 ? `+${r.gd}` : r.gd}</span>

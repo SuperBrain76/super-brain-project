@@ -18,6 +18,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
 import { ALL_CLUBS, club, textOn } from "@/lib/premierLeague/clubs";
+import ClubCrest from "@/components/premier/ClubCrest";
 import { IQ_LEVELS } from "@/lib/iqLevel";
 import LeagueChooser from "@/components/LeagueChooser";
 
@@ -136,7 +137,7 @@ function CrestWall() {
         {[...clubs, ...clubs, ...clubs].map((c, i) => (
           <div key={c.code + i} className="flex items-center gap-2 px-3 py-2 rounded-xl shrink-0"
             style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
-            <span aria-hidden style={{ width: 26, height: 26, borderRadius: 7, background: c.primary, color: textOn(c.primary), display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800 }}>{c.code}</span>
+            <ClubCrest code={c.code} size={26} />
             <span className="text-xs font-semibold whitespace-nowrap" style={{ color: BRAND.muted }}>{c.short}</span>
           </div>
         ))}
@@ -215,12 +216,12 @@ function DemoCard() {
       </div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex flex-col items-center gap-1.5 flex-1">
-          <span aria-hidden style={{ width: 44, height: 44, borderRadius: 11, background: home.primary, color: textOn(home.primary), display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800 }}>{home.code}</span>
+          <ClubCrest code={home.code} size={44} />
           <span className="text-xs font-bold" style={{ color: BRAND.ink }}>{home.short}</span>
         </div>
         <div className="text-2xl font-extrabold tabular-nums px-3" style={{ color: pick ? BRAND.ink : BRAND.dim }}>{score}</div>
         <div className="flex flex-col items-center gap-1.5 flex-1">
-          <span aria-hidden style={{ width: 44, height: 44, borderRadius: 11, background: away.primary, color: textOn(away.primary), display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800 }}>{away.code}</span>
+          <ClubCrest code={away.code} size={44} />
           <span className="text-xs font-bold" style={{ color: BRAND.ink }}>{away.short}</span>
         </div>
       </div>

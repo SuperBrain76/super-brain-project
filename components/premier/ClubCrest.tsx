@@ -43,7 +43,7 @@ export default function ClubCrest({
           alt=""
           width={size}
           height={size}
-          loading="lazy"
+          decoding="async"
           onError={() => setImgFailed(true)}
           style={{ width: size, height: size, objectFit: "contain", display: "block" }}
         />
