@@ -3,13 +3,17 @@
 /**
  * ClubCrest — a club's identity, instantly.
  *
- * A coloured monogram badge in the club's real colour. No crest images
- * (licensing), but colour alone carries the recognition — Anfield red, City
- * sky blue, Wolves gold. This one small thing is most of what makes the sheet
- * feel like the Premier League rather than a form.
+ * Renders the club's real crest (via CREST_BY_CODE, sourced from the paid data
+ * feeds — football-data.org + TheSportsDB) and falls back to a coloured
+ * monogram badge in the club's real colour whenever a crest is missing or fails
+ * to load. The monogram is the safety net + loading state, so a badge is never
+ * blank and never breaks — Anfield red, City sky blue, Wolves gold still carry
+ * the recognition for anything the feed doesn't cover.
  */
 
+import { useState } from "react";
 import { club, textOn } from "@/lib/premierLeague/clubs";
+import { CREST_BY_CODE } from "@/lib/leagues/crests";
 
 export default function ClubCrest({
   code,
@@ -18,8 +22,36 @@ export default function ClubCrest({
   code: string | null | undefined;
   size?: number;
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const c = code ? club(code) : undefined;
+  const crest = code ? (CREST_BY_CODE[code] ?? CREST_BY_CODE[code.toUpperCase()]) : undefined;
 
+  // Real crest — free-standing logo, transparent background.
+  if (c && crest && !imgFailed) {
+    return (
+      <span
+        aria-hidden
+        title={c.name}
+        style={{
+          width: size, height: size, flexShrink: 0,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={crest}
+          alt=""
+          width={size}
+          height={size}
+          loading="lazy"
+          onError={() => setImgFailed(true)}
+          style={{ width: size, height: size, objectFit: "contain", display: "block" }}
+        />
+      </span>
+    );
+  }
+
+  // Unknown club → neutral placeholder.
   if (!c) {
     return (
       <span
@@ -36,6 +68,7 @@ export default function ClubCrest({
     );
   }
 
+  // Fallback — coloured monogram in the club's real colour.
   return (
     <span
       aria-hidden
