@@ -95,7 +95,20 @@ export async function POST(req: NextRequest) {
             discounts: [{ coupon: process.env.STRIPE_COMP_COUPON! }],
             payment_method_collection: "if_required" as const,
           }
-        : { allow_promotion_codes: true }),
+        : {
+            allow_promotion_codes: true,
+            // Card-less trial. Cold prospects will not hand over a card before
+            // they have seen the product working in their own venue, and the
+            // real activation gate is whether they put the QR poster on tables,
+            // which a card does not predict. Stripe still owns the trial clock:
+            // with no payment method at trial end the subscription cancels,
+            // which fires customer.subscription.deleted and suspends the league
+            // through the existing webhook path. Flip VENUE_REQUIRE_CARD=true
+            // to go back to card-up-front without a code change.
+            ...(process.env.VENUE_REQUIRE_CARD === "true"
+              ? {}
+              : { payment_method_collection: "if_required" as const }),
+          }),
       subscription_data: {
         metadata,
         ...(isComp

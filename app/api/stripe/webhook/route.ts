@@ -202,6 +202,12 @@ async function onTrialWillEnd(db: any, sub: Stripe.Subscription) {
     language: v?.language, country: v?.country,
     trial_ends_at: sub.trial_end ? iso(sub.trial_end) : null,
     days_left: 3,
+    // Card-less trials mean the nudge has two completely different jobs.
+    // With a card on file it is a courtesy ("you will be charged Friday").
+    // Without one it is the conversion ask ("add a card or the league stops").
+    // n8n cannot tell them apart without this flag.
+    has_payment_method: Boolean(sub.default_payment_method),
+    billing_url: `${SITE}/venues/billing?v=${venueId}`,
   });
 }
 
