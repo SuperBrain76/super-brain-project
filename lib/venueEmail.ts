@@ -235,3 +235,95 @@ export async function sendPaymentFailed(opts: {
     replyTo: process.env.VENUE_REPLY_TO || undefined,
   });
 }
+
+/**
+ * The 7-day trial is 3 days from ending.
+ *
+ * Two completely different emails behind one event. With a card on file this
+ * is a courtesy — say what will happen so the charge is never a surprise.
+ * Without one it IS the conversion ask, and it has to be explicit that the
+ * league stops, because since the card-less trial shipped nothing else asks
+ * for payment before Stripe cancels the subscription.
+ *
+ * Sent from the app rather than n8n. The webhook has always called
+ * notifyN8n() for this, but N8N_VENUE_WEBHOOK_URL was never set in
+ * production, so notifyN8n() returned early and no trial email has ever been
+ * sent. Resend is already wired and already sends the rest of the venue
+ * transactional mail, so this removes a hop instead of adding one.
+ */
+export async function sendTrialEnding(opts: {
+  to: string; venueName: string; language: string;
+  billingUrl: string; daysLeft: number; hasPaymentMethod: boolean;
+}) {
+  const L = lang(opts.language);
+  const d = opts.daysLeft;
+  const v = opts.venueName;
+
+  const withCard = {
+    en: { s: `${v} — your trial ends in ${d} days`, b: `Your free trial ends in ${d} days and your subscription starts automatically, so nothing breaks and your league keeps running. If it is not for you, cancel before then and you pay nothing.`, c: "Manage subscription" },
+    es: { s: `${v} — tu prueba termina en ${d} días`, b: `Tu prueba gratuita termina en ${d} días y la suscripción empieza automáticamente, así que tu liga sigue funcionando sin interrupciones. Si no es para ti, cancela antes y no pagas nada.`, c: "Gestionar suscripción" },
+    it: { s: `${v} — la prova finisce tra ${d} giorni`, b: `La tua prova gratuita finisce tra ${d} giorni e l'abbonamento parte automaticamente, così il campionato continua senza interruzioni. Se non fa per te, disdici prima e non paghi nulla.`, c: "Gestisci abbonamento" },
+    fr: { s: `${v} — votre essai se termine dans ${d} jours`, b: `Votre essai gratuit se termine dans ${d} jours et l'abonnement démarre automatiquement, votre ligue continue donc sans interruption. Si cela ne vous convient pas, annulez avant et vous ne payez rien.`, c: "Gérer l'abonnement" },
+    de: { s: `${v} — Ihre Testphase endet in ${d} Tagen`, b: `Ihre kostenlose Testphase endet in ${d} Tagen und das Abo startet automatisch, Ihre Liga läuft also ohne Unterbrechung weiter. Wenn es nichts für Sie ist, kündigen Sie vorher und zahlen nichts.`, c: "Abo verwalten" },
+  }[L];
+
+  const noCard = {
+    en: { s: `${v} — your league stops in ${d} days`, b: `Your free trial ends in ${d} days. There is no payment method on the account, so unless one is added your league will stop and your regulars will lose their table. Adding a card takes a minute and keeps everything exactly as it is.`, c: "Keep my league running" },
+    es: { s: `${v} — tu liga se detiene en ${d} días`, b: `Tu prueba gratuita termina en ${d} días. No hay ningún método de pago en la cuenta, así que si no añades uno tu liga se detendrá y tus clientes perderán su clasificación. Añadir una tarjeta lleva un minuto y todo sigue igual.`, c: "Mantener mi liga activa" },
+    it: { s: `${v} — il tuo campionato si ferma tra ${d} giorni`, b: `La tua prova gratuita finisce tra ${d} giorni. Non c'è alcun metodo di pagamento sull'account, quindi se non ne aggiungi uno il campionato si fermerà e i tuoi clienti perderanno la classifica. Aggiungere una carta richiede un minuto e tutto resta com'è.`, c: "Mantieni attivo il campionato" },
+    fr: { s: `${v} — votre ligue s'arrête dans ${d} jours`, b: `Votre essai gratuit se termine dans ${d} jours. Aucun moyen de paiement n'est enregistré, donc sans ajout votre ligue s'arrêtera et vos habitués perdront leur classement. Ajouter une carte prend une minute et tout reste en place.`, c: "Garder ma ligue active" },
+    de: { s: `${v} — Ihre Liga stoppt in ${d} Tagen`, b: `Ihre kostenlose Testphase endet in ${d} Tagen. Es ist keine Zahlungsmethode hinterlegt, ohne eine wird Ihre Liga gestoppt und Ihre Stammgäste verlieren ihre Tabelle. Eine Karte hinzuzufügen dauert eine Minute und alles bleibt wie es ist.`, c: "Liga aktiv halten" },
+  }[L];
+
+  const t = opts.hasPaymentMethod ? withCard : noCard;
+
+  return getResend().emails.send({
+    from: VENUE_FROM,
+    to: opts.to,
+    subject: t.s,
+    html: shell(`
+      <p style="font-size:15px;color:#0B0B0D;line-height:1.6;margin:0 0 22px;">${t.b}</p>
+      <div style="text-align:center;">
+        <a href="${opts.billingUrl}" style="display:inline-block;background:#E8C15A;color:#2A2205;
+           text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
+           font-weight:bold;font-size:15px;">${t.c}</a>
+      </div>`),
+    replyTo: process.env.VENUE_REPLY_TO || undefined,
+  });
+}
+
+/**
+ * The subscription ended and the league is now suspended.
+ *
+ * Previously this moment sent nothing at all — the league simply stopped and
+ * the venue found out from a customer. It is also the single best win-back
+ * trigger there is: the league still exists, the members are still in it, and
+ * one click brings it all back. Said plainly, without guilt.
+ */
+export async function sendLeaguePaused(opts: {
+  to: string; venueName: string; language: string; billingUrl: string;
+}) {
+  const L = lang(opts.language);
+  const v = opts.venueName;
+  const t = {
+    en: { s: `${v} — your league is paused`, b: `Your subscription has ended, so the league at ${v} is paused. Nothing is deleted: your table, your members and their predictions are all still there. Restart whenever you like and it picks up exactly where it left off.`, c: "Restart my league" },
+    es: { s: `${v} — tu liga está en pausa`, b: `Tu suscripción ha terminado, así que la liga de ${v} está en pausa. No se ha borrado nada: tu clasificación, tus miembros y sus pronósticos siguen ahí. Reactívala cuando quieras y continuará donde lo dejaste.`, c: "Reactivar mi liga" },
+    it: { s: `${v} — il tuo campionato è in pausa`, b: `Il tuo abbonamento è terminato, quindi il campionato di ${v} è in pausa. Non è stato cancellato nulla: la classifica, i membri e i loro pronostici sono ancora lì. Riattivalo quando vuoi e riprenderà esattamente da dove era rimasto.`, c: "Riattiva il campionato" },
+    fr: { s: `${v} — votre ligue est en pause`, b: `Votre abonnement a pris fin, la ligue de ${v} est donc en pause. Rien n'est supprimé : votre classement, vos membres et leurs pronostics sont toujours là. Relancez quand vous voulez et tout reprend exactement où vous en étiez.`, c: "Relancer ma ligue" },
+    de: { s: `${v} — Ihre Liga pausiert`, b: `Ihr Abo ist beendet, daher pausiert die Liga im ${v}. Es wurde nichts gelöscht: Tabelle, Mitglieder und deren Tipps sind weiterhin vorhanden. Starten Sie jederzeit neu, es geht genau dort weiter, wo Sie aufgehört haben.`, c: "Liga neu starten" },
+  }[L];
+
+  return getResend().emails.send({
+    from: VENUE_FROM,
+    to: opts.to,
+    subject: t.s,
+    html: shell(`
+      <p style="font-size:15px;color:#0B0B0D;line-height:1.6;margin:0 0 22px;">${t.b}</p>
+      <div style="text-align:center;">
+        <a href="${opts.billingUrl}" style="display:inline-block;background:#E8C15A;color:#2A2205;
+           text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;
+           font-weight:bold;font-size:15px;">${t.c}</a>
+      </div>`),
+    replyTo: process.env.VENUE_REPLY_TO || undefined,
+  });
+}

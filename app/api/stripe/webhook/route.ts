@@ -33,6 +33,7 @@ import { getStripe, planFromInterval, toMrrCents, SITE } from "@/lib/stripe";
 import { admin, logEvent, advanceStatus } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
 import { provisionVenue, notifyN8n } from "@/lib/provisioning";
+import { sendTrialEnding, sendLeaguePaused } from "@/lib/venueEmail";
 import { sendPaymentFailed } from "@/lib/venueEmail";
 
 export const runtime = "nodejs";
@@ -195,7 +196,35 @@ async function onTrialWillEnd(db: any, sub: Stripe.Subscription) {
   const { data: v } = await db.from("venues")
     .select("name, contact_email, language, country").eq("id", venueId).single();
 
-  await logEvent(db, venueId, "trial_will_end", { trial_end: sub.trial_end });
+  const hasPm = Boolean(sub.default_payment_method);
+  const billingUrl = `${SITE}/venues/billing?v=${venueId}`;
+
+  await logEvent(db, venueId, "trial_will_end", {
+    trial_end: sub.trial_end, has_payment_method: hasPm,
+  });
+
+  // Send it here rather than relying on n8n. notifyN8n() no-ops unless
+  // N8N_VENUE_WEBHOOK_URL is set, and it never has been in production, so no
+  // trial email has ever gone out. That was survivable while the card was
+  // collected up front - Stripe just charged them. With card-less trials it is
+  // not: nothing else asks for payment before the subscription cancels.
+  if (v?.contact_email) {
+    try {
+      await sendTrialEnding({
+        to: v.contact_email,
+        venueName: v.name ?? "Your venue",
+        language: v.language ?? "en",
+        billingUrl,
+        daysLeft: 3,
+        hasPaymentMethod: hasPm,
+      });
+    } catch (err) {
+      // A failed email must not fail the webhook - Stripe would retry the whole
+      // event and re-run everything downstream of it.
+      console.error("trial_will_end email failed", venueId, err);
+    }
+  }
+
   await notifyN8n({
     event: "venue.trial_will_end",
     venue_id: venueId, venue: v?.name, email: v?.contact_email,
@@ -206,8 +235,8 @@ async function onTrialWillEnd(db: any, sub: Stripe.Subscription) {
     // With a card on file it is a courtesy ("you will be charged Friday").
     // Without one it is the conversion ask ("add a card or the league stops").
     // n8n cannot tell them apart without this flag.
-    has_payment_method: Boolean(sub.default_payment_method),
-    billing_url: `${SITE}/venues/billing?v=${venueId}`,
+    has_payment_method: hasPm,
+    billing_url: billingUrl,
   });
 }
 
@@ -276,6 +305,25 @@ async function onSubscriptionDeleted(db: any, sub: Stripe.Subscription) {
     .eq("id", venueId);
 
   await logEvent(db, venueId, "churned", { subscription: sub.id });
+
+  // Tell them. This used to be silent: the league stopped and the venue found
+  // out from a customer. It is also the best win-back moment we get - the
+  // league, its members and their predictions all still exist.
+  const { data: cv } = await db.from("venues")
+    .select("name, contact_email, language").eq("id", venueId).single();
+  if (cv?.contact_email) {
+    try {
+      await sendLeaguePaused({
+        to: cv.contact_email,
+        venueName: cv.name ?? "Your venue",
+        language: cv.language ?? "en",
+        billingUrl: `${SITE}/venues/billing?v=${venueId}`,
+      });
+    } catch (err) {
+      console.error("league_paused email failed", venueId, err);
+    }
+  }
+
   await notifyN8n({ event: "venue.churned", venue_id: venueId, subscription: sub.id });
 }
 
