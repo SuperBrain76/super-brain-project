@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { admin, advanceStatus, suppress } from "@/lib/venueDb";
 import { emit, EVENT, type EventKind } from "@/lib/events";
 import { INSTANTLY_EVENTS, type InstantlyEventType } from "@/lib/instantly";
+import { classifyReply } from "@/lib/replyClassifier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -123,9 +124,61 @@ export async function POST(req: NextRequest) {
   else if (Object.keys(patch).length) await db.from("venues").update(patch).eq("id", venue.id);
 
   await stampMessage(db, venue.id, body, step, type, at);
+
+  // ── Reply capture and classification ──────────────────────
+  let replyVerdict: ReturnType<typeof classifyReply> | null = null;
+  // Until now a reply was only a timestamp, so an interested venue looked
+  // identical to a rejection. Store the reply itself and classify it; the
+  // rules fail toward needs_review so a live lead is never silently binned.
+  if (type === "reply_received") {
+    const replyText = String(
+      body.reply_text ?? body.reply_text_snippet ?? body.reply_body ??
+      body.reply_html_snippet ?? body.text ?? "",
+    ).trim();
+    const verdict = classifyReply(replyText);
+
+    const { error: replyErr } = await db.from("venue_replies").upsert({
+      venue_id:       venue.id,
+      campaign_id:    null,
+      from_email:     email,
+      reply_subject:  body.reply_subject ?? body.campaign_name ?? null,
+      reply_text:     replyText || null,
+      received_at:    at,
+      classification: verdict.classification,
+      reason:         verdict.reason,
+      rule_matched:   verdict.rule_matched,
+      confidence:     verdict.confidence,
+      classified_at:  new Date().toISOString(),
+      classifier:     "rules-v1",
+    }, { onConflict: "venue_id,from_email,received_at" });
+
+    // A classification failure must never lose the reply or 5xx back to
+    // Instantly — the sequence has already stopped and the funnel is updated.
+    if (replyErr) {
+      await emit(db, EVENT.SYNC_FAILED, {
+        venueId: venue.id, source: "instantly", severity: "warn",
+        detail: { reason: "reply not stored", error: replyErr.message, email },
+      });
+    }
+
+    // Removal requests arriving as a reply rather than an unsubscribe event
+    // still have to suppress. Legally this cannot depend on Instantly's
+    // event type being the tidy one.
+    if (verdict.classification === "negative_unsubscribe") {
+      await suppress(db, email, "unsubscribed", body.campaign_name ?? undefined);
+      await db.from("venues").update({ status: "disqualified" }).eq("id", venue.id);
+    }
+    replyVerdict = verdict;
+  }
+
   await emit(db, kind, {
     venueId: venue.id, source: "instantly",
-    detail: { email, campaign: body.campaign_name, campaign_id: body.campaign_id, step },
+    detail: {
+      email, campaign: body.campaign_name, campaign_id: body.campaign_id, step,
+      ...(replyVerdict
+        ? { classification: replyVerdict.classification, rule: replyVerdict.rule_matched }
+        : {}),
+    },
   });
 
   return NextResponse.json({ ok: true });
