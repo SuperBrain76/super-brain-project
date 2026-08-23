@@ -41,7 +41,12 @@ const rate = (num: number | null, den: number | null) =>
   num === null || den === null || den === 0 ? null : +((num / den) * 100).toFixed(1);
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET ?? "";
+  // Prefers its own secret so read-only observability can be granted to an
+  // external reader without handing out CRON_SECRET, which unlocks every other
+  // admin route. Falls back to CRON_SECRET so existing callers keep working.
+  // (Vercel "Sensitive" variables are write-only, so CRON_SECRET cannot be read
+  // back and shared even if we wanted to — hence the dedicated value.)
+  const secret = (process.env.VENUE_STATE_SECRET || process.env.CRON_SECRET) ?? "";
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     // Fail closed. Never reveal whether the secret is merely unset.
     console.warn("[venue-state] unauthorized request");
