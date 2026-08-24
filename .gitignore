@@ -18,3 +18,6 @@ supabase/prod-rollback/
 # pulled env (never commit)
 .env*.local
 .instantly-webhook-token.local
+.instantly-api-key.local
+.instantly-campaign-id.local
+.instantly-webhook-id.local
