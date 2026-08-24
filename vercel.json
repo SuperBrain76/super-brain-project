@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/instantly-poll",
-      "schedule": "0 8,16 * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }
