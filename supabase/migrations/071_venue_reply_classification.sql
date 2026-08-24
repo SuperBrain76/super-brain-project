@@ -51,3 +51,8 @@ create index if not exists venue_replies_venue_idx
 comment on table public.venue_replies is
   'Inbound venue replies with rule-based classification. Source text is immutable; '
   'classification fails toward needs_review rather than suppressing a live lead.';
+
+-- Every other table in the venue CRM (057) enables RLS with no policies, so the
+-- service role is the only way in. This table holds inbound reply bodies and the
+-- sender's address, so it must not be the one table readable with the anon key.
+alter table public.venue_replies enable row level security;
