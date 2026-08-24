@@ -37,7 +37,12 @@ export async function GET(req: NextRequest)  { return run(req); }
 export async function POST(req: NextRequest) { return run(req); }
 
 async function run(req: NextRequest) {
-  const secret = process.env.CRON_SECRET ?? "";
+  // Prefers its own secret so a dry run can be delegated without handing out
+  // CRON_SECRET, which unlocks every other admin route. Scoped to this route
+  // alone — nothing else reads OUTREACH_SYNC_SECRET. Falls back to CRON_SECRET
+  // so existing callers are unaffected, and still fails closed when neither
+  // is set. Same pattern as /api/admin/venue-state.
+  const secret = (process.env.OUTREACH_SYNC_SECRET || process.env.CRON_SECRET) ?? "";
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
