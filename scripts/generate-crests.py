@@ -35,6 +35,8 @@ FILES = [
   ("lib/leagues/allsvenskan.ts", "football"),
   ("lib/hockey/shl.ts",          "hockey"),
   ("lib/hockey/nhl.ts",          "hockey"),
+  # rugby uses the same TheSportsDB name-matcher as hockey (names are feed-exact)
+  ("lib/rugby/prem.ts",          "hockey"),
 ]
 
 GENERIC = {"fc","cf","afc","ac","ssc","ss","us","as","rc","rcd","cd","ud","ca","sc","sv",
