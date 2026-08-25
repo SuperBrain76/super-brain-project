@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
 import { pushLead, campaignFor, InstantlyError } from "@/lib/instantly";
+import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
 import { SITE } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -55,16 +56,20 @@ async function run(req: NextRequest) {
 
   const db = admin();
 
-  const { data: candidates, error } = await db
+  // Fetch the whole eligible set, then rank it in JS. Slicing to `limit` in SQL
+  // while tied on fit_score is what let the dry run and the real push disagree:
+  // the database chose which of the tied rows to return, and it did not choose
+  // the same ones twice.
+  let query = db
     .from("venues")
-    .select("id, name, contact_email, contact_name, city, country, website, contact_phone, competition_slug, fit_score")
+    .select("id, name, contact_email, contact_name, city, country, website, contact_phone, competition_slug, fit_score, shows_live_sport")
     .eq("status", "verified")
     .eq("contact_email_status", "valid")
     .is("outreach_pushed_at", null)
     .gte("fit_score", MIN_FIT)
-    .not("country", "in", "(DE,AT)")
-    .order("fit_score", { ascending: false })
-    .limit(limit);
+    .not("country", "in", "(DE,AT)");
+  for (const o of SELECTION_ORDER) query = query.order(o.column, { ascending: o.ascending });
+  const { data: eligible, error } = await query.limit(5000);
 
   if (error) {
     await emit(db, EVENT.SYNC_FAILED, {
@@ -73,8 +78,13 @@ async function run(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // ONE ordering path. `dry` only decides whether pushLead() runs further down —
+  // it never changes who is selected.
+  const candidates = selectForOutreach(eligible ?? [], limit);
+
   const result = {
     considered: candidates?.length ?? 0,
+    eligible_total: eligible?.length ?? 0,
     pushed: 0, skipped_suppressed: 0, skipped_no_campaign: 0, failed: 0,
     dry, min_fit_score: MIN_FIT, limit,
     failures: [] as Array<{ venue: string; error: string }>,
