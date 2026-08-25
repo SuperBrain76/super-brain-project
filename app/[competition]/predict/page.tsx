@@ -14,7 +14,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
-import { sportOf } from "@/lib/sports";
+import { sportOf, FOOTBALL, type SportMeta } from "@/lib/sports";
 import { getCurrentRoundContext, getRounds, type Round } from "@/lib/competitionEngine";
 import { supabase } from "@/lib/supabase";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
@@ -34,7 +34,7 @@ export default function MatchweekPredictPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [stats,       setStats]       = useState<Record<string, FixtureStats>>({});
   const [playerCount, setPlayerCount] = useState<number | undefined>(undefined);
-  const [hasDraw,     setHasDraw]     = useState(true);
+  const [sport,       setSport]       = useState<SportMeta>(FOOTBALL);
   const [nav, setNav] = useState<{ nextHref?: string; nextLabel?: string; prevHref?: string; prevLabel?: string }>({});
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function MatchweekPredictPage() {
       const { competition, error: compErr } = await resolveCompetition(competitionSlug);
       if (!alive) return;
       if (compErr || !competition) { setError(compErr ?? "Competition not found."); setLoading(false); return; }
-      setHasDraw(sportOf(competition.sportCode).hasDraw);
+      setSport(sportOf(competition.sportCode));
 
       const ctx = await getCurrentRoundContext(competition.id);
       if (!alive) return;
@@ -131,7 +131,7 @@ export default function MatchweekPredictPage() {
         fixtures={fixtures}
         previousFixtures={previous}
         roundLabel={round?.label ?? "Matchweek"}
-        hasDraw={hasDraw}
+        sport={sport}
         statsByFixture={stats}
         playerCount={playerCount}
         nextHref={nav.nextHref}

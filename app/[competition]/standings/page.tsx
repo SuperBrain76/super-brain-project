@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { resolveCompetition, getFixtures, getPredictorLeaderboard, type Fixture, type LeaderboardRow } from "@/lib/predictor";
 import { computeLeagueTable, tableHasResults, type LeagueRow } from "@/lib/leagueTable";
-import { sportOf } from "@/lib/sports";
+import { sportOf, FOOTBALL, type SportMeta } from "@/lib/sports";
 import GroupStandings from "@/components/predictor/GroupStandings";
 import StandingsTable from "@/components/premier/StandingsTable";
 
@@ -27,19 +27,20 @@ export default function StandingsPage() {
   const [predictors, setPredictors] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<"table" | "predictor">("table");
-  const [hasDraw, setHasDraw]   = useState(true);
+  const [sport, setSport]       = useState<SportMeta>(FOOTBALL);
 
   useEffect(() => {
     async function load() {
       const { competition } = await resolveCompetition(competitionSlug);
       if (!competition) { setLoading(false); return; }
-      setHasDraw(sportOf(competition.sportCode).hasDraw);
+      const sp = sportOf(competition.sportCode);
+      setSport(sp);
       const [{ fixtures: fx }, preds] = await Promise.all([
         getFixtures(competition.id),
         getPredictorLeaderboard(competition.id).catch(() => [] as LeaderboardRow[]),
       ]);
       setFixtures(fx);
-      setTable(computeLeagueTable(fx));
+      setTable(computeLeagueTable(fx, sp));
       setPredictors(preds);
       setLoading(false);
     }
@@ -91,8 +92,11 @@ export default function StandingsPage() {
                     The season hasn&apos;t kicked off yet — the table fills in as results come in.
                   </p>
                 )}
-                <StandingsTable rows={table} hasDraw={hasDraw} />
-                <p className="text-[10px] text-center" style={{ color: MUTED }}>Form shows the last five results, most recent on the right.</p>
+                <StandingsTable rows={table} sport={sport} />
+                <p className="text-[10px] text-center" style={{ color: MUTED }}>
+                  Form shows the last five results, most recent on the right.
+                  {sport.code === "rugby" && " Points include the losing bonus (defeat by 7 or fewer); try bonuses are not included."}
+                </p>
               </>
             ) : (
               <PredictorTable rows={predictors} slug={competitionSlug} />

@@ -10,6 +10,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { computeLeagueTable, type LeagueRow } from "@/lib/leagueTable";
+import { FOOTBALL, type SportMeta } from "@/lib/sports";
 import type { Fixture } from "@/lib/predictor";
 import type { Scorer } from "@/lib/footballData";
 
@@ -48,8 +49,8 @@ export async function getPlayerScorers(competitionId: string): Promise<{ updated
 }
 
 /** Derive the team talking-points from fixtures. Safe on empty/pre-season data. */
-export function computeTeamStats(fixtures: Fixture[]): TeamStats {
-  const table = computeLeagueTable(fixtures);
+export function computeTeamStats(fixtures: Fixture[], sport: SportMeta = FOOTBALL): TeamStats {
+  const table = computeLeagueTable(fixtures, sport);
   const withGames = table.filter((r) => r.played > 0);
 
   const lead = (rows: LeagueRow[], value: (r: LeagueRow) => number, sub?: (r: LeagueRow) => string) =>

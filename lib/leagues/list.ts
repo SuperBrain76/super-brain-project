@@ -24,4 +24,5 @@ export const LEAGUES: LeagueEntry[] = [
   { slug: "allsvenskan",    name: "Allsvenskan",    country: "🇸🇪 Sweden",  clubs: ["MFF", "AIK", "DJU", "HAM", "IFG", "HAK"], sport: "football" },
   { slug: "shl",            name: "SHL",            country: "🇸🇪 Sweden",  clubs: ["FRL", "SKE", "LUL", "DIF", "FBK", "HV7"], sport: "ice_hockey" },
   { slug: "nhl",            name: "NHL",            country: "🇺🇸 North America", clubs: ["EDM", "TML", "BOS", "NYR", "COL", "VGK"], sport: "ice_hockey" },
+  { slug: "premiership-rugby", name: "Premiership Rugby", country: "🏴󠁧󠁢󠁥󠁮󠁧󠁿 England", clubs: ["TIG", "BTH", "SAR", "HAR", "EXE", "NTH"], sport: "rugby" },
 ];

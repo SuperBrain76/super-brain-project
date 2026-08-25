@@ -317,7 +317,7 @@ function CompetitionsStep({ leagues, comps, onAdd, onNext, onBack }: {
       <Kicker>Step 2 of 5</Kicker>
       <H1>Choose your competitions</H1>
       <P>Your subscription includes <b style={{ color: CREAM }}>every competition</b> — Premier League,
-         Champions League, La Liga, the rest, plus ice hockey — and future ones automatically. Pick the
+         Champions League, La Liga, the rest, plus ice hockey and rugby — and future ones automatically. Pick the
          ones you want to run. Each becomes its own branded league; add or remove any time, at no extra cost.</P>
 
       {leagues.length > 0 && (

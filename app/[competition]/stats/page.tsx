@@ -36,13 +36,13 @@ export default function StatsPage() {
       if (!competition) { setLoading(false); return; }
       const football = competition.sportCode === "football";
       setIsFootball(football);
-      setCleanLabel(sportOf(competition.sportCode).hasDraw ? "Clean Sheets" : "Shutouts");
+      setCleanLabel(sportOf(competition.sportCode).cleanSheetLabel);
       const [{ fixtures: fx }, players] = await Promise.all([
         getFixtures(competition.id),
         football ? getPlayerScorers(competition.id) : Promise.resolve({ updatedAt: null, scorers: [] }),
       ]);
       setFixtures(fx);
-      setTeam(computeTeamStats(fx));
+      setTeam(computeTeamStats(fx, sportOf(competition.sportCode)));
       setScorers(players.scorers);
       setUpdated(players.updatedAt);
       setLoading(false);

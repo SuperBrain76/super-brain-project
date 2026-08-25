@@ -33,7 +33,7 @@ interface Prefill {
  *  nouns stay the same across languages; the headings below are localised. */
 const INCLUDED = [
   "Premier League", "Champions League", "La Liga", "Bundesliga",
-  "Serie A", "Ligue 1", "SHL", "NHL",
+  "Serie A", "Ligue 1", "SHL", "NHL", "Premiership Rugby",
 ];
 
 const COPY: Record<Lang, {

@@ -6,12 +6,16 @@
  * Self-contained so the same table powers the dashboard rail and the full
  * standings screen, and it's always consistent with the fixtures we hold.
  *
- * 3 points a win, 1 a draw — real football. Pre-season (no results) it still
- * lists every club on zero, so the table exists from day one and fills in as
- * results arrive.
+ * 3 points a win, 1 a draw — real football. Rugby scores 4 a win, 2 a draw,
+ * plus the losing bonus (defeat by 7 or fewer). The try bonus (4+ tries)
+ * CANNOT be computed — try counts aren't in the data model — so a rugby table
+ * is a close approximation and the standings page says so. Pre-season (no
+ * results) it still lists every club on zero, so the table exists from day
+ * one and fills in as results arrive.
  */
 
 import type { Fixture } from "@/lib/predictor";
+import { FOOTBALL, type SportMeta } from "@/lib/sports";
 
 export type FormResult = "W" | "D" | "L";
 
@@ -34,7 +38,11 @@ function blank(code: string, name: string): LeagueRow {
   return { code, name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, points: 0, form: [], rank: 0 };
 }
 
-export function computeLeagueTable(fixtures: Fixture[]): LeagueRow[] {
+export function computeLeagueTable(fixtures: Fixture[], sport: SportMeta = FOOTBALL): LeagueRow[] {
+  const rugby = sport.code === "rugby";
+  const WIN_PTS  = rugby ? 4 : 3;
+  const DRAW_PTS = rugby ? 2 : 1;
+  const LOSING_BONUS_MARGIN = 7;   // rugby: 1 pt for losing by 7 or fewer
   const rows = new Map<string, LeagueRow>();
   const ensure = (code?: string | null, name?: string | null) => {
     if (!code) return null;
@@ -64,14 +72,16 @@ export function computeLeagueTable(fixtures: Fixture[]): LeagueRow[] {
     away.gf += as; away.ga += hs;
 
     if (hs > as) {
-      home.won++; home.points += 3; home.form.push("W");
+      home.won++; home.points += WIN_PTS; home.form.push("W");
       away.lost++; away.form.push("L");
+      if (rugby && hs - as <= LOSING_BONUS_MARGIN) away.points++;
     } else if (hs < as) {
-      away.won++; away.points += 3; away.form.push("W");
+      away.won++; away.points += WIN_PTS; away.form.push("W");
       home.lost++; home.form.push("L");
+      if (rugby && as - hs <= LOSING_BONUS_MARGIN) home.points++;
     } else {
-      home.drawn++; home.points++; home.form.push("D");
-      away.drawn++; away.points++; away.form.push("D");
+      home.drawn++; home.points += DRAW_PTS; home.form.push("D");
+      away.drawn++; away.points += DRAW_PTS; away.form.push("D");
     }
   }
 

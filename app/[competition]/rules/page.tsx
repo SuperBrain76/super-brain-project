@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { GrandPrizeRulesSection } from "@/components/GrandPrize";
 import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
+import { LEAGUES } from "@/lib/leagues/list";
+import { sportOf } from "@/lib/sports";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -111,6 +113,11 @@ export default function RulesPage(
   // prop, not useParams — no client boundary needed for a static page.
   const competitionSlug = params.competition;
 
+  // Sport from the static league list (lib/leagues/list.ts) — no DB round
+  // trip on a static page. Unknown slugs read as football, as everywhere.
+  const sport = sportOf(LEAGUES.find((l) => l.slug === competitionSlug)?.sport);
+  const rugby = sport.code === "rugby";
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="max-w-2xl mx-auto px-4 pt-5 pb-12 w-full flex flex-col gap-8">
@@ -160,28 +167,28 @@ export default function RulesPage(
               icon="⚡"
               pts={5}
               label="Exact score"
-              example="You predicted 2–1 · Final result: 2–1"
+              example={rugby ? "You predicted 24–17 · Final result: 24–17" : "You predicted 2–1 · Final result: 2–1"}
               accentColor={GREEN}
             />
             <PointRow
               icon="✓"
               pts={3}
-              label="Correct goal difference"
-              example="You predicted 2–0 (+2 GD) · Final result: 3–1 (+2 GD)"
+              label={rugby ? "Correct winning margin" : "Correct goal difference"}
+              example={rugby ? "You predicted 27–20 (+7) · Final result: 24–17 (+7)" : "You predicted 2–0 (+2 GD) · Final result: 3–1 (+2 GD)"}
               accentColor="#0e1e35"
             />
             <PointRow
               icon="~"
               pts={2}
               label="Correct result only"
-              example="You predicted 1–0 (home win) · Final result: 3–1 (home win)"
+              example={rugby ? "You predicted 20–13 (home win) · Final result: 31–17 (home win)" : "You predicted 1–0 (home win) · Final result: 3–1 (home win)"}
               accentColor={GOLD}
             />
             <PointRow
               icon="✗"
               pts={0}
               label="Wrong prediction"
-              example="You predicted 2–1 (home win) · Final result: 1–1 (draw)"
+              example={rugby ? "You predicted 24–17 (home win) · Final result: 15–22 (away win)" : "You predicted 2–1 (home win) · Final result: 1–1 (draw)"}
               accentColor="#c0392b"
             />
           </Card>
@@ -189,7 +196,7 @@ export default function RulesPage(
           {/* Example table */}
           <div className="flex flex-col gap-2">
             <p className="text-[10px] uppercase tracking-widest" style={{ color: MUTED }}>
-              Examples — same final result (Brazil 2–1 England)
+              Examples — same final result ({rugby ? "Bath 24–17 Saracens" : "Brazil 2–1 England"})
             </p>
             <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
               <div className="grid grid-cols-3 px-4 py-2" style={{ borderBottom: `1px solid ${BORDER}`, background: BG }}>
@@ -197,14 +204,21 @@ export default function RulesPage(
                 <span className="text-[10px] uppercase tracking-widest text-center" style={{ color: MUTED }}>Result</span>
                 <span className="text-[10px] uppercase tracking-widest text-right" style={{ color: MUTED }}>Points</span>
               </div>
-              {[
+              {(rugby ? [
+                { pred: "24–17", reason: "Exact score",                        pts: 5,  color: GREEN       },
+                { pred: "27–20", reason: "Correct margin (+7)",                pts: 3,  color: "#0e1e35"   },
+                { pred: "31–13", reason: "Home win, margin +18 vs +7",         pts: 2,  color: GOLD        },
+                { pred: "20–13", reason: "Home win — correct result",          pts: 2,  color: GOLD        },
+                { pred: "17–17", reason: "Draw — wrong result",                pts: 0,  color: "#c0392b"   },
+                { pred: "10–24", reason: "Away win — wrong result",            pts: 0,  color: "#c0392b"   },
+              ] : [
                 { pred: "2–1",  reason: "Exact score",                       pts: 5,  color: GREEN       },
                 { pred: "3–2",  reason: "Correct GD (+1)",                   pts: 3,  color: "#0e1e35"   },
                 { pred: "4–1",  reason: "Correct GD (+3)? No — GD is +1 vs +3", pts: 2, color: GOLD     },
                 { pred: "1–0",  reason: "Home win — correct result",          pts: 2,  color: GOLD        },
                 { pred: "1–1",  reason: "Draw — wrong result",                pts: 0,  color: "#c0392b"   },
                 { pred: "0–2",  reason: "Away win — wrong result",            pts: 0,  color: "#c0392b"   },
-              ].map((row) => (
+              ]).map((row) => (
                 <div key={row.pred} className="grid grid-cols-3 px-4 py-2.5 items-center"
                   style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <span className="font-mono font-semibold text-sm" style={{ color: TEXT1 }}>{row.pred}</span>
@@ -220,9 +234,15 @@ export default function RulesPage(
           <Card accent={MUTED}>
             <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>Note on extra time &amp; penalties</p>
             <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
-              Scoring is based on the <span className="font-semibold" style={{ color: TEXT1 }}>90-minute result only</span> (including
-              injury time). Goals scored in extra time or determined by a penalty shootout are
-              not counted when calculating your prediction score.
+              {rugby ? <>
+                Scoring is based on the <span className="font-semibold" style={{ color: TEXT1 }}>80-minute result only</span> (including
+                referee&apos;s added time). Points scored in extra time of a drawn knockout match are
+                not counted when calculating your prediction score.
+              </> : <>
+                Scoring is based on the <span className="font-semibold" style={{ color: TEXT1 }}>90-minute result only</span> (including
+                injury time). Goals scored in extra time or determined by a penalty shootout are
+                not counted when calculating your prediction score.
+              </>}
             </p>
           </Card>
         </Section>
@@ -305,7 +325,7 @@ export default function RulesPage(
               <div className="flex flex-col gap-2">
                 {[
                   { n: "1", label: "Most exact scores",             detail: "More ⚡ 5-point predictions" },
-                  { n: "2", label: "Most correct goal differences",  detail: "More 3-point predictions (correct GD)" },
+                  { n: "2", label: rugby ? "Most correct margins" : "Most correct goal differences",  detail: rugby ? "More 3-point predictions (correct margin)" : "More 3-point predictions (correct GD)" },
                   { n: "3", label: "Most correct results",           detail: "More 2-point predictions (correct outcome)" },
                   { n: "4", label: "Most bonus points",              detail: "Higher bonus question score" },
                   { n: "5", label: "Most predictions completed",     detail: "More fixtures predicted" },

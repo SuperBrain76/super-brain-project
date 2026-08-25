@@ -14,6 +14,7 @@
 
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
 import type { LeagueRow, FormResult } from "@/lib/leagueTable";
+import { FOOTBALL, type SportMeta } from "@/lib/sports";
 
 const GREEN = "#1a3a2a", MUTED = "#7a8f82", BORDER = "#e4e0d6";
 const TEXT1 = "#0f1f17", TEXT2 = "#2e4a37", CARD = "#ffffff", HEAD = "#f4f1ea";
@@ -35,7 +36,11 @@ function FormPills({ form }: { form: FormResult[] }) {
   );
 }
 
-export default function StandingsTable({ rows, hasDraw = true }: { rows: LeagueRow[]; hasDraw?: boolean }) {
+export default function StandingsTable({ rows, sport = FOOTBALL }: { rows: LeagueRow[]; sport?: SportMeta }) {
+  const hasDraw = sport.hasDraw;
+  // "Goals" columns become "Points" columns for rugby (PF/PA/PD is how every
+  // rugby table labels them).
+  const [FOR, AGAINST, DIFF] = sport.scoreNoun === "points" ? ["PF", "PA", "PD"] : ["GF", "GA", "GD"];
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
       <div className="overflow-x-auto">
@@ -48,9 +53,9 @@ export default function StandingsTable({ rows, hasDraw = true }: { rows: LeagueR
               <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">W</th>
               {hasDraw && <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">D</th>}
               <th className="text-center font-bold py-2 w-8 hidden sm:table-cell">L</th>
-              <th className="text-center font-bold py-2 w-9 hidden md:table-cell">GF</th>
-              <th className="text-center font-bold py-2 w-9 hidden md:table-cell">GA</th>
-              <th className="text-center font-bold py-2 w-9">GD</th>
+              <th className="text-center font-bold py-2 w-9 hidden md:table-cell">{FOR}</th>
+              <th className="text-center font-bold py-2 w-9 hidden md:table-cell">{AGAINST}</th>
+              <th className="text-center font-bold py-2 w-9">{DIFF}</th>
               <th className="text-center font-bold py-2 w-9" style={{ color: TEXT2 }}>Pts</th>
               <th className="text-right font-bold py-2 pr-3 w-[110px]">Form</th>
             </tr>

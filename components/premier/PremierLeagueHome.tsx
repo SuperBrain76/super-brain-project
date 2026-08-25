@@ -72,7 +72,7 @@ export default function PremierLeagueHome({ competition }: { competition: Compet
       ]);
       if (!alive) return;
 
-      const standings = computeLeagueTable(allFixtures);
+      const standings = computeLeagueTable(allFixtures, sportOf(competition.sportCode));
       const streak = computeStreak(participation);
 
       const featuredStats: FixtureStats | null = (() => {

@@ -31,6 +31,7 @@ import {
   copyFromPreviousRound, fillRemaining,
 } from "@/lib/matchweekPredictions";
 import { track } from "@/lib/analytics";
+import { FOOTBALL, type SportMeta } from "@/lib/sports";
 import ClubCrest, { clubShort } from "@/components/premier/ClubCrest";
 import CompletionCelebration from "@/components/premier/CompletionCelebration";
 import { club, textOn } from "@/lib/premierLeague/clubs";
@@ -71,7 +72,7 @@ export default function MatchweekSheet({
   fixtures,
   previousFixtures = [],
   roundLabel,
-  hasDraw = true,
+  sport = FOOTBALL,
   onChanged,
   onSave = upsertPrediction,
   clock = Date.now,
@@ -89,8 +90,8 @@ export default function MatchweekSheet({
   fixtures:          Fixture[];
   previousFixtures?: Fixture[];
   roundLabel:        string;
-  /** Sport allows draws (football). Ice hockey → false: no Draw pick, no draw fill. */
-  hasDraw?:          boolean;
+  /** Sport metadata — drives the Draw pick, score bounds and default scorelines. */
+  sport?:            SportMeta;
   onChanged?:        () => void;
   onSave?:           SavePrediction;
   /** Persist the banker choice. Defaults to the live RPC; the prototype injects a local version. */
@@ -114,6 +115,7 @@ export default function MatchweekSheet({
   prevHref?:         string;
   prevLabel?:        string;
 }) {
+  const hasDraw = sport.hasDraw;
   // Local mirror of predictions so the UI is optimistic. Keyed by fixture id.
   const [picks, setPicks] = useState<Map<string, ScorePick>>(() => {
     const m = new Map<string, ScorePick>();
@@ -183,15 +185,15 @@ export default function MatchweekSheet({
 
   const onOutcome = useCallback((f: Fixture, outcome: Outcome) => {
     const existing = picks.get(f.id) ?? null;
-    const pick = scoreForOutcome(outcome, existing);
+    const pick = scoreForOutcome(outcome, existing, sport.defaultScoreline);
     applyPick(f.id, pick, existing === null && f.myPrediction == null);
-  }, [picks, applyPick]);
+  }, [picks, applyPick, sport]);
 
   const onStep = useCallback((f: Fixture, side: "home" | "away", delta: number) => {
-    const cur = picks.get(f.id) ?? { home: 1, away: 1 };
-    const next = { ...cur, [side]: stepGoals(cur[side], delta) };
+    const cur = picks.get(f.id) ?? sport.defaultScoreline.draw;
+    const next = { ...cur, [side]: stepGoals(cur[side], delta, sport.maxScore) };
     applyPick(f.id, next, false);
-  }, [picks, applyPick]);
+  }, [picks, applyPick, sport]);
 
   const onBanker = useCallback((fixtureId: string) => {
     setBankerId((prev) => {
@@ -355,10 +357,10 @@ export default function MatchweekSheet({
             />
           )}
           <BulkButton
-            label={hasDraw ? "Fill remaining as 1–1" : "Fill remaining as 2–1 home"}
+            label={`Fill remaining as ${sport.fillDefault.home}–${sport.fillDefault.away}${sport.fillDefault.home === sport.fillDefault.away ? "" : " home"}`}
             onClick={() => runBulk(
-              fillRemaining(liveFixtures, nowMs, hasDraw ? { home: 1, away: 1 } : { home: 2, away: 1 }),
-              hasDraw ? "fill_draw" : "fill_home",
+              fillRemaining(liveFixtures, nowMs, sport.fillDefault),
+              sport.fillDefault.home === sport.fillDefault.away ? "fill_draw" : "fill_home",
             )}
           />
         </div>

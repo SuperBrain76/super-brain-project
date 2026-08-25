@@ -54,10 +54,16 @@ export function outcomeOf(pick: ScorePick): Outcome {
  * If the user already has a score whose OUTCOME matches the tapped button,
  * keep it — re-tapping "Home" must not wipe a carefully chosen 3-1 back to
  * 1-0. Only when the outcome actually changes do we drop to the default.
+ * `defaults` lets a non-football sport supply its own modal scorelines
+ * (SportMeta.defaultScoreline); omitted, the football defaults apply.
  */
-export function scoreForOutcome(outcome: Outcome, existing: ScorePick | null): ScorePick {
+export function scoreForOutcome(
+  outcome: Outcome,
+  existing: ScorePick | null,
+  defaults: Record<Outcome, ScorePick> = DEFAULT_SCORELINE,
+): ScorePick {
   if (existing && outcomeOf(existing) === outcome) return existing;
-  return DEFAULT_SCORELINE[outcome];
+  return defaults[outcome];
 }
 
 /** The prediction on a fixture as a ScorePick, or null if none. */
@@ -73,18 +79,21 @@ export function selectedOutcome(f: Fixture): Outcome | null {
   return pick ? outcomeOf(pick) : null;
 }
 
-// ── Score bounds (mirror the DB CHECK: 0–20) ─────────────────
+// ── Score bounds ─────────────────────────────────────────────
+// MAX_GOALS is the football/hockey ceiling. Since migration 072 the hard
+// limit is per-sport (sports.max_score, DB-trigger enforced); pass the
+// sport's maxScore (SportMeta.maxScore) as `max` for anything else.
 
 export const MIN_GOALS = 0;
 export const MAX_GOALS = 20;
 
-export function clampGoals(n: number): number {
+export function clampGoals(n: number, max: number = MAX_GOALS): number {
   if (!Number.isFinite(n)) return 0;
-  return Math.max(MIN_GOALS, Math.min(MAX_GOALS, Math.round(n)));
+  return Math.max(MIN_GOALS, Math.min(max, Math.round(n)));
 }
 
-export function stepGoals(current: number, delta: number): number {
-  return clampGoals(current + delta);
+export function stepGoals(current: number, delta: number, max: number = MAX_GOALS): number {
+  return clampGoals(current + delta, max);
 }
 
 // ── Bulk helpers (user-initiated only — never automatic) ─────
