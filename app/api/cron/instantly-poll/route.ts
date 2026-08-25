@@ -66,11 +66,78 @@ export async function GET(req: NextRequest) {
 
   const db = admin();
   const result = {
+    sent_seen: 0, sent_new: 0,
     replies_seen: 0, replies_new: 0, unmatched: 0,
     bounces: 0, unsubscribes: 0, suppressed: 0,
     needs_attention: [] as Array<{ venue: string; classification: string }>,
     errors: [] as string[],
   };
+
+  // ── sent emails ────────────────────────────────────────────────────────
+  // Without this the CRM never learned anything was sent: emails_sent stayed 0
+  // and first_emailed_at stayed null while five emails were actually out, so the
+  // funnel understated reality. Idempotent on (venue_id, campaign_id, step).
+  try {
+    const sent = await pageAll(`/emails?campaign_id=${encodeURIComponent(campaign)}&email_type=sent`);
+    result.sent_seen = sent.length;
+
+    // Register the campaign once so per-step attribution is possible.
+    let { data: camp } = await db.from("outreach_campaigns").select("id").eq("key", campaign).maybeSingle();
+    if (!camp) {
+      const { data: made } = await db.from("outreach_campaigns").upsert({
+        key: campaign, name: "SuperBrain Venue — cold outreach",
+        template_key: "instantly", from_email: "alex@superbrain.bar", status: "running",
+      }, { onConflict: "key" }).select("id").single();
+      camp = made;
+    }
+
+    for (const e of sent) {
+      const to = norm(
+        Array.isArray(e.to_address_email_list) ? e.to_address_email_list[0]
+          : (e.to_address_email_list ?? e.lead ?? e.to_address),
+      ).split(",")[0].trim();
+      const atRaw = e.timestamp_created ?? e.timestamp_email ?? e.created_at;
+      if (!to || !atRaw) continue;
+      const at = new Date(atRaw).toISOString();
+
+      // Instantly reports step as "0_0_0" / "0_1_0" — the middle field is the
+      // zero-based step index within the sequence.
+      const parts = String(e.step ?? "").split("_");
+      const step = parts.length >= 2 ? Number(parts[1]) + 1 : 1;
+
+      const { data: venue } = await db
+        .from("venues").select("id, emails_sent, first_emailed_at").ilike("contact_email", to).maybeSingle();
+      if (!venue) { result.unmatched++; continue; }
+
+      const { data: existing } = await db.from("outreach_messages")
+        .select("id, sent_at").eq("venue_id", venue.id).eq("campaign_id", camp?.id ?? null)
+        .eq("step", step).maybeSingle();
+      if (existing?.sent_at) continue;                     // already counted
+
+      const { error: msgErr } = await db.from("outreach_messages").upsert({
+        venue_id: venue.id, campaign_id: camp?.id ?? null, step,
+        to_email: to, subject: e.subject ?? "outreach", language: "en",
+        provider_id: "alex@superbrain.bar", status: "sent", sent_at: at,
+      }, { onConflict: "venue_id,campaign_id,step" });
+      if (msgErr) { result.errors.push(`sent ${to} step ${step}: ${msgErr.message}`); continue; }
+
+      result.sent_new++;
+
+      // Recount from the message table rather than incrementing, so a re-poll
+      // can never inflate the number.
+      const { count } = await db.from("outreach_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("venue_id", venue.id).not("sent_at", "is", null);
+      await db.from("venues").update({
+        emails_sent: count ?? 0,
+        last_emailed_at: at,
+        ...(venue.first_emailed_at ? {} : { first_emailed_at: at }),
+      }).eq("id", venue.id);
+      await advanceStatus(db, venue.id, "contacted", {});
+    }
+  } catch (e: any) {
+    result.errors.push(`sent: ${String(e?.message ?? e).slice(0, 160)}`);
+  }
 
   // ── replies ────────────────────────────────────────────────────────────
   try {

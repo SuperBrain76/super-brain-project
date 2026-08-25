@@ -79,7 +79,39 @@ const POSITIVE = [
   /\bsend (me|us|over)\b/i,
 ];
 
-/** Automated replies. Not a human signal either way. */
+/**
+ * Unambiguous machine replies — a reception desk, a ticketing system, a mailbox
+ * that answers everyone identically. These are checked BEFORE commercial
+ * keywords, because the autoresponder's own text is often full of them.
+ *
+ * Brigadiers' reception auto-reply was stored as positive_interested on
+ * 2026-08-25: it says "we are not able to respond to all questions... refer to
+ * our guide of frequent questions & answers", which matched the POSITIVE rule on
+ * "questions". It is a restaurant booking autoresponder and expresses no view on
+ * us at all.
+ *
+ * Deliberately narrow: every phrase here is something only an automated system
+ * says. A human writing back never says "due to a high volume of enquiries".
+ */
+const STRONG_AUTO = [
+  // NOTE: "out of office" is deliberately NOT here. An absence reply naming a
+  // colleague and a price ("contact Maria about pricing") is a real lead, so it
+  // stays with the weaker AUTO_REPLY check further down, after the commercial
+  // signals have had their say. A reception/FAQ desk answers everyone
+  // identically and carries no such signal.
+  /\bhigh volume of (enquiries|inquiries|emails|requests|messages)\b/i,
+  /\b(not|un)able to (respond|reply) to (all|every|each)\b/i,
+  /\bdo not reply to this (email|message)\b/i,
+  /\bthis (is|was) an automated\b/i,
+  /\bauto(matic|mated)?[- ]?(reply|response|responder)\b/i,
+  /\brefer to (our|the) (guide|faq|frequently asked)\b/i,
+  /\bfrequently asked questions\b|\bFAQ page\b/i,
+  /\bno[- ]?reply@/i,
+  /\byour (enquiry|inquiry|request) has been received\b/i,
+  /\bticket (number|#|has been created)\b/i,
+];
+
+/** Weaker absence signals. Still checked last, after real human signals. */
 const AUTO_REPLY = [
   /\bout of (the )?office\b/i,
   /\bautomatic(ally)? (reply|response)\b/i,
@@ -119,7 +151,23 @@ export function classifyReply(raw: string | null | undefined): Classification {
     };
   }
 
-  // 2. A bare "no" with nothing else is a clear rejection.
+  // 2. Unambiguous machine replies. Before commercial keywords, because an
+  //    autoresponder's own boilerplate frequently contains them. Classified
+  //    neutral, never negative: the venue has expressed nothing, so it must NOT
+  //    be suppressed or disqualified on the strength of a robot.
+  const strongAuto = hit(text, STRONG_AUTO);
+  if (strongAuto) {
+    return {
+      classification: "neutral",
+      reason:
+        "Automated reply (reception desk, FAQ redirect, out-of-office or ticketing). " +
+        "The venue itself has not responded, so this is not interest and not a rejection.",
+      rule_matched: `strong_auto:${strongAuto.source}`,
+      confidence: "high",
+    };
+  }
+
+  // 3. A bare "no" with nothing else is a clear rejection.
   if (BARE_NO.test(text)) {
     return {
       classification: "negative",
@@ -132,7 +180,7 @@ export function classifyReply(raw: string | null | undefined): Classification {
   const neg = hit(text, NEGATIVE);
   const pos = hit(text, POSITIVE);
 
-  // 3. Both signals present → escalate. This is the case that must never be
+  // 4. Both signals present → escalate. This is the case that must never be
   //    suppressed: "not the right person, but our manager may want pricing".
   if (neg && pos) {
     return {
@@ -163,8 +211,7 @@ export function classifyReply(raw: string | null | undefined): Classification {
     };
   }
 
-  // 4. Automated replies — only after checking for real signals, since an OOO can
-  //    still contain "contact my colleague about pricing".
+  // 5. Weaker absence signals — only after checking for real human signals.
   const auto = hit(text, AUTO_REPLY);
   if (auto) {
     return {
@@ -175,7 +222,7 @@ export function classifyReply(raw: string | null | undefined): Classification {
     };
   }
 
-  // 5. A real human wrote something we do not recognise. That is exactly the
+  // 6. A real human wrote something we do not recognise. That is exactly the
   //    case worth a human glance — never a silent negative.
   return {
     classification: "needs_review",

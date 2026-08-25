@@ -139,3 +139,78 @@ describe("attention routing", () => {
     expect(briefPriority("negative_unsubscribe")).toBeNull();
   });
 });
+
+/**
+ * Regression: the Brigadiers reply, verbatim, from 2026-08-25.
+ *
+ * This was the very first reply the venue engine ever received and it was
+ * misclassified as positive_interested. It is a restaurant reception
+ * autoresponder about table bookings; it matched the commercial rule on
+ * "questions" because the classifier checked positive keywords before it
+ * checked whether a machine had written the message.
+ */
+const BRIGADIERS_AUTOREPLY = `Thank you very much for getting in touch. While we endeavour to respond to all emails, due to a high volume of enquiries we are not able to respond to all questions.
+
+With that in mind, please refer to our guide of frequent questions & answers on our FAQ page<https://brigadierslondon.com/wp-content/uploads/2025/05/Brigadiers-FAQ.pdf>.
+
+Reservations
+
+To make a reservation, please refer to our website<https://brigadierslondon.com/> where you will find real time availability via 7Rooms. Please note all reservations must be made online, as card details are required to secure the booking.
+
+For parties larger than 6 and up to 25, please see our private dining page<https://brigadierslondon.com/private-dining/> and for larger events including full restaurant hire, please reach out to our events team via events@brigadierslondon.com
+
+Regarding existing reservations
+
+We are only able to hold tables for up to 15 minutes. If you are running late, please reply to your SMS or confirmation email to let the team know your arrival time.
+
+To cancel or amend an existing booking, please refer to your original confirmation email. Cancellations must be made at least 24 hours before your booking.
+
+Best wishes,
+Reception Team
+Brigadiers
+1-5 Bloomberg Arcade
+London EC4N 8AR`;
+
+describe("autoresponders are not interest (Brigadiers, 2026-08-25)", () => {
+  it("classifies the real Brigadiers reply as neutral, not positive", () => {
+    const v = classifyReply(BRIGADIERS_AUTOREPLY);
+    expect(v.classification).toBe("neutral");
+    expect(v.classification).not.toBe("positive_interested");
+    expect(v.rule_matched).toMatch(/^strong_auto:/);
+    expect(v.confidence).toBe("high");
+  });
+
+  it("does not suppress or disqualify a venue for an autoresponder", () => {
+    // negative_unsubscribe is the only class that suppresses. An autoresponder
+    // must never reach it — the venue has said nothing.
+    expect(classifyReply(BRIGADIERS_AUTOREPLY).classification).not.toBe("negative_unsubscribe");
+    expect(classifyReply(BRIGADIERS_AUTOREPLY).classification).not.toBe("negative");
+  });
+
+  it("catches the other common machine replies", () => {
+    for (const t of [
+      "Thank you, your enquiry has been received. This is an automated response.",
+      "I am currently out of the office and will reply on Monday.",
+      "Please do not reply to this email. Refer to our FAQ page for common questions.",
+      "Due to a high volume of enquiries we are unable to respond to every message.",
+      "A ticket number has been created for your request.",
+    ]) {
+      expect(classifyReply(t).classification).toBe("neutral");
+    }
+  });
+
+  it("still escalates a genuine human reply that is ambiguous", () => {
+    const human = "I'm not the right person for this, but our GM might want the pricing.";
+    expect(classifyReply(human).classification).toBe("needs_review");
+  });
+
+  it("still reads a genuine human question as interest", () => {
+    const human = "Sounds good — how much is it for a pub our size?";
+    expect(classifyReply(human).classification).toBe("positive_interested");
+  });
+
+  it("a removal request inside an autoresponder still wins", () => {
+    const t = "This is an automated reply. Please unsubscribe us from your list.";
+    expect(classifyReply(t).classification).toBe("negative_unsubscribe");
+  });
+});
