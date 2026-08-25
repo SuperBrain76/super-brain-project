@@ -91,6 +91,16 @@ export async function GET(req: NextRequest) {
       camp = made;
     }
 
+    // Decide "is this new?" from ONE snapshot taken before the loop. Doing it
+    // per row entangled the check with the insert, so the counters re-reported
+    // the same five sends on every poll even though the upsert never duplicated.
+    const { data: known } = await db.from("outreach_messages")
+      .select("venue_id, step, sent_at").eq("campaign_id", camp?.id ?? "");
+    const alreadySent = new Set(
+      (known ?? []).filter(k => k.sent_at).map(k => `${k.venue_id}|${k.step}`),
+    );
+    const touched = new Set<string>();
+
     for (const e of sent) {
       const to = norm(
         Array.isArray(e.to_address_email_list) ? e.to_address_email_list[0]
@@ -109,10 +119,8 @@ export async function GET(req: NextRequest) {
         .from("venues").select("id, emails_sent, first_emailed_at").ilike("contact_email", to).maybeSingle();
       if (!venue) { result.unmatched++; continue; }
 
-      const { data: existing } = await db.from("outreach_messages")
-        .select("id, sent_at").eq("venue_id", venue.id).eq("campaign_id", camp?.id ?? null)
-        .eq("step", step).maybeSingle();
-      if (existing?.sent_at) continue;                     // already counted
+      touched.add(venue.id);
+      const isNew = !alreadySent.has(`${venue.id}|${step}`);
 
       const { error: msgErr } = await db.from("outreach_messages").upsert({
         venue_id: venue.id, campaign_id: camp?.id ?? null, step,
@@ -120,20 +128,26 @@ export async function GET(req: NextRequest) {
         provider_id: "alex@superbrain.bar", status: "sent", sent_at: at,
       }, { onConflict: "venue_id,campaign_id,step" });
       if (msgErr) { result.errors.push(`sent ${to} step ${step}: ${msgErr.message}`); continue; }
+      if (isNew) result.sent_new++;
+    }
 
-      result.sent_new++;
-
-      // Recount from the message table rather than incrementing, so a re-poll
-      // can never inflate the number.
+    // Recount per venue AFTER every message is in, so a venue with two steps
+    // ends on 2 rather than on whatever the last row it happened to see was.
+    for (const venueId of touched) {
       const { count } = await db.from("outreach_messages")
         .select("*", { count: "exact", head: true })
-        .eq("venue_id", venue.id).not("sent_at", "is", null);
+        .eq("venue_id", venueId).not("sent_at", "is", null);
+      const { data: agg } = await db.from("outreach_messages")
+        .select("sent_at").eq("venue_id", venueId).not("sent_at", "is", null)
+        .order("sent_at", { ascending: true });
+      const first = agg?.[0]?.sent_at ?? null;
+      const last  = agg?.[agg.length - 1]?.sent_at ?? null;
       await db.from("venues").update({
         emails_sent: count ?? 0,
-        last_emailed_at: at,
-        ...(venue.first_emailed_at ? {} : { first_emailed_at: at }),
-      }).eq("id", venue.id);
-      await advanceStatus(db, venue.id, "contacted", {});
+        ...(first ? { first_emailed_at: first } : {}),
+        ...(last ? { last_emailed_at: last } : {}),
+      }).eq("id", venueId);
+      await advanceStatus(db, venueId, "contacted", {});
     }
   } catch (e: any) {
     result.errors.push(`sent: ${String(e?.message ?? e).slice(0, 160)}`);
