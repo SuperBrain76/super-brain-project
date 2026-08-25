@@ -133,17 +133,26 @@ export async function GET(req: NextRequest) {
 
     // Recount per venue AFTER every message is in, so a venue with two steps
     // ends on 2 rather than on whatever the last row it happened to see was.
+    // One fetch, grouped in JS. Per-venue count filters were returning a stale
+    // number, and the exact cause sat in PostgREST's filter semantics rather
+    // than in the data - which is not a thing to guess at when it decides what
+    // the funnel reports.
+    const { data: allMsgs } = await db.from("outreach_messages")
+      .select("venue_id, sent_at").eq("campaign_id", camp?.id ?? "");
+    const byVenue = new Map<string, string[]>();
+    for (const m of allMsgs ?? []) {
+      if (!m.sent_at) continue;
+      const list = byVenue.get(m.venue_id) ?? [];
+      list.push(m.sent_at as string);
+      byVenue.set(m.venue_id, list);
+    }
     for (const venueId of touched) {
-      const { count } = await db.from("outreach_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("venue_id", venueId).not("sent_at", "is", null);
-      const { data: agg } = await db.from("outreach_messages")
-        .select("sent_at").eq("venue_id", venueId).not("sent_at", "is", null)
-        .order("sent_at", { ascending: true });
-      const first = agg?.[0]?.sent_at ?? null;
-      const last  = agg?.[agg.length - 1]?.sent_at ?? null;
+      const stamps = (byVenue.get(venueId) ?? []).sort();
+      const count = stamps.length;
+      const first = stamps[0] ?? null;
+      const last  = stamps[stamps.length - 1] ?? null;
       await db.from("venues").update({
-        emails_sent: count ?? 0,
+        emails_sent: count,
         ...(first ? { first_emailed_at: first } : {}),
         ...(last ? { last_emailed_at: last } : {}),
       }).eq("id", venueId);
@@ -158,6 +167,13 @@ export async function GET(req: NextRequest) {
     const received = await pageAll(`/emails?campaign_id=${encodeURIComponent(campaign)}&email_type=received`);
     result.replies_seen = received.length;
 
+    // Same snapshot-first approach as sends: an .eq() on a timestamptz never
+    // matched, so every poll re-reported the same reply as new.
+    const { data: knownReplies } = await db.from("venue_replies").select("from_email, received_at");
+    const seenReplies = new Set(
+      (knownReplies ?? []).map(r => `${String(r.from_email).toLowerCase()}|${new Date(r.received_at as string).toISOString()}`),
+    );
+
     for (const e of received) {
       const from = norm(e.from_address_email ?? e.lead ?? e.from_address);
       const atRaw = e.timestamp_created ?? e.timestamp_email ?? e.created_at;
@@ -169,11 +185,9 @@ export async function GET(req: NextRequest) {
         .from("venues").select("id, name, status").ilike("contact_email", from).maybeSingle();
       if (!venue) { result.unmatched++; continue; }
 
-      // The unique index makes this idempotent; check first only so the counter
-      // and the alert list reflect genuinely NEW replies.
-      const { data: existing } = await db.from("venue_replies")
-        .select("id").eq("venue_id", venue.id).eq("from_email", from).eq("received_at", at).maybeSingle();
-      if (existing) continue;
+      // The unique index keeps the WRITE idempotent; this keeps the counter and
+      // the alert list honest, so a poll cannot re-raise a reply already seen.
+      if (seenReplies.has(`${from}|${at}`)) continue;
 
       const verdict = classifyReply(text);
       const { error } = await db.from("venue_replies").upsert({
