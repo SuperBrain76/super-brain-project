@@ -24,8 +24,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
-import { pushLead, campaignFor, InstantlyError } from "@/lib/instantly";
+import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit } from "@/lib/instantly";
 import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
+import { planCapacity, followUpsDue, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
 import { SITE } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -49,12 +50,57 @@ async function run(req: NextRequest) {
   }
 
   const dry   = req.nextUrl.searchParams.get("dry") === "1";
-  const limit = Math.min(
+  // ?venues=N is the real control: N NEW venues. ?limit is kept for existing
+  // callers and means the same thing, but the name lied - Instantly's daily
+  // limit counts EMAILS, and a two-step sequence spends two of them per venue.
+  const wantVenues = Math.min(
     2000,
-    Number(req.nextUrl.searchParams.get("limit")) || Number(process.env.OUTREACH_DAILY_CAP ?? 200),
+    Number(req.nextUrl.searchParams.get("venues"))
+      || Number(req.nextUrl.searchParams.get("limit"))
+      || Number(process.env.OUTREACH_DAILY_CAP ?? 200),
   );
 
   const db = admin();
+
+  // ── capacity ───────────────────────────────────────────────────────────
+  // Emails needed today = new venues + follow-ups genuinely due. Computed from
+  // our own message history, so it does not depend on Instantly agreeing.
+  const GAP_DAYS = Number(process.env.OUTREACH_FOLLOWUP_GAP_DAYS ?? 4);
+  let plan;
+  try {
+    const { data: inFlight, error: flightErr } = await db
+      .from("venues")
+      .select("id, status, first_emailed_at, emails_sent, contact_email")
+      .not("outreach_pushed_at", "is", null);
+    if (flightErr) throw new Error(`in-flight lookup failed: ${flightErr.message}`);
+
+    const { data: suppressed } = await db.from("email_suppressions").select("email");
+    const stopList = new Set((suppressed ?? []).map(x => String(x.email).toLowerCase()));
+    const STOPPED = new Set(["replied", "disqualified", "signed_up", "trialing", "active", "past_due", "churned", "suspended"]);
+
+    const candidates: FollowUpCandidate[] = (inFlight ?? []).map(v => ({
+      venue_id: v.id,
+      first_sent_at: v.first_emailed_at as string | null,
+      steps_sent: Number(v.emails_sent ?? 0),
+      sequence_stopped:
+        STOPPED.has(String(v.status)) || stopList.has(String(v.contact_email ?? "").toLowerCase()),
+    }));
+
+    const due = followUpsDue(candidates, new Date(), GAP_DAYS);
+    const acct = await mailboxDailyLimit();      // throws if unknown -> fail closed
+    plan = planCapacity({ newVenues: wantVenues, followUpsDue: due, ceiling: SAFETY_CEILING, accountLimit: acct });
+  } catch (e: any) {
+    // Fail closed: without a trustworthy capacity number we neither send nor guess.
+    await emit(db, EVENT.SYNC_FAILED, {
+      source: "instantly", detail: { stage: "capacity", error: String(e?.message ?? e).slice(0, 300) },
+    });
+    return NextResponse.json(
+      { error: "capacity could not be determined", detail: String(e?.message ?? e).slice(0, 300) },
+      { status: 503 },
+    );
+  }
+
+  const limit = plan.new_venues_released;
 
   // Fetch the whole eligible set, then rank it in JS. Slicing to `limit` in SQL
   // while tied on fit_score is what let the dry run and the real push disagree:
@@ -83,12 +129,25 @@ async function run(req: NextRequest) {
   const candidates = selectForOutreach(eligible ?? [], limit);
 
   const result = {
+    capacity: plan,
     considered: candidates?.length ?? 0,
     eligible_total: eligible?.length ?? 0,
     pushed: 0, skipped_suppressed: 0, skipped_no_campaign: 0, failed: 0,
     dry, min_fit_score: MIN_FIT, limit,
     failures: [] as Array<{ venue: string; error: string }>,
   };
+
+  // Raise Instantly's cap to cover this tranche BEFORE pushing, or the leads
+  // land in a campaign that cannot send them all today.
+  if (!dry) {
+    try { await setCampaignDailyLimit(plan.daily_limit); }
+    catch (e: any) {
+      await emit(db, EVENT.SYNC_FAILED, {
+        source: "instantly", detail: { stage: "set_daily_limit", error: String(e?.message ?? e).slice(0, 300) },
+      });
+      return NextResponse.json({ error: "could not set campaign daily limit", capacity: plan }, { status: 503 });
+    }
+  }
 
   for (const v of candidates ?? []) {
     if (!v.contact_email) continue;

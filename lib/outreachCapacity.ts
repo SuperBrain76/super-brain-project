@@ -1,0 +1,135 @@
+/**
+ * lib/outreachCapacity.ts — how many emails a tranche actually needs.
+ *
+ * Instantly's campaign `daily_limit` counts EMAILS, and every sequence step
+ * consumes one. On 2026-08-25 a limit of 5 was set intending "5 venues"; it was
+ * spent by 2 venues x 2 steps + 1, so two approved venues were never contacted
+ * at all.
+ *
+ * The input here is therefore a number of VENUES. Follow-ups genuinely due that
+ * day are counted separately and always protected: a venue already mid-sequence
+ * has been promised a second email, and dropping it to make room for a new
+ * prospect is the one thing this must never do. When demand exceeds the safety
+ * ceiling, NEW venues are reduced instead.
+ */
+
+/** Emails/day this sender may send while the mailbox is young. */
+export const SAFETY_CEILING = 10;
+
+export interface FollowUpCandidate {
+  venue_id: string;
+  /** When step 1 actually went out. */
+  first_sent_at: string | null;
+  /** Steps already sent for this venue. */
+  steps_sent: number;
+  /** Anything that ends the sequence: a reply, bounce, unsubscribe, suppression. */
+  sequence_stopped: boolean;
+}
+
+export interface CapacityPlan {
+  requested_new_venues: number;
+  follow_ups_due: number;
+  required: number;
+  daily_limit: number;
+  new_venues_released: number;
+  ceiling: number;
+  account_limit: number;
+  reduced: boolean;
+  reason: string;
+}
+
+/**
+ * Follow-ups genuinely due today: step 1 sent at least `gapDays` ago, step 2 not
+ * yet sent, and nothing has stopped the sequence.
+ *
+ * A replied, bounced, unsubscribed or suppressed venue is NOT counted — those
+ * emails will never be sent, so reserving capacity for them would silently
+ * shrink the tranche for no reason.
+ */
+export function followUpsDue(
+  candidates: readonly FollowUpCandidate[],
+  now: Date,
+  gapDays: number,
+): number {
+  if (!Number.isFinite(gapDays) || gapDays < 0) {
+    throw new Error("followUpsDue: gapDays must be a non-negative number");
+  }
+  let due = 0;
+  for (const c of candidates) {
+    if (c.sequence_stopped) continue;
+    if (c.steps_sent < 1) continue;          // never started
+    if (c.steps_sent >= 2) continue;         // follow-up already sent
+    if (!c.first_sent_at) continue;          // cannot tell — see planCapacity's fail-closed
+    const elapsed = (now.getTime() - new Date(c.first_sent_at).getTime()) / 86_400_000;
+    if (!Number.isFinite(elapsed)) continue;
+    if (elapsed >= gapDays) due++;
+  }
+  return due;
+}
+
+/**
+ * Turn "release N venues" into an Instantly daily_limit.
+ *
+ * Fails closed: an unknown follow-up count, a bad ceiling or a bad account
+ * limit throws rather than guessing, because guessing low silently drops a
+ * promised follow-up and guessing high burns a young sending domain.
+ */
+export function planCapacity(input: {
+  newVenues: number;
+  followUpsDue: number | null | undefined;
+  ceiling?: number;
+  accountLimit: number | null | undefined;
+}): CapacityPlan {
+  const { newVenues } = input;
+  const ceiling = input.ceiling ?? SAFETY_CEILING;
+
+  if (!Number.isInteger(newVenues) || newVenues < 0) {
+    throw new Error(`planCapacity: newVenues must be a non-negative integer, got ${newVenues}`);
+  }
+  if (input.followUpsDue === null || input.followUpsDue === undefined || !Number.isInteger(input.followUpsDue) || input.followUpsDue < 0) {
+    throw new Error("planCapacity: follow-ups due could not be determined — refusing to plan a send");
+  }
+  if (!Number.isInteger(ceiling) || ceiling <= 0) {
+    throw new Error(`planCapacity: ceiling must be a positive integer, got ${ceiling}`);
+  }
+  if (input.accountLimit === null || input.accountLimit === undefined || !Number.isInteger(input.accountLimit) || input.accountLimit <= 0) {
+    throw new Error("planCapacity: mailbox daily limit unknown — refusing to plan a send");
+  }
+
+  const followUps = input.followUpsDue;
+  const accountLimit = input.accountLimit;
+  // Never above the safety ceiling, and never above what the mailbox allows.
+  const hardMax = Math.min(ceiling, accountLimit);
+  const required = newVenues + followUps;
+
+  if (followUps >= hardMax) {
+    // Follow-ups alone fill the day. They are already promised, so they win and
+    // no new venue goes out — but capacity is still raised to cover them.
+    return {
+      requested_new_venues: newVenues, follow_ups_due: followUps,
+      required, daily_limit: Math.min(followUps, accountLimit),
+      new_venues_released: 0, ceiling, account_limit: accountLimit, reduced: newVenues > 0,
+      reason: `${followUps} follow-up(s) due meet or exceed the ceiling of ${hardMax}; ` +
+              `follow-ups are protected, so no new venue is released today`,
+    };
+  }
+
+  if (required <= hardMax) {
+    return {
+      requested_new_venues: newVenues, follow_ups_due: followUps,
+      required, daily_limit: required,
+      new_venues_released: newVenues, ceiling, account_limit: accountLimit, reduced: false,
+      reason: `${newVenues} new venue(s) + ${followUps} follow-up(s) = ${required} emails, within the ceiling of ${hardMax}`,
+    };
+  }
+
+  // Over the ceiling: cut NEW venues, never the follow-ups.
+  const released = hardMax - followUps;
+  return {
+    requested_new_venues: newVenues, follow_ups_due: followUps,
+    required, daily_limit: hardMax,
+    new_venues_released: released, ceiling, account_limit: accountLimit, reduced: true,
+    reason: `${required} emails required but the ceiling is ${hardMax}; ` +
+            `follow-ups are protected, so new venues drop from ${newVenues} to ${released}`,
+  };
+}

@@ -163,3 +163,37 @@ export const INSTANTLY_EVENTS = {
 } as const;
 
 export type InstantlyEventType = keyof typeof INSTANTLY_EVENTS;
+
+// ── Capacity ──────────────────────────────────────────────────
+/**
+ * The sending mailbox's own daily limit. Throws when it cannot be read, so a
+ * caller planning a send fails closed rather than assuming a number.
+ */
+export async function mailboxDailyLimit(): Promise<number> {
+  const r = await call("/accounts?limit=100");
+  const items: any[] = r.items ?? r.data ?? [];
+  const wanted = (process.env.VENUE_REPLY_TO || "alex@superbrain.bar").toLowerCase();
+  const acct = items.find(a => String(a.email).toLowerCase() === wanted) ?? items[0];
+  const n = Number(acct?.daily_limit);
+  if (!acct) throw new InstantlyError("no sending account found in the workspace");
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new InstantlyError(`mailbox ${acct.email} reports an unusable daily_limit: ${acct?.daily_limit}`);
+  }
+  return n;
+}
+
+/**
+ * Set the campaign's daily email cap for today's tranche. Capacity is planned in
+ * VENUES; this converts the plan into the number Instantly actually enforces.
+ */
+export async function setCampaignDailyLimit(dailyLimit: number): Promise<void> {
+  const campaign = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
+  if (!campaign) throw new InstantlyError("INSTANTLY_CAMPAIGN_DEFAULT missing");
+  if (!Number.isInteger(dailyLimit) || dailyLimit < 0) {
+    throw new InstantlyError(`refusing to set a nonsensical daily limit: ${dailyLimit}`);
+  }
+  await call(`/campaigns/${encodeURIComponent(campaign)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ daily_limit: dailyLimit }),
+  });
+}
