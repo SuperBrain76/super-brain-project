@@ -17,6 +17,7 @@ import {
 } from "@/lib/predictor";
 import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 import { GrandPrizeLeaderboardBanner } from "@/components/GrandPrize";
+import { sportOf, FOOTBALL, type SportMeta } from "@/lib/sports";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -63,12 +64,14 @@ export default function PredictorLeaderboardPage() {
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   const [tab,         setTab]         = useState<"overall" | "match">("overall");
+  const [sport,       setSport]       = useState<SportMeta>(FOOTBALL);
 
   useEffect(() => {
     async function load() {
       const { competition: comp, error: compErr } = await resolveCompetition(competitionSlug);
       if (compErr || !comp) { setError(compErr ?? "Competition not found."); setLoading(false); return; }
       setCompetition(comp);
+      setSport(sportOf(comp.sportCode));
       const [leaderboard, fixtureCount] = await Promise.all([
         getPredictorLeaderboard(comp.id),
         getFixtureCount(comp.id),
@@ -98,6 +101,12 @@ export default function PredictorLeaderboardPage() {
   // so the banner and /prize page belong to the 2026 Tournament alone. Show it for
   // that competition, hide it for every other (Premier League, etc.).
   const isWorldCup = competition?.slug === FALLBACK_COMPETITION_SLUG;
+
+  // Ordering sports (F1) score by exact grid/finish positions, have no bonus
+  // questions and no "match" — so the football framing (⚽, "match", goal
+  // difference, the Overall/Match tab split) is replaced with race language.
+  const ordering = sport.kind === "ordering";
+  const unit     = ordering ? "session" : "match";   // for "N predictions" copy
 
   if (authLoading || loading) {
     return (
@@ -149,15 +158,22 @@ export default function PredictorLeaderboardPage() {
           <div className="rounded-xl" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <div className="flex items-center divide-x divide-[#dde5d8]"
               style={{ borderBottom: `1px solid ${BORDER}` }}>
-              {[
-                { label: "Points",    value: String(Number(myStats.totalPoints)), color: GREEN },
-                { label: "Rank",      value: `#${myStats.globalRank}`,            color: GOLD  },
-                { label: "Match",     value: String(Number(myStats.matchPoints)), color: GREEN },
-                { label: "Exact",     value: String(Number(myStats.exactScores)), color: GREEN },
-                ...(myStats.bonusPoints > 0
-                  ? [{ label: "Bonus", value: `+${myStats.bonusPoints}`, color: GOLD }]
-                  : []),
-              ].map((s) => (
+              {(ordering
+                ? [
+                    { label: "Points",  value: String(Number(myStats.totalPoints)), color: GREEN },
+                    { label: "Rank",    value: `#${myStats.globalRank}`,            color: GOLD  },
+                    { label: "Perfect", value: String(Number(myStats.exactScores)), color: GREEN },
+                  ]
+                : [
+                    { label: "Points", value: String(Number(myStats.totalPoints)), color: GREEN },
+                    { label: "Rank",   value: `#${myStats.globalRank}`,            color: GOLD  },
+                    { label: "Match",  value: String(Number(myStats.matchPoints)), color: GREEN },
+                    { label: "Exact",  value: String(Number(myStats.exactScores)), color: GREEN },
+                    ...(myStats.bonusPoints > 0
+                      ? [{ label: "Bonus", value: `+${myStats.bonusPoints}`, color: GOLD }]
+                      : []),
+                  ]
+              ).map((s) => (
                 <div key={s.label} className="flex-1 flex flex-col items-center py-3 gap-0.5">
                   <span className="font-extrabold text-lg leading-none"
                     style={{ color: s.color, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" }}>
@@ -172,8 +188,8 @@ export default function PredictorLeaderboardPage() {
             <div className="px-4 py-2">
               <p className="text-xs" style={{ color: MUTED }}>
                 Your stats · {matchTotal > 0
-                  ? `${myStats.predictions} / ${matchTotal} predictions made`
-                  : `${myStats.predictions} ${myStats.predictions === 1 ? "prediction" : "predictions"} made`}
+                  ? `${myStats.predictions} / ${matchTotal} ${unit === "session" ? "sessions" : "predictions"} predicted`
+                  : `${myStats.predictions} ${myStats.predictions === 1 ? unit : unit + "s"} predicted`}
               </p>
             </div>
           </div>
@@ -201,33 +217,42 @@ export default function PredictorLeaderboardPage() {
         {/* Grand Prize banner — 2026 Tournament only (see isWorldCup above) */}
         {isWorldCup && <GrandPrizeLeaderboardBanner participantCount={rows.length} />}
 
-        {/* Tab toggle */}
-        <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: BG }}>
-          {[
-            { key: "overall" as const, label: "🏆 Overall" },
-            { key: "match"   as const, label: "⚽ Match only" },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className="flex-1 py-2.5 text-xs font-bold transition-colors"
-              style={{
-                background:   tab === key ? GREEN : "transparent",
-                color:        tab === key ? "#fff" : MUTED,
-                borderRadius: "0",
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab description */}
-        <p className="text-xs px-1" style={{ color: MUTED }}>
-          {tab === "overall"
-            ? "Total points including any bonus questions — the overall standings."
-            : "Match predictions only — fair for anyone who joined partway through."}
-        </p>
+        {/* Tab toggle — score sports split Overall vs Match-only (bonus vs not).
+            Ordering sports (F1) have no bonus questions, so there is nothing to
+            split: the single standings are shown without the football tab. */}
+        {!ordering && (
+          <>
+            <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: BG }}>
+              {[
+                { key: "overall" as const, label: "🏆 Overall" },
+                { key: "match"   as const, label: "⚽ Match only" },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className="flex-1 py-2.5 text-xs font-bold transition-colors"
+                  style={{
+                    background:   tab === key ? GREEN : "transparent",
+                    color:        tab === key ? "#fff" : MUTED,
+                    borderRadius: "0",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs px-1" style={{ color: MUTED }}>
+              {tab === "overall"
+                ? "Total points including any bonus questions — the overall standings."
+                : "Match predictions only — fair for anyone who joined partway through."}
+            </p>
+          </>
+        )}
+        {ordering && (
+          <p className="text-xs px-1" style={{ color: MUTED }}>
+            Every predictor is ranked by total points across qualifying and the race.
+          </p>
+        )}
 
         {/* Leaderboard table */}
         <div className="rounded-xl overflow-hidden" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
@@ -237,8 +262,10 @@ export default function PredictorLeaderboardPage() {
             <div className="w-7 shrink-0" />
             <span className="flex-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: MUTED }}>Player</span>
             <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: MUTED }}>%</span>
-            <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GREEN }}>⚡</span>
-            {tab === "overall" && (
+            <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GREEN }}>
+              {ordering ? "PERFECT" : "⚡"}
+            </span>
+            {tab === "overall" && !ordering && (
               <span className="w-10 text-right text-[10px] uppercase tracking-widest font-semibold hidden sm:block" style={{ color: GOLD }}>Bonus</span>
             )}
             <span className="w-12 text-right text-[10px] uppercase tracking-widest font-semibold" style={{ color: GREEN }}>
@@ -251,7 +278,9 @@ export default function PredictorLeaderboardPage() {
             <div className="py-12 text-center flex flex-col gap-2">
               <p className="text-sm" style={{ color: TEXT2 }}>No results yet.</p>
               <p className="text-xs" style={{ color: MUTED }}>
-                Points are awarded after match results are entered. Check back after the first match.
+                {ordering
+                  ? "Points are awarded once a session is classified. Check back after the first race."
+                  : "Points are awarded after match results are entered. Check back after the first match."}
               </p>
               <Link href={`/${competitionSlug}`} className="text-xs mt-2 hover:underline" style={{ color: GREEN }}>
                 Make your predictions →
@@ -309,8 +338,8 @@ export default function PredictorLeaderboardPage() {
                   {row.exactScores > 0 ? row.exactScores : "—"}
                 </span>
 
-                {/* Bonus pts — only in overall tab */}
-                {tab === "overall" && (
+                {/* Bonus pts — only in overall tab, score sports only */}
+                {tab === "overall" && !ordering && (
                   <span className="w-10 text-right text-xs tabular-nums hidden sm:block"
                     style={{ color: row.bonusPoints > 0 ? GOLD : MUTED }}>
                     {row.bonusPoints > 0 ? `+${row.bonusPoints}` : "—"}
@@ -329,7 +358,9 @@ export default function PredictorLeaderboardPage() {
 
         {/* Scoring key */}
         <p className="text-[10px] text-center" style={{ color: MUTED }}>
-          5 pts exact score · 3 pts correct goal diff · 2 pts correct result
+          {ordering
+            ? "5 pts perfect top 5 · 3 pts 3–4 in the exact spot · 2 pts 1–2 in the exact spot"
+            : "5 pts exact score · 3 pts correct goal diff · 2 pts correct result"}
         </p>
 
         {/* Footer links */}
