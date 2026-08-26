@@ -124,6 +124,19 @@ export default function FixturePredictPage() {
     );
   }
 
+  // Ordering fixtures (F1 sessions) have no two-team score card — this page
+  // cannot render them. Send the visitor to the session sheet instead.
+  if (fixture.predictionType === "ordering") {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
+        <p className="text-sm" style={{ color: TEXT2 }}>This session is predicted on the Grand Prix sheet.</p>
+        <Link href={`/${competitionSlug}/predict`} className="text-sm font-bold hover:underline" style={{ color: GREEN }}>
+          Predict the top five →
+        </Link>
+      </div>
+    );
+  }
+
   const open      = isPredictionOpen(fixture);
   const done      = fixture.status === "completed";
   const hasPred   = !!fixture.myPrediction;

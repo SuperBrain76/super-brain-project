@@ -43,6 +43,13 @@ export default function SportsHubPage() {
         </div>
         <LeagueChooser sport="rugby" />
 
+        {/* Motorsport */}
+        <div className="flex items-center gap-2 mb-3 mt-8">
+          <span className="text-lg">🏎️</span>
+          <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>Motorsport</h2>
+        </div>
+        <LeagueChooser sport="motorsport" />
+
         {/* Matchday Challenge — the cross-league venue game; no home under any
             single competition, so it gets its own entry point here. */}
         <MatchdayEntry />

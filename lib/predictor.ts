@@ -47,19 +47,29 @@ export interface Fixture {
   stage:        string;
   groupName:    string | null;
   fixtureNumber: number;
-  homeTeam:     Team | null;   // null for TBD knockout slots
+  /** 'score' (football/hockey/rugby) or 'ordering' (F1 top-5). Mirrors
+   *  fixtures.prediction_type — every prediction surface branches on it. */
+  predictionType: string;
+  homeTeam:     Team | null;   // null for TBD knockout slots — and always null for ordering fixtures
   awayTeam:     Team | null;
   homeScore:    number | null;
   awayScore:    number | null;
   kicksOffAt:   string;        // ISO string, UTC
   venue:        string | null;
   status:       string;
-  // Joined from user's own prediction (if any)
+  // Joined from user's own prediction (if any). Exactly one of the two is
+  // set, matching predictions_shape_check: score fixtures fill myPrediction,
+  // ordering fixtures fill myOrdering.
   myPrediction: {
     homeScore:    number;
     awayScore:    number;
     pointsAwarded: number | null;
     isBanker?:    boolean;
+  } | null;
+  myOrdering: {
+    order:         string[];   // team ids, predicted P1..P5
+    pointsAwarded: number | null;
+    isBanker?:     boolean;
   } | null;
 }
 
@@ -214,12 +224,20 @@ function rowToFixture(r: Record<string, unknown>): Fixture {
   const pred = r.predictions as Record<string, unknown>[] | null;
   const myPred = pred && pred.length > 0 ? pred[0] : null;
 
+  // A prediction row is a score pair OR an ordering payload, never both
+  // (predictions_shape_check, migration 073).
+  const payload = myPred?.payload as { order?: unknown } | null | undefined;
+  const order = Array.isArray(payload?.order)
+    ? (payload!.order as unknown[]).map(String)
+    : null;
+
   return {
     id:            r.id as string,
     competitionId: r.competition_id as string,
     stage:         r.stage as string,
     groupName:     r.group_name as string | null,
     fixtureNumber: r.fixture_number as number,
+    predictionType: (r.prediction_type as string | null) ?? "score",
     homeTeam:      ht ? rowToTeam(ht) : null,
     awayTeam:      at ? rowToTeam(at) : null,
     homeScore:     r.home_score as number | null,
@@ -227,9 +245,14 @@ function rowToFixture(r: Record<string, unknown>): Fixture {
     kicksOffAt:    r.kicks_off_at as string,
     venue:         r.venue as string | null,
     status:        r.status as string,
-    myPrediction:  myPred ? {
+    myPrediction:  myPred && !order ? {
       homeScore:     myPred.home_score as number,
       awayScore:     myPred.away_score as number,
+      pointsAwarded: myPred.points_awarded as number | null,
+      isBanker:      (myPred.is_banker as boolean | undefined) ?? false,
+    } : null,
+    myOrdering:    myPred && order ? {
+      order,
       pointsAwarded: myPred.points_awarded as number | null,
       isBanker:      (myPred.is_banker as boolean | undefined) ?? false,
     } : null,
@@ -353,11 +376,11 @@ export async function listCompetitions(): Promise<Competition[]> {
 // RIGHT: home_team:teams!home_team_id(...) — traverses FK from home_team_id → teams.id
 
 const FIXTURE_SELECT = `
-  id, competition_id, stage, group_name, fixture_number,
+  id, competition_id, stage, group_name, fixture_number, prediction_type,
   home_score, away_score, kicks_off_at, venue, status,
   home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
   away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
-  predictions ( home_score, away_score, points_awarded, is_banker )
+  predictions ( home_score, away_score, payload, points_awarded, is_banker )
 `;
 
 /**
@@ -526,6 +549,43 @@ export async function upsertPrediction(
     // The deadline trigger raises a human-readable exception message
     return { error: error.message.includes("deadline")
       ? "Deadline passed — predictions are locked once a match kicks off."
+      : "Could not save your prediction. Please try again." };
+  }
+  return { error: null };
+}
+
+/**
+ * Upsert an ordering (top-5) prediction — F1 qualifying/race sessions.
+ * Same RLS table write as upsertPrediction; the shape trigger (073) enforces
+ * five distinct entrants of the fixture's competition, and the deadline
+ * trigger locks at the session start exactly like a kickoff.
+ */
+export async function upsertOrderingPrediction(
+  fixtureId: string,
+  order: string[],   // team ids, predicted P1..P5
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in to predict." };
+
+  const { error } = await supabase
+    .from("predictions")
+    .upsert(
+      {
+        user_id:    user.id,
+        fixture_id: fixtureId,
+        home_score: null,
+        away_score: null,
+        payload:    { order },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,fixture_id" },
+    );
+
+  if (error) {
+    return { error: error.message.includes("deadline")
+      ? "Deadline passed — predictions lock when the session starts."
+      : error.message.includes("distinct")
+      ? "Pick five different drivers."
       : "Could not save your prediction. Please try again." };
   }
   return { error: null };
@@ -1397,7 +1457,7 @@ export async function getUserPublicPredictions(
   const { data: fxData, error: fxErr } = await supabase
     .from("fixtures")
     .select(`
-      id, competition_id, stage, group_name, fixture_number,
+      id, competition_id, stage, group_name, fixture_number, prediction_type,
       home_score, away_score, kicks_off_at, venue, status,
       home_team:teams!home_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking ),
       away_team:teams!away_team_id ( id, name, code, flag_emoji, group_name, fifa_ranking )
@@ -1426,12 +1486,16 @@ export async function getUserPublicPredictions(
     const ht = r.home_team as Record<string, unknown> | null;
     const at = r.away_team as Record<string, unknown> | null;
     const pred = predMap.get(r.id as string);
+    // The RPC returns score columns only; an ordering prediction (F1) has
+    // null scores there, so surface it as unpredicted rather than 0-0.
+    const isScorePred = pred != null && pred.home_score != null && pred.away_score != null;
     return {
       id:            r.id as string,
       competitionId: r.competition_id as string,
       stage:         r.stage as string,
       groupName:     r.group_name as string | null,
       fixtureNumber: r.fixture_number as number,
+      predictionType: (r.prediction_type as string | null) ?? "score",
       homeTeam:      ht ? rowToTeam(ht) : null,
       awayTeam:      at ? rowToTeam(at) : null,
       homeScore:     r.home_score as number | null,
@@ -1439,11 +1503,12 @@ export async function getUserPublicPredictions(
       kicksOffAt:    r.kicks_off_at as string,
       venue:         r.venue as string | null,
       status:        r.status as string,
-      myPrediction:  pred ? {
-        homeScore:     pred.home_score as number,
-        awayScore:     pred.away_score as number,
-        pointsAwarded: pred.points_awarded as number | null,
+      myPrediction:  isScorePred ? {
+        homeScore:     pred!.home_score as number,
+        awayScore:     pred!.away_score as number,
+        pointsAwarded: pred!.points_awarded as number | null,
       } : null,
+      myOrdering:    null,
     } as Fixture;
   });
 

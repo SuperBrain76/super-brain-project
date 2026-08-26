@@ -24,6 +24,7 @@ export function mw1Fixtures(): Fixture[] {
     stage:         "league",
     groupName:     null,
     fixtureNumber: i + 1,
+    predictionType: "score",
     homeTeam:      team(f.home),
     awayTeam:      team(f.away),
     homeScore:     null,
@@ -32,6 +33,7 @@ export function mw1Fixtures(): Fixture[] {
     venue:         f.venue,
     status:        "scheduled",
     myPrediction:  null,
+    myOrdering:    null,
   }));
 }
 

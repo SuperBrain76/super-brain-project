@@ -51,6 +51,16 @@ import {
   type ApiFootballFixture,
 } from "@/lib/ingestion";
 import { fetchTsdbResults } from "@/lib/thesportsdb";
+import {
+  parseF1ProviderId,
+  fetchJolpicaQualifying,
+  fetchJolpicaRaceResults,
+  fetchJolpicaDriverStandings,
+  fetchJolpicaConstructorStandings,
+  isCompleteClassification,
+  type JolpicaClassifiedRow,
+} from "@/lib/jolpica";
+import { F1_JOLPICA_TO_CODE } from "@/lib/f1/drivers2026";
 
 // ── Per-competition result ────────────────────────────────────
 
@@ -123,6 +133,9 @@ async function ingestCompetition(
 
   if (cfg.provider === "thesportsdb") {
     return { outcome: await ingestThesportsdb(db, cfg, keys.thesportsdb, now), quota: null };
+  }
+  if (cfg.provider === "jolpica") {
+    return { outcome: await ingestJolpica(db, cfg, now), quota: null };
   }
   if (cfg.provider !== "api-football") {
     return {
@@ -429,6 +442,240 @@ async function ingestThesportsdb(
   }
 
   return { slug: cfg.slug, updated, checked: results.length, unroutable, apiCalls: 1, changes };
+}
+
+// ── One competition — Jolpica (Formula 1, ordering fixtures) ──
+// Jolpica is NOT a live feed: a session's classification appears some time
+// after it ends, so the poll gate here differs from the score providers —
+// we poll any session that has STARTED but not settled, for up to 48 hours
+// after its start, instead of only during a live window. (getPollReason's
+// 3-hour horizon would stop polling before a slow classification lands, and
+// nothing else would ever restart it — the session never goes 'live'.)
+//
+// Settlement is atomic in the DB: settle_ordering_fixture(fixture, results)
+// writes the classification, flips status and scores predictions in one
+// transaction (migration 073). Routing is by constructed provider id
+// ("f1-<season>-<round>-<q|r>") only — same no-guessing rule as everywhere.
+
+const JOLPICA_SETTLE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+async function ingestJolpica(
+  db:  SupabaseClient,
+  cfg: CompetitionIngestConfig,
+  now: number,
+): Promise<CompetitionOutcome> {
+  const windowStart = new Date(now - JOLPICA_SETTLE_WINDOW_MS).toISOString();
+  const nowIso      = new Date(now).toISOString();
+
+  // Sessions that have started and are not settled. Nothing to fetch before
+  // a session starts — there is no live data, so no imminent-kickoff poll.
+  const { data: pendingData, error: dbErr } = await db
+    .from("fixtures")
+    .select("id, kicks_off_at, status, provider_fixture_id")
+    .eq("competition_id", cfg.competitionId)
+    .not("status", "in", "(completed,postponed)")
+    .gte("kicks_off_at", windowStart)
+    .lte("kicks_off_at", nowIso)
+    .order("kicks_off_at", { ascending: true });
+
+  if (dbErr) return { slug: cfg.slug, error: `DB error: ${dbErr.message}` };
+  const pending = pendingData ?? [];
+
+  // SETTLED sessions still inside the window stay under correction watch
+  // (see below) — so "nothing pending" alone doesn't end the run.
+  const { data: settledData, error: settledErr } = await db
+    .from("fixtures")
+    .select("id, kicks_off_at, status, provider_fixture_id")
+    .eq("competition_id", cfg.competitionId)
+    .eq("status", "completed")
+    .gte("kicks_off_at", windowStart)
+    .lte("kicks_off_at", nowIso)
+    .order("kicks_off_at", { ascending: true });
+  if (settledErr) return { slug: cfg.slug, error: `DB error: ${settledErr.message}` };
+  const settledFx = settledData ?? [];
+
+  if (pending.length === 0 && settledFx.length === 0) {
+    return { slug: cfg.slug, skipped: true, reason: "no_sessions_in_window", apiCalls: 0 };
+  }
+
+  // Driver code → team id, once per run. The registry maps feed driverIds to
+  // codes; the DB maps codes to team rows.
+  const { data: teamRows, error: teamErr } = await db
+    .from("teams")
+    .select("id, code")
+    .eq("competition_id", cfg.competitionId);
+  if (teamErr) return { slug: cfg.slug, error: `DB error: ${teamErr.message}` };
+  const teamByCode = new Map((teamRows ?? []).map((t) => [t.code as string, t.id as string]));
+
+  let apiCalls = 0, updated = 0, unroutable = 0, raceSettled = false;
+  let season = "";
+  const changes: string[] = [];
+
+  for (const f of pending as { id: string; provider_fixture_id: string | null; status: string }[]) {
+    const pid = parseF1ProviderId(f.provider_fixture_id);
+    if (!pid) {
+      unroutable++;
+      console.log(`[ingest:${cfg.slug}:UNROUTABLE] fixture ${f.id.slice(0, 8)} has no f1-* provider id`);
+      continue;
+    }
+    season = pid.season;
+
+    let rows: JolpicaClassifiedRow[];
+    try {
+      rows = pid.session === "q"
+        ? await fetchJolpicaQualifying(pid.season, pid.round)
+        : await fetchJolpicaRaceResults(pid.season, pid.round);
+      apiCalls++;
+    } catch (e) {
+      // Provider outage is transient — skip, retry next cron (TheSportsDB precedent).
+      console.warn(`[ingest:${cfg.slug}] provider unavailable: ${e instanceof Error ? e.message : e}`);
+      continue;
+    }
+
+    if (!isCompleteClassification(rows)) {
+      changes.push(`${f.id.slice(0, 8)} | awaiting classification (${pid.season} r${pid.round} ${pid.session})`);
+      continue;
+    }
+
+    // Map every classified entrant, or settle nothing: an entrant the
+    // registry cannot name means a registry gap (driver swap / substitute)
+    // and a wrong board must never settle. Fix lib/f1/drivers2026.ts + add
+    // the team row, then this settles on the next cron.
+    const results: { team_id: string; position: number; status: string | null }[] = [];
+    let unmapped: string | null = null;
+    for (const r of rows) {
+      const code = F1_JOLPICA_TO_CODE[r.driverId];
+      const teamId = code ? teamByCode.get(code) : undefined;
+      if (!teamId) { unmapped = r.driverId; break; }
+      results.push({ team_id: teamId, position: r.position, status: r.status });
+    }
+    if (unmapped) {
+      console.error(
+        `[ingest:${cfg.slug}:ERROR] unmapped entrant "${unmapped}" in ${pid.season} r${pid.round} ` +
+        `${pid.session} — add to lib/f1/drivers2026.ts and the teams seed, then re-run. NOT settled.`,
+      );
+      continue;
+    }
+
+    const { data: scored, error: rpcErr } = await db.rpc("settle_ordering_fixture", {
+      p_fixture_id: f.id,
+      p_results:    results,
+    });
+    if (rpcErr) {
+      console.error(`[ingest:${cfg.slug}:ERROR] settle failed for ${f.id}: ${rpcErr.message}`);
+      continue;
+    }
+
+    updated++;
+    if (pid.session === "r") raceSettled = true;
+    changes.push(`${f.id.slice(0, 8)} | SETTLED ${pid.season} r${pid.round} ${pid.session} | ${scored ?? 0} predictions scored`);
+    console.log(
+      `[ingest:${cfg.slug}:SETTLE] ${f.id.slice(0, 8)} | ${f.provider_fixture_id} | ` +
+      `${results.length} classified | ${scored ?? 0} predictions scored`,
+    );
+  }
+
+  // ── Correction watch ──────────────────────────────────────
+  // Stewards can change a classification AFTER we settle (post-race DSQ,
+  // a time penalty applied late). For 48h after each session's start,
+  // re-fetch the official board for SETTLED sessions and compare it to what
+  // we stored; if it moved, re-run the idempotent settlement — results are
+  // replaced, predictions rescore, and the IQ ledger reconciles per-
+  // prediction deltas (migration 021: a 5pt→0pt correction claws back).
+  // Beyond 48h corrections stay manual (docs/F1_LAUNCH_RUNBOOK.md).
+  for (const f of settledFx as { id: string; provider_fixture_id: string | null }[]) {
+    const pid = parseF1ProviderId(f.provider_fixture_id);
+    if (!pid) continue;
+    season = season || pid.season;
+
+    let rows: JolpicaClassifiedRow[];
+    try {
+      rows = pid.session === "q"
+        ? await fetchJolpicaQualifying(pid.season, pid.round)
+        : await fetchJolpicaRaceResults(pid.season, pid.round);
+      apiCalls++;
+    } catch (e) {
+      console.warn(`[ingest:${cfg.slug}] recheck provider unavailable: ${e instanceof Error ? e.message : e}`);
+      continue;
+    }
+    // A shrunken/incomplete feed response must never "correct" a settled
+    // board — same completeness gate as first settlement.
+    if (!isCompleteClassification(rows)) continue;
+
+    const results: { team_id: string; position: number; status: string | null }[] = [];
+    let unmapped: string | null = null;
+    for (const r of rows) {
+      const code = F1_JOLPICA_TO_CODE[r.driverId];
+      const teamId = code ? teamByCode.get(code) : undefined;
+      if (!teamId) { unmapped = r.driverId; break; }
+      results.push({ team_id: teamId, position: r.position, status: r.status });
+    }
+    if (unmapped) {
+      console.error(`[ingest:${cfg.slug}:ERROR] recheck unmapped entrant "${unmapped}" — NOT re-settled.`);
+      continue;
+    }
+
+    const { data: stored, error: storedErr } = await db
+      .from("fixture_entrant_results")
+      .select("team_id, position")
+      .eq("fixture_id", f.id);
+    if (storedErr) { console.error(`[ingest:${cfg.slug}:ERROR] recheck read: ${storedErr.message}`); continue; }
+
+    const storedByTeam = new Map((stored ?? []).map((s) => [s.team_id as string, s.position as number]));
+    const changed = results.length !== storedByTeam.size
+      || results.some((r) => storedByTeam.get(r.team_id) !== r.position);
+    if (!changed) continue;
+
+    const { data: rescored, error: rpcErr } = await db.rpc("settle_ordering_fixture", {
+      p_fixture_id: f.id,
+      p_results:    results,
+    });
+    if (rpcErr) {
+      console.error(`[ingest:${cfg.slug}:ERROR] correction re-settle failed for ${f.id}: ${rpcErr.message}`);
+      continue;
+    }
+    updated++;
+    if (pid.session === "r") raceSettled = true;   // standings moved too
+    changes.push(`${f.id.slice(0, 8)} | CORRECTED ${pid.season} r${pid.round} ${pid.session} | ${rescored ?? 0} predictions rescored`);
+    console.log(
+      `[ingest:${cfg.slug}:CORRECTION] ${f.id.slice(0, 8)} | ${f.provider_fixture_id} | ` +
+      `official classification changed — re-settled, ${rescored ?? 0} predictions rescored, IQ reconciled`,
+    );
+  }
+
+  // Championship tables refresh after a race settles (quali doesn't move them).
+  if (raceSettled && season) {
+    try {
+      const [drivers, constructors] = await Promise.all([
+        fetchJolpicaDriverStandings(season),
+        fetchJolpicaConstructorStandings(season),
+      ]);
+      apiCalls += 2;
+      for (const [scope, table] of [["driver", drivers], ["constructor", constructors]] as const) {
+        if (table.rows.length === 0) continue;
+        const del = await db.from("competition_standings")
+          .delete().eq("competition_id", cfg.competitionId).eq("scope", scope);
+        if (del.error) { console.error(`[ingest:${cfg.slug}:ERROR] standings clear: ${del.error.message}`); continue; }
+        const ins = await db.from("competition_standings").insert(table.rows.map((r) => ({
+          competition_id: cfg.competitionId,
+          scope,
+          position:      r.position,
+          name:          r.name,
+          code:          r.code,
+          team_id:       r.code ? teamByCode.get(r.code) ?? null : null,
+          points:        r.points,
+          wins:          r.wins,
+          through_round: table.round,
+        })));
+        if (ins.error) console.error(`[ingest:${cfg.slug}:ERROR] standings insert: ${ins.error.message}`);
+        else changes.push(`standings ${scope} refreshed through r${table.round}`);
+      }
+    } catch (e) {
+      console.warn(`[ingest:${cfg.slug}] standings refresh failed: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  return { slug: cfg.slug, updated, checked: pending.length + settledFx.length, unroutable, apiCalls, changes };
 }
 
 // ── Handler ───────────────────────────────────────────────────

@@ -145,19 +145,43 @@ export async function GET(req: NextRequest) {
   // ── conversions — null where the linkage genuinely does not exist ────────
   const conversions = {
     outreach_to_reply_pct: rate(replied_total, sent_total),
-    reply_to_positive_pct: null as number | null, // no classification stored — see gaps
+    reply_to_positive_pct: null as number | null, // filled in below once replies are counted
     positive_to_trial_pct: null as number | null,
     trial_to_paid_pct: rate(funnel.active, (funnel.trialing ?? 0) + (funnel.active ?? 0)),
     bounce_rate_pct: rate(bounced_total, sent_total),
   };
 
+  // ── reply classifications ────────────────────────────────────────────────
+  // Migration 071 stores these now, so the Operations Dashboard can show replies
+  // by classification instead of a single undifferentiated "replied" count.
+  const CLASSES = ["positive_interested", "neutral", "negative", "negative_unsubscribe", "needs_review"] as const;
+  const replies: Record<string, number | null> = {};
+  for (const c of CLASSES) {
+    replies[c] = await count(db, "venue_replies", (q) => q.eq("classification", c));
+  }
+  replies.total = await count(db, "venue_replies");
+  replies.unreviewed = await count(db, "venue_replies", (q) =>
+    q.is("reviewed_at", null).in("classification", ["positive_interested", "needs_review"]),
+  );
+
+  // ── sending today ────────────────────────────────────────────────────────
+  const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
+  const sent_today = await count(db, "outreach_messages", (q) => q.gte("sent_at", startOfDay.toISOString()));
+
+  // ── campaign + sender health, straight from Instantly ────────────────────
+  let campaign_state: unknown = "unknown";
+  let sender_health: unknown = "unknown";
+  try {
+    const { campaignState, senderHealth } = await import("@/lib/instantly");
+    campaign_state = await campaignState();
+    sender_health = await senderHealth();
+  } catch (e: any) {
+    campaign_state = { error: String(e?.message ?? e).slice(0, 160) };
+  }
+
   // ── honest gaps ──────────────────────────────────────────────────────────
   const gaps: string[] = [];
   if (campaign_error) gaps.push(`Instantly campaigns unreadable: ${campaign_error}`);
-  gaps.push(
-    "Reply classification is not stored. reply_received sets status='replied' with no " +
-      "positive/neutral/negative distinction, so reply→positive→trial conversion cannot be computed.",
-  );
   gaps.push(
     "Sender warm-up state and per-mailbox daily limits are held in Instantly and are not " +
       "exposed by the campaign list endpoint.",
@@ -183,6 +207,10 @@ export async function GET(req: NextRequest) {
       lifetime: { sent: sent_total, replies: replied_total, bounces: bounced_total },
     },
     conversions,
+    replies,
+    sent_today,
+    campaign_state,
+    sender_health,
     geography,
     opportunities: opps ?? [],
     gaps,

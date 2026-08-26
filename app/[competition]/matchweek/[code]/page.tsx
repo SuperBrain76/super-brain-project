@@ -14,11 +14,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
+import { resolveCompetition, getFixturesByRound, getTeams, type Fixture, type Team } from "@/lib/predictor";
 import { sportOf, FOOTBALL, type SportMeta } from "@/lib/sports";
 import { getCurrentSeason, getRounds, type Round } from "@/lib/competitionEngine";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import MatchweekSheet from "@/components/premier/MatchweekSheet";
+import SessionOrderSheet from "@/components/motorsport/SessionOrderSheet";
 
 const GREEN = "#1a3a2a", GOLD = "#b8972a", MUTED = "#7a8f82";
 const BORDER = "#dde5d8", CARD = "#fff", TEXT1 = "#0f1f17";
@@ -35,6 +36,7 @@ export default function MatchweekPage() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const [sport,    setSport]    = useState<SportMeta>(FOOTBALL);
+  const [entrants, setEntrants] = useState<Team[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -43,7 +45,13 @@ export default function MatchweekPage() {
       const { competition, error: e } = await resolveCompetition(competitionSlug);
       if (!alive) return;
       if (e || !competition) { setError(e ?? "Competition not found."); setLoading(false); return; }
-      setSport(sportOf(competition.sportCode));
+      const sp = sportOf(competition.sportCode);
+      setSport(sp);
+
+      // Ordering sports predict entrants, not scorelines — load the grid.
+      if (sp.kind === "ordering") {
+        void getTeams(competition.id).then((grid) => { if (alive) setEntrants(grid); });
+      }
 
       const season = await getCurrentSeason(competition.id);
       if (!alive || !season) { setError("No season."); setLoading(false); return; }
@@ -90,8 +98,10 @@ export default function MatchweekPage() {
   if (loading) return <Note>Loading…</Note>;
   if (error)   return <Note>{error}</Note>;
 
-  const totalPts = fixtures.reduce((n, f) => n + (f.myPrediction?.pointsAwarded ?? 0), 0);
-  const anyScored = fixtures.some((f) => f.myPrediction?.pointsAwarded != null);
+  const totalPts = fixtures.reduce(
+    (n, f) => n + (f.myPrediction?.pointsAwarded ?? f.myOrdering?.pointsAwarded ?? 0), 0);
+  const anyScored = fixtures.some(
+    (f) => (f.myPrediction?.pointsAwarded ?? f.myOrdering?.pointsAwarded) != null);
 
   return (
     <div className="max-w-md mx-auto w-full">
@@ -132,6 +142,18 @@ export default function MatchweekPage() {
 
       {fixtures.length === 0 ? (
         <Note>No fixtures in this matchweek yet.</Note>
+      ) : sport.kind === "ordering" ? (
+        // F1: the session sheet renders open, locked AND settled states itself
+        // (settled sessions show the official top five with your hits).
+        <SessionOrderSheet
+          fixtures={fixtures}
+          entrants={entrants}
+          roundLabel={round?.label ?? "Grand Prix"}
+          nextHref={next ? `${base}/matchweek/${next.code}` : undefined}
+          nextLabel={next?.shortLabel ?? next?.label}
+          prevHref={prev ? `${base}/matchweek/${prev.code}` : undefined}
+          prevLabel={prev?.shortLabel ?? prev?.label}
+        />
       ) : openForPredictions ? (
         // Open week → predict inline with the real sheet (autosave).
         <MatchweekSheet

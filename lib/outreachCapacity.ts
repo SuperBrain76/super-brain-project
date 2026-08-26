@@ -28,6 +28,7 @@ export interface FollowUpCandidate {
 
 export interface CapacityPlan {
   requested_new_venues: number;
+  pending_first_sends: number;
   follow_ups_due: number;
   required: number;
   daily_limit: number;
@@ -68,6 +69,19 @@ export function followUpsDue(
 }
 
 /**
+ * Venues already pushed into the campaign whose FIRST email has still not gone
+ * out — because a previous day ran out of capacity, or the campaign was paused.
+ *
+ * These consume a slot the moment sending resumes, but they are neither "new"
+ * (already pushed) nor a "follow-up" (no step 1 yet). Chequers Walthamstow and
+ * Duke of Edinburgh Brixton sat in exactly this state after 2026-08-25, and
+ * leaving them uncounted would under-provision the next day by two emails.
+ */
+export function pendingFirstSends(candidates: readonly FollowUpCandidate[]): number {
+  return candidates.filter(c => !c.sequence_stopped && c.steps_sent < 1).length;
+}
+
+/**
  * Turn "release N venues" into an Instantly daily_limit.
  *
  * Fails closed: an unknown follow-up count, a bad ceiling or a bad account
@@ -77,6 +91,8 @@ export function followUpsDue(
 export function planCapacity(input: {
   newVenues: number;
   followUpsDue: number | null | undefined;
+  /** Already-queued venues still awaiting their first email. */
+  pendingFirstSends?: number;
   ceiling?: number;
   accountLimit: number | null | undefined;
 }): CapacityPlan {
@@ -96,17 +112,22 @@ export function planCapacity(input: {
     throw new Error("planCapacity: mailbox daily limit unknown — refusing to plan a send");
   }
 
-  const followUps = input.followUpsDue;
+  const pending = input.pendingFirstSends ?? 0;
+  if (!Number.isInteger(pending) || pending < 0) {
+    throw new Error("planCapacity: pending first sends could not be determined — refusing to plan a send");
+  }
+  // Already promised, exactly like a follow-up: committed before any new venue.
+  const followUps = input.followUpsDue + pending;
   const accountLimit = input.accountLimit;
   // Never above the safety ceiling, and never above what the mailbox allows.
   const hardMax = Math.min(ceiling, accountLimit);
-  const required = newVenues + followUps;
+  const required = newVenues + followUps;   // followUps already includes pending
 
   if (followUps >= hardMax) {
     // Follow-ups alone fill the day. They are already promised, so they win and
     // no new venue goes out — but capacity is still raised to cover them.
     return {
-      requested_new_venues: newVenues, follow_ups_due: followUps,
+      requested_new_venues: newVenues, pending_first_sends: pending, follow_ups_due: input.followUpsDue,
       required, daily_limit: Math.min(followUps, accountLimit),
       new_venues_released: 0, ceiling, account_limit: accountLimit, reduced: newVenues > 0,
       reason: `${followUps} follow-up(s) due meet or exceed the ceiling of ${hardMax}; ` +
@@ -116,17 +137,17 @@ export function planCapacity(input: {
 
   if (required <= hardMax) {
     return {
-      requested_new_venues: newVenues, follow_ups_due: followUps,
+      requested_new_venues: newVenues, pending_first_sends: pending, follow_ups_due: input.followUpsDue,
       required, daily_limit: required,
       new_venues_released: newVenues, ceiling, account_limit: accountLimit, reduced: false,
-      reason: `${newVenues} new venue(s) + ${followUps} follow-up(s) = ${required} emails, within the ceiling of ${hardMax}`,
+      reason: `${newVenues} new venue(s) + ${pending} already-queued first send(s) + ${input.followUpsDue} follow-up(s) = ${required} emails, within the ceiling of ${hardMax}`,
     };
   }
 
   // Over the ceiling: cut NEW venues, never the follow-ups.
   const released = hardMax - followUps;
   return {
-    requested_new_venues: newVenues, follow_ups_due: followUps,
+    requested_new_venues: newVenues, pending_first_sends: pending, follow_ups_due: input.followUpsDue,
     required, daily_limit: hardMax,
     new_venues_released: released, ceiling, account_limit: accountLimit, reduced: true,
     reason: `${required} emails required but the ceiling is ${hardMax}; ` +

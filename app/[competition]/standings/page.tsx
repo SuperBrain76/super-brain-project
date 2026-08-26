@@ -14,8 +14,10 @@ import Link from "next/link";
 import { resolveCompetition, getFixtures, getPredictorLeaderboard, type Fixture, type LeaderboardRow } from "@/lib/predictor";
 import { computeLeagueTable, tableHasResults, type LeagueRow } from "@/lib/leagueTable";
 import { sportOf, FOOTBALL, type SportMeta } from "@/lib/sports";
+import { getCompetitionStandings, type CompetitionStandings } from "@/lib/motorsport";
 import GroupStandings from "@/components/predictor/GroupStandings";
 import StandingsTable from "@/components/premier/StandingsTable";
+import ChampionshipTable from "@/components/motorsport/ChampionshipTable";
 
 const GREEN = "#1a3a2a", GOLD = "#b8972a", MUTED = "#7a8f82";
 const BORDER = "#dde5d8", TEXT1 = "#0f1f17", CARD = "#fff", BG = "#f8f5f0";
@@ -26,8 +28,9 @@ export default function StandingsPage() {
   const [table, setTable]       = useState<LeagueRow[]>([]);
   const [predictors, setPredictors] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [tab, setTab]           = useState<"table" | "predictor">("table");
+  const [tab, setTab]           = useState<"table" | "constructors" | "predictor">("table");
   const [sport, setSport]       = useState<SportMeta>(FOOTBALL);
+  const [championship, setChampionship] = useState<CompetitionStandings | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -35,6 +38,20 @@ export default function StandingsPage() {
       if (!competition) { setLoading(false); return; }
       const sp = sportOf(competition.sportCode);
       setSport(sp);
+
+      // F1: championship tables are INGESTED (competition_standings), never
+      // computed from fixtures — there are no W/D/L rows to compute.
+      if (sp.kind === "ordering") {
+        const [champ, preds] = await Promise.all([
+          getCompetitionStandings(competition.id),
+          getPredictorLeaderboard(competition.id).catch(() => [] as LeaderboardRow[]),
+        ]);
+        setChampionship(champ);
+        setPredictors(preds);
+        setLoading(false);
+        return;
+      }
+
       const [{ fixtures: fx }, preds] = await Promise.all([
         getFixtures(competition.id),
         getPredictorLeaderboard(competition.id).catch(() => [] as LeaderboardRow[]),
@@ -70,6 +87,30 @@ export default function StandingsPage() {
               <div key={i} className="h-9 rounded-lg animate-pulse" style={{ background: "#e8ede6" }} />
             ))}
           </div>
+        ) : sport.kind === "ordering" ? (
+          <>
+            {/* F1: Drivers / Constructors / Predictors */}
+            <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: "#f0f3ef" }}>
+              {([["table", "🏆 Drivers"], ["constructors", "🔧 Constructors"], ["predictor", "🧠 Predictors"]] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setTab(key)}
+                  className="flex-1 py-2.5 text-xs font-bold transition-colors"
+                  style={{ background: tab === key ? GREEN : "transparent", color: tab === key ? "#fff" : MUTED }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {tab === "predictor" ? (
+              <PredictorTable rows={predictors} slug={competitionSlug} />
+            ) : (
+              <div className="rounded-2xl px-4 py-3" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+                <ChampionshipTable
+                  rows={tab === "constructors" ? (championship?.constructors ?? []) : (championship?.drivers ?? [])}
+                  scope={tab === "constructors" ? "constructor" : "driver"}
+                  throughRound={championship?.throughRound ?? null}
+                />
+              </div>
+            )}
+          </>
         ) : hasGroups ? (
           <GroupStandings fixtures={fixtures} />
         ) : (

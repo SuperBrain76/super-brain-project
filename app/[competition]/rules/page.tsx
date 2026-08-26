@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GrandPrizeRulesSection } from "@/components/GrandPrize";
 import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 import { LEAGUES } from "@/lib/leagues/list";
+import { resolveCompetition } from "@/lib/predictor";
 import { sportOf } from "@/lib/sports";
 
 // ── Design tokens ─────────────────────────────────────────────
@@ -92,6 +93,111 @@ function Faq({ q, a }: { q: string; a: React.ReactNode }) {
   );
 }
 
+// ── Motorsport (F1) rules — ordering predictions ──────────────
+// F1 predicts a top-five ORDER per session, not a scoreline, so the
+// score-based scoring and deadline sections never render for it. This block
+// is the complete sport-specific story: how to play, scoring, the Banker,
+// and settlement. The shared sections (leagues, FAQ, disclaimer) follow it.
+
+function MotorsportRules() {
+  return (
+    <>
+      <Section id="scoring" title="How to Play &amp; Scoring">
+        <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+          Every Grand Prix weekend has two predictions:{" "}
+          <span className="font-semibold" style={{ color: TEXT1 }}>Qualifying Top 5</span> (Saturday) and{" "}
+          <span className="font-semibold" style={{ color: TEXT1 }}>Race Top 5</span> (Sunday).
+          Pick the five drivers you think finish P1–P5, in order. Predictions lock when the session starts.
+        </p>
+
+        <Card>
+          <PointRow
+            icon="⚡"
+            pts={5}
+            label="Perfect board"
+            example="All five drivers in exactly the right positions"
+            accentColor={GREEN}
+          />
+          <PointRow
+            icon="✓"
+            pts={3}
+            label="3–4 exact positions"
+            example="Three or four of your drivers finish exactly where you placed them"
+            accentColor="#0e1e35"
+          />
+          <PointRow
+            icon="~"
+            pts={2}
+            label="1–2 exact positions"
+            example="One or two of your drivers finish exactly where you placed them"
+            accentColor={GOLD}
+          />
+          <PointRow
+            icon="✗"
+            pts={0}
+            label="No exact positions"
+            example="None of your five drivers finish in the position you gave them"
+            accentColor="#c0392b"
+          />
+        </Card>
+
+        <Card accent={MUTED}>
+          <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>Positions must be exact</p>
+          <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+            Norris P1 means <span className="font-semibold" style={{ color: TEXT1 }}>P1</span> — P2 doesn&apos;t count.
+            A driver who finishes inside the top five but in a different position than you gave them scores nothing
+            for that slot. There is no draw pick and no scoreline — the order is the prediction.
+          </p>
+        </Card>
+      </Section>
+
+      <Section id="banker" title="The Banker">
+        <Card accent={GOLD}>
+          <div className="flex items-start gap-3">
+            <span className="text-xl shrink-0">⭐</span>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: TEXT1 }}>One session per round doubles its points</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
+                Just like every other sport on SuperBrain, you can nominate{" "}
+                <span className="font-semibold" style={{ color: TEXT1 }}>one session per round</span> as your Banker —
+                qualifying or the race. Whatever that prediction scores is doubled. You can move your Banker freely
+                until the session it&apos;s on locks.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </Section>
+
+      <Section id="deadlines" title="Deadlines &amp; Settlement">
+        <Card accent="#c0392b">
+          <div className="flex items-start gap-3">
+            <span className="text-xl shrink-0">🔒</span>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: TEXT1 }}>Each session locks when it starts — individually</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: TEXT2 }}>
+                You can submit or edit your top five as many times as you like before a session begins. The moment
+                lights go out — or the qualifying clock starts — that prediction is locked permanently.{" "}
+                <span className="font-medium" style={{ color: TEXT1 }}>Qualifying and the race lock separately</span> —
+                each has its own independent deadline.
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: MUTED }}>How results settle</p>
+          <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
+            Saturday&apos;s prediction settles on the{" "}
+            <span className="font-semibold" style={{ color: TEXT1 }}>official qualifying classification</span>{" "}
+            (grid penalties applied on Sunday don&apos;t change it). Race results settle on the{" "}
+            <span className="font-semibold" style={{ color: TEXT1 }}>official classification</span>.
+          </p>
+        </Card>
+      </Section>
+    </>
+  );
+}
+
 // ── Table of contents ─────────────────────────────────────────
 
 const TOC = [
@@ -104,19 +210,38 @@ const TOC = [
   { href: "#disclaimer", label: "Disclaimer" },
 ];
 
+// Motorsport predicts a top-five order, not a scoreline — its own scoring,
+// banker and settlement sections replace the score-based ones above.
+const MOTORSPORT_TOC = [
+  { href: "#scoring",    label: "Scoring" },
+  { href: "#banker",     label: "The Banker" },
+  { href: "#deadlines",  label: "Deadlines & Settlement" },
+  { href: "#leagues",    label: "Leagues & Tie-breakers" },
+  { href: "#faq",        label: "FAQ" },
+  { href: "#disclaimer", label: "Disclaimer" },
+];
+
 // ── Page ──────────────────────────────────────────────────────
 
-export default function RulesPage(
+export default async function RulesPage(
   { params }: { params: { competition: string } },
 ) {
   // Server component: the competition comes from the route params
-  // prop, not useParams — no client boundary needed for a static page.
+  // prop, not useParams — no client boundary needed.
   const competitionSlug = params.competition;
 
-  // Sport from the static league list (lib/leagues/list.ts) — no DB round
-  // trip on a static page. Unknown slugs read as football, as everywhere.
-  const sport = sportOf(LEAGUES.find((l) => l.slug === competitionSlug)?.sport);
+  // Sport from the loaded competition's real sport_code, so competitions that
+  // aren't in the static league list still read as the right sport. The static
+  // list (lib/leagues/list.ts) is the fallback when the lookup is unavailable;
+  // anything still unknown reads as football, as everywhere.
+  let sportCode = LEAGUES.find((l) => l.slug === competitionSlug)?.sport;
+  try {
+    const { competition } = await resolveCompetition(competitionSlug);
+    if (competition) sportCode = competition.sportCode;
+  } catch { /* static fallback above */ }
+  const sport = sportOf(sportCode);
   const rugby = sport.code === "rugby";
+  const motorsport = sport.kind === "ordering";
 
   return (
     <div className="flex-1 flex flex-col">
@@ -143,7 +268,7 @@ export default function RulesPage(
 
         {/* ── Table of contents ────────────────────────────── */}
         <div className="flex flex-wrap gap-2">
-          {TOC.map((item) => (
+          {(motorsport ? MOTORSPORT_TOC : TOC).map((item) => (
             <a
               key={item.href}
               href={item.href}
@@ -154,6 +279,12 @@ export default function RulesPage(
             </a>
           ))}
         </div>
+
+        {/* ── 1+2. Sport-specific rules ────────────────────── */}
+        {/* Motorsport predicts a top-five ORDER, not a scoreline — it gets its
+            own complete rules block (scoring, banker, settlement) instead of a
+            third arm on every score-based ternary below. */}
+        {motorsport ? <MotorsportRules /> : <>
 
         {/* ── 1. Scoring ───────────────────────────────────── */}
         <Section id="scoring" title="How Scoring Works">
@@ -299,6 +430,8 @@ export default function RulesPage(
           </div>
         </Section>
 
+        </>}
+
         {/* ── 3. Leagues & Tie-breakers ────────────────────── */}
         <Section id="leagues" title="Leagues &amp; Tie-breakers">
           <div className="flex flex-col gap-3">
@@ -324,9 +457,9 @@ export default function RulesPage(
               </p>
               <div className="flex flex-col gap-2">
                 {[
-                  { n: "1", label: "Most exact scores",             detail: "More ⚡ 5-point predictions" },
-                  { n: "2", label: rugby ? "Most correct margins" : "Most correct goal differences",  detail: rugby ? "More 3-point predictions (correct margin)" : "More 3-point predictions (correct GD)" },
-                  { n: "3", label: "Most correct results",           detail: "More 2-point predictions (correct outcome)" },
+                  { n: "1", label: motorsport ? "Most perfect boards" : "Most exact scores",             detail: "More ⚡ 5-point predictions" },
+                  { n: "2", label: motorsport ? "Most 3-point boards" : rugby ? "Most correct margins" : "Most correct goal differences",  detail: motorsport ? "More 3-point predictions (3–4 exact positions)" : rugby ? "More 3-point predictions (correct margin)" : "More 3-point predictions (correct GD)" },
+                  { n: "3", label: motorsport ? "Most 2-point boards" : "Most correct results",           detail: motorsport ? "More 2-point predictions (1–2 exact positions)" : "More 2-point predictions (correct outcome)" },
                   { n: "4", label: "Most bonus points",              detail: "Higher bonus question score" },
                   { n: "5", label: "Most predictions completed",     detail: "More fixtures predicted" },
                   { n: "6", label: "Prize shared",                   detail: "Or decided by a final tie-break question" },
@@ -357,8 +490,9 @@ export default function RulesPage(
           </div>
         </Section>
 
-        {/* ── 4. Bonus Questions ───────────────────────────── */}
-        <Section id="bonus" title="Bonus Questions">
+        {/* ── 4. Bonus Questions — score sports only; the F1 season has no
+               tournament-wide bonus slate yet. ─────────────── */}
+        {!motorsport && <Section id="bonus" title="Bonus Questions">
           <p className="text-sm leading-relaxed" style={{ color: TEXT2 }}>
             Seven tournament-wide questions worth up to <span className="font-semibold" style={{ color: TEXT1 }}>90 bonus points</span> on
             top of your match prediction score. Submit your answers at{" "}
@@ -433,7 +567,7 @@ export default function RulesPage(
               points for bonus questions. All scoring is automatic once the admin enters the correct answer.
             </p>
           </Card>
-        </Section>
+        </Section>}
 
         {/* ── 5. FAQ ───────────────────────────────────────── */}
         <Section id="faq" title="Frequently Asked Questions">
@@ -454,10 +588,10 @@ export default function RulesPage(
               q="What if a result was entered incorrectly?"
               a="Admins can correct a result and trigger a rescore. All predictions for that match will be recalculated automatically."
             />
-            <Faq
+            {!motorsport && <Faq
               q="Are away goals or aggregate scores used?"
               a="No. Each match is scored individually based on its 90-minute result. Aggregate or two-leg tie rules do not apply."
-            />
+            />}
             <Faq
               q="Can I join more than one private league?"
               a="Yes. You can join as many leagues as you like and track your standing in each one independently."
@@ -478,7 +612,9 @@ export default function RulesPage(
             />
             <Faq
               q="How are ties broken on the leaderboard?"
-              a="If two or more players have the same total points, the tie is broken in this order: (1) most exact scores, (2) most correct goal differences, (3) most correct results, (4) most bonus points, (5) most predictions completed. If still tied, the prize is shared or settled by a final tie-break question. Sign-up date is not used."
+              a={motorsport
+                ? "If two or more players have the same total points, the tie is broken in this order: (1) most perfect boards, (2) most 3-point predictions, (3) most 2-point predictions, (4) most bonus points, (5) most predictions completed. If still tied, the prize is shared or settled by a final tie-break question. Sign-up date is not used."
+                : "If two or more players have the same total points, the tie is broken in this order: (1) most exact scores, (2) most correct goal differences, (3) most correct results, (4) most bonus points, (5) most predictions completed. If still tied, the prize is shared or settled by a final tie-break question. Sign-up date is not used."}
             />
           </Card>
         </Section>

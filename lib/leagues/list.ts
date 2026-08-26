@@ -25,4 +25,10 @@ export const LEAGUES: LeagueEntry[] = [
   { slug: "shl",            name: "SHL",            country: "🇸🇪 Sweden",  clubs: ["FRL", "SKE", "LUL", "DIF", "FBK", "HV7"], sport: "ice_hockey" },
   { slug: "nhl",            name: "NHL",            country: "🇺🇸 North America", clubs: ["EDM", "TML", "BOS", "NYR", "COL", "VGK"], sport: "ice_hockey" },
   { slug: "premiership-rugby", name: "Premiership Rugby", country: "🏴󠁧󠁢󠁥󠁮󠁧󠁿 England", clubs: ["TIG", "BTH", "SAR", "HAR", "EXE", "NTH"], sport: "rugby" },
+  // Formula 1 — entrants are drivers, not clubs, so the marquee row stays
+  // empty: driver codes aren't in the club registries (ClubCrest would render
+  // a row of neutral "?" placeholders), and the FIA codes that DO exist there
+  // (HAM, LEC, HUL, COL, STR) would render the wrong club's crest. F1 surfaces
+  // draw driver monograms from lib/f1/drivers2026.ts instead.
+  { slug: "formula-1", name: "Formula 1", country: "🌍 World Championship", clubs: [], sport: "motorsport" },
 ];

@@ -13,12 +13,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
-import { resolveCompetition, getFixturesByRound, type Fixture } from "@/lib/predictor";
+import { resolveCompetition, getFixturesByRound, getTeams, type Fixture, type Team } from "@/lib/predictor";
 import { sportOf, FOOTBALL, type SportMeta } from "@/lib/sports";
 import { getCurrentRoundContext, getRounds, type Round } from "@/lib/competitionEngine";
 import { supabase } from "@/lib/supabase";
 import { useCompetitionSlug } from "@/components/CompetitionProvider";
 import MatchweekSheet, { type FixtureStats } from "@/components/premier/MatchweekSheet";
+import SessionOrderSheet from "@/components/motorsport/SessionOrderSheet";
 
 export default function MatchweekPredictPage() {
   const { competition: competitionSlug } = useParams<{ competition: string }>();
@@ -35,6 +36,7 @@ export default function MatchweekPredictPage() {
   const [stats,       setStats]       = useState<Record<string, FixtureStats>>({});
   const [playerCount, setPlayerCount] = useState<number | undefined>(undefined);
   const [sport,       setSport]       = useState<SportMeta>(FOOTBALL);
+  const [entrants,    setEntrants]    = useState<Team[]>([]);
   const [nav, setNav] = useState<{ nextHref?: string; nextLabel?: string; prevHref?: string; prevLabel?: string }>({});
 
   useEffect(() => {
@@ -45,7 +47,8 @@ export default function MatchweekPredictPage() {
       const { competition, error: compErr } = await resolveCompetition(competitionSlug);
       if (!alive) return;
       if (compErr || !competition) { setError(compErr ?? "Competition not found."); setLoading(false); return; }
-      setSport(sportOf(competition.sportCode));
+      const sp = sportOf(competition.sportCode);
+      setSport(sp);
 
       const ctx = await getCurrentRoundContext(competition.id);
       if (!alive) return;
@@ -55,6 +58,34 @@ export default function MatchweekPredictPage() {
       const { fixtures: fx } = await getFixturesByRound(ctx.round.id);
       if (!alive) return;
       setFixtures(fx);
+
+      // Round navigation, for every sport: next/prev links from the bottom of
+      // the sheet. (Computed before the sport fork so both paths share it.)
+      let prevRoundId: string | null = null;
+      if (ctx.season) {
+        const rounds = await getRounds(ctx.season.id);
+        if (!alive) return;
+        const idx = rounds.findIndex((r) => r.id === ctx.round!.id);
+        const prevR = idx > 0 ? rounds[idx - 1] : null;
+        const nextR = idx >= 0 && idx + 1 < rounds.length ? rounds[idx + 1] : null;
+        prevRoundId = prevR?.id ?? null;
+        setNav({
+          nextHref:  nextR ? `${base}/matchweek/${nextR.code}` : undefined,
+          nextLabel: nextR?.shortLabel ?? nextR?.label,
+          prevHref:  prevR ? `${base}/matchweek/${prevR.code}` : undefined,
+          prevLabel: prevR?.shortLabel ?? prevR?.label,
+        });
+      }
+
+      // Ordering sports (F1) predict entrants, not scorelines — load the grid.
+      // The H/D/A crowd split and "copy last week" are score concepts; skip them.
+      if (sp.kind === "ordering") {
+        const grid = await getTeams(competition.id);
+        if (!alive) return;
+        setEntrants(grid);
+        setLoading(false);
+        return;
+      }
 
       // Community layer — the crowd's split + how many are playing. Best-effort;
       // the sheet simply hides these when absent.
@@ -78,23 +109,10 @@ export default function MatchweekPredictPage() {
         if (typeof c.data === "number") setPlayerCount(c.data);
       }).catch(() => { /* community layer is non-critical */ });
 
-      // Previous round for "copy last week's scores", plus next/prev links so
-      // you can keep predicting from the bottom of the sheet.
-      if (ctx.season) {
-        const rounds = await getRounds(ctx.season.id);
-        const idx = rounds.findIndex((r) => r.id === ctx.round!.id);
-        const prevR = idx > 0 ? rounds[idx - 1] : null;
-        const nextR = idx >= 0 && idx + 1 < rounds.length ? rounds[idx + 1] : null;
-        if (alive) setNav({
-          nextHref:  nextR ? `${base}/matchweek/${nextR.code}` : undefined,
-          nextLabel: nextR?.shortLabel ?? nextR?.label,
-          prevHref:  prevR ? `${base}/matchweek/${prevR.code}` : undefined,
-          prevLabel: prevR?.shortLabel ?? prevR?.label,
-        });
-        if (prevR) {
-          const { fixtures: prev } = await getFixturesByRound(prevR.id);
-          if (alive) setPrevious(prev);
-        }
+      // Previous round for "copy last week's scores".
+      if (prevRoundId) {
+        const { fixtures: prev } = await getFixturesByRound(prevRoundId);
+        if (alive) setPrevious(prev);
       }
 
       if (alive) setLoading(false);
@@ -121,6 +139,25 @@ export default function MatchweekPredictPage() {
   }
 
   if (error) return <CenteredNote>{error}</CenteredNote>;
+
+  if (sport.kind === "ordering") {
+    return (
+      <div className="max-w-md mx-auto w-full">
+        <div className="px-4 pt-3">
+          <Link href={base} className="text-xs font-semibold" style={{ color: "#1a3a2a" }}>← {sport.label}</Link>
+        </div>
+        <SessionOrderSheet
+          fixtures={fixtures}
+          entrants={entrants}
+          roundLabel={round?.label ?? "Grand Prix"}
+          nextHref={nav.nextHref}
+          nextLabel={nav.nextLabel}
+          prevHref={nav.prevHref}
+          prevLabel={nav.prevLabel}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto w-full">

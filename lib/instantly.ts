@@ -197,3 +197,35 @@ export async function setCampaignDailyLimit(dailyLimit: number): Promise<void> {
     body: JSON.stringify({ daily_limit: dailyLimit }),
   });
 }
+
+/** Campaign status, cap and schedule — for the Operations Dashboard. */
+export async function campaignState() {
+  const id = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
+  if (!id) return { error: "INSTANTLY_CAMPAIGN_DEFAULT missing" };
+  const c = await call(`/campaigns/${encodeURIComponent(id)}`);
+  const sch = c.campaign_schedule?.schedules?.[0];
+  const STATUS: Record<number, string> = { 0: "draft", 1: "active", 2: "paused", 3: "completed", 4: "running_subsequences" };
+  return {
+    id, name: c.name, status: STATUS[c.status] ?? String(c.status),
+    daily_limit: c.daily_limit, stop_on_reply: c.stop_on_reply,
+    steps: (c.sequences?.[0]?.steps ?? []).length,
+    step_delays: (c.sequences?.[0]?.steps ?? []).map((s: any) => s.delay),
+    window: sch ? `${sch.timing?.from}-${sch.timing?.to} ${sch.timezone}` : null,
+    days: sch ? Object.keys(sch.days ?? {}).length : null,
+    senders: c.email_list ?? [],
+  };
+}
+
+/** Warm-up state of the sending mailbox. */
+export async function senderHealth() {
+  const r = await call("/accounts?limit=100");
+  const items: any[] = r.items ?? r.data ?? [];
+  const wanted = (process.env.VENUE_REPLY_TO || "alex@superbrain.bar").toLowerCase();
+  const a = items.find(x => String(x.email).toLowerCase() === wanted) ?? items[0];
+  if (!a) return { error: "no sending account found" };
+  return {
+    email: a.email, active: a.status === 1, setup_pending: a.setup_pending,
+    warmup_active: a.warmup_status === 1, warmup_score: a.stat_warmup_score,
+    daily_limit: a.daily_limit, created: a.timestamp_created,
+  };
+}

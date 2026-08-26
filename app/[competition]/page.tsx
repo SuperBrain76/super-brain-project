@@ -26,6 +26,8 @@ import {
 } from "@/lib/predictor";
 import { getCompetitionSettings, FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
 import PremierLeagueHome from "@/components/premier/PremierLeagueHome";
+import MotorsportHome from "@/components/motorsport/MotorsportHome";
+import { sportOf } from "@/lib/sports";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -263,8 +265,13 @@ export default function PredictHub() {
 
   // ── Matchweek dashboard (Premier League) ─────────────────────
   // Delegated home for competitions with home_style = 'matchweek'. The
-  // classic WC hub below is untouched.
+  // classic WC hub below is untouched. Ordering sports (F1) get their own
+  // dashboard — the two-team featured match and W/D/L table in
+  // CompetitionHome have no meaning there.
   if (homeStyle === "matchweek" && competition) {
+    if (sportOf(competition.sportCode).kind === "ordering") {
+      return <MotorsportHome competition={competition} />;
+    }
     return <PremierLeagueHome competition={competition} />;
   }
 

@@ -6,7 +6,9 @@
  * Talking-point stats to bring people back: team stats derived from our own
  * results (top-scoring teams, clean sheets, best defense, form, biggest wins,
  * highest-scoring games) and — for football — top scorers / most assists from
- * the football-data.org cache. Ice hockey shows team stats only.
+ * the football-data.org cache. Ice hockey shows team stats only. Motorsport
+ * (an ordering sport — no scorelines) shows an empty state pointing at the
+ * Standings tab, skipping the fetch + compute entirely.
  */
 
 import { useParams } from "next/navigation";
@@ -27,6 +29,7 @@ export default function StatsPage() {
   const [scorers, setScorers]   = useState<Scorer[]>([]);
   const [updatedAt, setUpdated] = useState<string | null>(null);
   const [isFootball, setIsFootball] = useState(true);
+  const [isMotorsport, setIsMotorsport] = useState(false);
   const [cleanLabel, setCleanLabel] = useState("Clean Sheets");
   const [loading, setLoading]   = useState(true);
 
@@ -34,6 +37,13 @@ export default function StatsPage() {
     async function load() {
       const { competition } = await resolveCompetition(slug);
       if (!competition) { setLoading(false); return; }
+      // Goal-based team stats are meaningless for an ordering sport (F1) —
+      // skip the fixture fetch + compute entirely and show an empty state.
+      if (sportOf(competition.sportCode).kind === "ordering") {
+        setIsMotorsport(true);
+        setLoading(false);
+        return;
+      }
       const football = competition.sportCode === "football";
       setIsFootball(football);
       setCleanLabel(sportOf(competition.sportCode).cleanSheetLabel);
@@ -70,6 +80,8 @@ export default function StatsPage() {
           <div className="flex flex-col gap-3">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-40 rounded-2xl animate-pulse" style={{ background: "#e8ede6" }} />)}
           </div>
+        ) : isMotorsport ? (
+          <EmptyCard>Stats aren&apos;t available for Formula 1 yet — check the Standings tab for the championship tables.</EmptyCard>
         ) : !team ? (
           <p className="text-sm" style={{ color: MUTED }}>Competition not found.</p>
         ) : (

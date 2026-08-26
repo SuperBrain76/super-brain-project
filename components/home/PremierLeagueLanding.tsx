@@ -66,7 +66,7 @@ function Hero() {
             style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}` }}>
             <span className="w-1.5 h-1.5 rounded-full pl-pulse" style={{ background: BRAND.sports }} />
             <span className="text-[11px] tracking-[0.2em] uppercase font-semibold" style={{ color: BRAND.sports }}>
-              8 leagues · 3 sports · Free to play
+              9 leagues · 4 sports · Free to play
             </span>
           </div>
         </div>
@@ -77,7 +77,7 @@ function Hero() {
         </h1>
 
         <p className="pl-in text-base sm:text-xl max-w-xl mx-auto leading-relaxed mb-8" style={{ color: BRAND.muted, animationDelay: "160ms" }}>
-          Europe&apos;s top five football leagues, Sweden&apos;s SHL ice hockey — and now Premiership Rugby. Every match, one tap — build a private league, climb the table, and grow your{" "}
+          Europe&apos;s top five football leagues, Sweden&apos;s SHL ice hockey, Premiership Rugby — and now Formula 1. Every match, one tap — build a private league, climb the table, and grow your{" "}
           <span style={{ color: BRAND.gold, fontWeight: 600 }}>SuperBrain</span>, free.
         </p>
 
@@ -110,7 +110,7 @@ function Hero() {
       <div className="relative max-w-5xl mx-auto px-5 pb-14">
         <div className="flex flex-wrap justify-center gap-x-10 gap-y-5 sm:gap-x-16">
           {[
-            { v: "8", l: "Leagues" },
+            { v: "9", l: "Leagues" },
             { v: "130+", l: "Clubs" },
             { v: "2,400+", l: "Matches" },
             { v: "Free", l: "Always" },
@@ -158,7 +158,7 @@ function LeaguePicker() {
     <section id="leagues" className="max-w-5xl mx-auto px-5 py-12" style={{ scrollMarginTop: 20 }}>
       <Reveal className="text-center mb-8">
         <p className="text-xs tracking-[0.28em] uppercase mb-3" style={{ color: BRAND.dim }}>Choose your competition</p>
-        <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: BRAND.ink }}>Three sports. One tap each.</h2>
+        <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: BRAND.ink }}>Four sports. One tap each.</h2>
       </Reveal>
       <Reveal delay={60}>
         <div className="flex items-center gap-2 mb-3">
@@ -180,6 +180,13 @@ function LeaguePicker() {
           <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>Rugby</h3>
         </div>
         <LeagueChooser sport="rugby" />
+      </Reveal>
+      <Reveal delay={180}>
+        <div className="flex items-center gap-2 mb-3 mt-8">
+          <span className="text-lg">🏎️</span>
+          <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>Motorsport</h3>
+        </div>
+        <LeagueChooser sport="motorsport" />
       </Reveal>
     </section>
   );

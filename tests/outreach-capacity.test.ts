@@ -6,7 +6,7 @@
  * and two approved venues were never contacted.
  */
 import { describe, it, expect } from "vitest";
-import { planCapacity, followUpsDue, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
+import { planCapacity, followUpsDue, pendingFirstSends, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
 
 const NOW = new Date("2026-08-29T09:00:00Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString();
@@ -148,5 +148,47 @@ describe("overlapping tranches over a week", () => {
     expect(p.follow_ups_due).toBe(7);
     expect(p.new_venues_released).toBe(3);
     expect(p.new_venues_released + p.follow_ups_due).toBe(SAFETY_CEILING);
+  });
+});
+
+describe("venues already queued but never sent to", () => {
+  it("counts a pushed venue with no email sent as a pending first send", () => {
+    // Chequers Walthamstow and Duke of Edinburgh Brixton after 2026-08-25:
+    // pushed into the campaign, but the day's capacity ran out first.
+    const queued: FollowUpCandidate[] = [
+      { venue_id: "chequers", first_sent_at: null, steps_sent: 0, sequence_stopped: false },
+      { venue_id: "duke",     first_sent_at: null, steps_sent: 0, sequence_stopped: false },
+    ];
+    expect(pendingFirstSends(queued)).toBe(2);
+    expect(followUpsDue(queued, NOW, 4)).toBe(0);   // not a follow-up
+  });
+
+  it("funds them BEFORE new venues, and provisions the full day", () => {
+    // The real next tranche: 2 already queued + 3 new, no follow-ups due.
+    const p = planCapacity({ newVenues: 3, followUpsDue: 0, pendingFirstSends: 2, accountLimit: 30 });
+    expect(p.daily_limit).toBe(5);              // NOT 3 — the queued two would have missed out
+    expect(p.new_venues_released).toBe(3);
+    expect(p.pending_first_sends).toBe(2);
+    expect(p.reduced).toBe(false);
+  });
+
+  it("does not count a queued venue whose sequence already stopped", () => {
+    const stopped: FollowUpCandidate[] = [
+      { venue_id: "gone", first_sent_at: null, steps_sent: 0, sequence_stopped: true },
+    ];
+    expect(pendingFirstSends(stopped)).toBe(0);
+  });
+
+  it("cuts new venues when queued sends plus follow-ups fill the ceiling", () => {
+    const p = planCapacity({ newVenues: 5, followUpsDue: 4, pendingFirstSends: 4, accountLimit: 30 });
+    expect(p.pending_first_sends).toBe(4);
+    expect(p.follow_ups_due).toBe(4);
+    expect(p.new_venues_released).toBe(2);      // 10 - (4 + 4)
+    expect(p.daily_limit).toBe(10);
+    expect(p.reduced).toBe(true);
+  });
+
+  it("rejects a nonsensical pending count rather than guessing", () => {
+    expect(() => planCapacity({ newVenues: 1, followUpsDue: 0, pendingFirstSends: -1, accountLimit: 30 })).toThrow();
   });
 });

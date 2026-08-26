@@ -26,7 +26,7 @@ import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
 import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit } from "@/lib/instantly";
 import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
-import { planCapacity, followUpsDue, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
+import { planCapacity, followUpsDue, pendingFirstSends, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
 import { SITE } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -87,8 +87,12 @@ async function run(req: NextRequest) {
     }));
 
     const due = followUpsDue(candidates, new Date(), GAP_DAYS);
+    const pending = pendingFirstSends(candidates);
     const acct = await mailboxDailyLimit();      // throws if unknown -> fail closed
-    plan = planCapacity({ newVenues: wantVenues, followUpsDue: due, ceiling: SAFETY_CEILING, accountLimit: acct });
+    plan = planCapacity({
+      newVenues: wantVenues, followUpsDue: due, pendingFirstSends: pending,
+      ceiling: SAFETY_CEILING, accountLimit: acct,
+    });
   } catch (e: any) {
     // Fail closed: without a trustworthy capacity number we neither send nor guess.
     await emit(db, EVENT.SYNC_FAILED, {

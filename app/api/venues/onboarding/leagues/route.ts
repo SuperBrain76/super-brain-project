@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { resolveVenueBySession } from "@/lib/venueSession";
-import { logEvent } from "@/lib/venueDb";
+import { logEvent, publicCompetitionIds } from "@/lib/venueDb";
 import { brandedLeagueName } from "@/lib/provisioning";
 import { normalizeName } from "@/lib/leagueName";
 
@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
     const { data: comp } = await r.db.from("competitions")
       .select("id, name, slug, status").eq("slug", slug).maybeSingle();
     if (!comp || comp.status !== "active") {
+      failed.push({ slug, error: "competition is not currently available" });
+      continue;
+    }
+
+    // LIFECYCLE gate, same rule as the wizard's list — enforced here too so
+    // a crafted slug can't activate a draft/internal competition before it
+    // launches. Deliberately not a sport filter: once F1 (or any other
+    // sport) goes public it SHOULD be venue-selectable.
+    const publicIds = await publicCompetitionIds(r.db, [comp]);
+    if (!publicIds.has(comp.id)) {
       failed.push({ slug, error: "competition is not currently available" });
       continue;
     }

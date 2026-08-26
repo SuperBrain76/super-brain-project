@@ -8,9 +8,11 @@
  * competition's home.
  *
  * Only shows leagues that are actually live (visible in the DB), so a league
- * being rolled out never shows a dead link — it appears the moment it's seeded,
- * no redeploy. Falls back to the full list if the lookup is unavailable, so the
- * chooser is never empty.
+ * being rolled out never shows a dead link — it appears the moment it goes
+ * public, no redeploy. Falls back to the full list ONLY when the lookup
+ * itself is unavailable; a lookup that succeeds and excludes every league of
+ * a sport means none is live yet, and the chooser says "coming soon" rather
+ * than leaking a draft competition's link (the F1 rollout lesson).
  */
 
 import { useEffect, useState } from "react";
@@ -33,8 +35,18 @@ export default function LeagueChooser({ sport }: { sport?: string }) {
 
   // Optionally scope to one sport (the hub renders a chooser per sport section).
   const inSport = sport ? LEAGUES.filter((l) => l.sport === sport) : LEAGUES;
-  const filtered = liveSlugs ? inSport.filter((l) => liveSlugs.has(l.slug)) : inSport;
-  const list = filtered.length ? filtered : inSport;   // never render an empty chooser
+  const list = liveSlugs ? inSport.filter((l) => liveSlugs.has(l.slug)) : inSport;
+
+  // Lookup succeeded and nothing in this sport is live yet: honest holding
+  // state, never a link to a competition that isn't public.
+  if (liveSlugs && list.length === 0) {
+    return (
+      <div className="rounded-2xl p-4 text-sm font-semibold"
+           style={{ background: BRAND.surface, border: `0.5px solid ${BRAND.hairline}`, color: BRAND.dim }}>
+        Coming soon.
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

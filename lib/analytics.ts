@@ -113,6 +113,8 @@ export const track = {
   // These use `tc`, so every one carries the competition dimension set by
   // setCompetitionContext(). Do not switch any of them back to `t`.
   predictionSaved:         (fixtureId: string, isEdit: boolean)                     => tc("prediction_saved",          { fixture_id: fixtureId, is_edit: isEdit, device: _device() }),
+  /** F1 — a top-five session board saved (qualifying or race). */
+  f1SessionPredicted:      (fixtureId: string)                                      => tc("f1_session_predicted",      { fixture_id: fixtureId, device: _device() }),
   bonusAnswerSaved:        (questionKey: string)                                     => tc("bonus_answer_saved",        { question_key: questionKey }),
   leagueCreated:           (visibility: "private" | "public")                        => tc("league_created",            { visibility }),
   leagueJoined:            (leagueId: string)                                        => tc("league_joined",             { league_id: leagueId }),

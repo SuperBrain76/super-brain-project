@@ -30,6 +30,14 @@ export interface SportMeta {
   code:     string;
   label:    string;
   icon:     string;    // emoji — no trademarked marks
+  /**
+   * How predictions are expressed (mirrors fixtures.prediction_type):
+   *   "score"    — home/away integers; MatchweekSheet, H/D/A, steppers.
+   *   "ordering" — ranked top-5 entrants (F1); SessionOrderSheet, payload.
+   * Every prediction surface MUST branch on this — rendering an ordering
+   * sport through the score UI is the silent mis-render 045 warned about.
+   */
+  kind:     "score" | "ordering";
   hasDraw:  boolean;
   maxScore: number;    // mirrors sports.max_score (DB-enforced, migration 072)
   /** Stored score for a one-tap H/D/A pick — the sport's modal results. */
@@ -42,7 +50,7 @@ export interface SportMeta {
 
 export const SPORTS: Record<string, SportMeta> = {
   football: {
-    code: "football", label: "Football", icon: "⚽", hasDraw: true, maxScore: 20,
+    code: "football", label: "Football", icon: "⚽", kind: "score", hasDraw: true, maxScore: 20,
     defaultScoreline: {
       home: { home: 1, away: 0 },   // 1-0 is the modal home win
       draw: { home: 1, away: 1 },   // 1-1 the modal draw
@@ -52,7 +60,7 @@ export const SPORTS: Record<string, SportMeta> = {
     scoreNoun: "goals", cleanSheetLabel: "Clean Sheets",
   },
   ice_hockey: {
-    code: "ice_hockey", label: "Ice Hockey", icon: "🏒", hasDraw: false, maxScore: 20,
+    code: "ice_hockey", label: "Ice Hockey", icon: "🏒", kind: "score", hasDraw: false, maxScore: 20,
     defaultScoreline: {
       home: { home: 3, away: 2 },
       draw: { home: 2, away: 2 },   // unreachable (hasDraw false) but keeps the shape total
@@ -62,7 +70,7 @@ export const SPORTS: Record<string, SportMeta> = {
     scoreNoun: "goals", cleanSheetLabel: "Shutouts",
   },
   rugby: {
-    code: "rugby", label: "Rugby", icon: "🏉", hasDraw: true, maxScore: 100,
+    code: "rugby", label: "Rugby", icon: "🏉", kind: "score", hasDraw: true, maxScore: 100,
     defaultScoreline: {
       home: { home: 24, away: 17 }, // one-converted-try margin, typical scoreline
       draw: { home: 20, away: 20 },
@@ -72,6 +80,19 @@ export const SPORTS: Record<string, SportMeta> = {
     // not the draw football uses.
     fillDefault: { home: 24, away: 17 },
     scoreNoun: "points", cleanSheetLabel: "Shutouts",
+  },
+  motorsport: {
+    code: "motorsport", label: "Formula 1", icon: "🏎️", kind: "ordering", hasDraw: false,
+    // Score fields are structurally required but meaningless for an ordering
+    // sport — no surface may read them (kind gates every prediction UI).
+    maxScore: 20,
+    defaultScoreline: {
+      home: { home: 0, away: 0 },
+      draw: { home: 0, away: 0 },
+      away: { home: 0, away: 0 },
+    },
+    fillDefault: { home: 0, away: 0 },
+    scoreNoun: "points", cleanSheetLabel: "Podiums",
   },
 };
 

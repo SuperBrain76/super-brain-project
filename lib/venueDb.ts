@@ -109,3 +109,53 @@ export async function suppress(
   await db.from("email_suppressions")
     .upsert({ email: email.toLowerCase(), reason, detail }, { onConflict: "email" });
 }
+
+// ── Competition lifecycle gate ────────────────────────────────
+/**
+ * Of the given competitions, the ids whose lifecycle is 'public' — the only
+ * ones venue onboarding may offer or activate. The gate is LIFECYCLE, not
+ * sport: a competition seeded as draft (how every new one lands, F1
+ * included) must stay invisible until launch, but once it goes public ANY
+ * sport is venue-selectable.
+ *
+ * One query, mirroring competition_lifecycle() (migration 051) and
+ * parseLifecycle in lib/competitionEngine.ts: a stored lifecycle setting
+ * wins; with no row the legacy flags decide — status 'completed' →
+ * archived, visible → public, else draft. An absent row is therefore NOT
+ * treated as public (DEFAULT_SETTINGS.lifecycle is 'draft'), so an
+ * unconfigured competition never leaks.
+ */
+export async function publicCompetitionIds(
+  db: SupabaseClient,
+  comps: { id: string; status?: string | null }[],
+): Promise<Set<string>> {
+  const pub = new Set<string>();
+  if (!comps.length) return pub;
+
+  const { data, error } = await db
+    .from("competition_settings")
+    .select("competition_id, key, value")
+    .in("competition_id", comps.map((c) => c.id))
+    .in("key", ["lifecycle", "visible"]);
+  if (error) {
+    // Fail closed: offering a draft competition is worse than offering none.
+    console.error("[publicCompetitionIds] settings query failed", error.message);
+    return pub;
+  }
+
+  const lifecycle = new Map<string, unknown>();
+  const visible   = new Map<string, unknown>();
+  for (const r of (data ?? []) as { competition_id: string; key: string; value: unknown }[]) {
+    (r.key === "lifecycle" ? lifecycle : visible).set(r.competition_id, r.value);
+  }
+
+  for (const c of comps) {
+    const l = lifecycle.get(c.id);
+    if (l === "public") { pub.add(c.id); continue; }
+    if (l === "draft" || l === "internal" || l === "archived") continue;
+    // No (valid) lifecycle row — legacy derivation, as in migration 051.
+    if (c.status === "completed") continue;          // → archived
+    if (visible.get(c.id) === true) pub.add(c.id);   // → public
+  }
+  return pub;
+}

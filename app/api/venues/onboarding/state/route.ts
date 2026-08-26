@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { resolveVenueBySession } from "@/lib/venueSession";
+import { publicCompetitionIds } from "@/lib/venueDb";
 import { SITE } from "@/lib/stripe";
 import { ASSET_KINDS } from "@/lib/venueAssets";
 
@@ -33,6 +34,13 @@ export async function GET(req: NextRequest) {
     .from("competitions").select("id, slug, name, sport_code, status").order("name");
   const compById = new Map((comps ?? []).map((c: any) => [c.id, c]));
 
+  // Offer only competitions whose LIFECYCLE is 'public' — a draft/internal
+  // competition (how every new one lands) must not appear in the wizard
+  // before launch. Deliberately not a sport filter: once F1 (or any other
+  // sport) goes public it SHOULD be venue-selectable.
+  const activeComps = (comps ?? []).filter((c: any) => c.status === "active");
+  const publicIds = await publicCompetitionIds(r.db, activeComps);
+
   const { data: leagueRows, error: leaguesErr } = await r.db
     .from("prediction_leagues")
     .select("invite_code, name, competition_id")
@@ -56,8 +64,8 @@ export async function GET(req: NextRequest) {
       onboardedAt: v.onboarded_at,
     },
     leagues,
-    competitions: (comps ?? [])
-      .filter((c: any) => c.status === "active")
+    competitions: activeComps
+      .filter((c: any) => publicIds.has(c.id))
       .map((c: any) => ({
         slug: c.slug, name: c.name, sport: c.sport_code, hasLeague: haveSlugs.has(c.slug),
       })),

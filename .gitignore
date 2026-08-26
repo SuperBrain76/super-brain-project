@@ -22,3 +22,4 @@ supabase/prod-rollback/
 .instantly-campaign-id.local
 .instantly-webhook-id.local
 .outreach-sync-secret.local
+.instantly-window-original.local
