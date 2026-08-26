@@ -153,34 +153,31 @@ begin
   else raise exception '❌ 3d 0 hits scored % (expected 0)', v_pts; end if;
 
   -- ── 4. score fixtures still behave (regression) ────────────────
-  -- A football prediction with a payload must be rejected by the shape guard.
-  declare v_scorefix uuid; v_comp2 uuid; v_t1 uuid; v_t2 uuid;
+  -- A score fixture (prediction_type = 'score') must reject a payload and
+  -- accept home/away. Created inside the throwaway competition so it carries
+  -- a valid season + round — production's hierarchy trigger (migration 047)
+  -- requires both. The shape guard keys on prediction_type, not sport, so
+  -- this exercises the same path a football fixture would.
+  declare v_scorefix uuid;
   begin
-    select id into v_comp2 from public.competitions where sport_code = 'football' limit 1;
-    if v_comp2 is not null then
-      select id into v_t1 from public.teams where competition_id = v_comp2 limit 1;
-      select id into v_t2 from public.teams where competition_id = v_comp2 and id <> v_t1 limit 1;
-      insert into public.fixtures (competition_id, stage, fixture_number, prediction_type,
-                                   home_team_id, away_team_id, kicks_off_at, status)
-      values (v_comp2, (select stage from public.fixtures where competition_id = v_comp2 limit 1),
-              9902, 'score', v_t1, v_t2, now() + interval '1 hour', 'scheduled')
-      returning id into v_scorefix;
+    insert into public.fixtures (competition_id, season_id, round_id, stage, fixture_number,
+                                 prediction_type, home_team_id, away_team_id, kicks_off_at, status)
+    values (v_comp, v_season, v_round, 'regular', 9902, 'score',
+            v_d[1], v_d[2], now() + interval '1 hour', 'scheduled')
+    returning id into v_scorefix;
 
-      v_failed := false;
-      begin
-        insert into public.predictions (user_id, fixture_id, payload)
-        values (v_users[1], v_scorefix, jsonb_build_object('order', jsonb_build_array(v_d[1], v_d[2], v_d[3], v_d[4], v_d[5])));
-      exception when others then v_failed := true;
-      end;
-      if v_failed then raise notice '✅ 4a score fixture rejects a payload prediction';
-      else raise exception '❌ 4a score fixture ACCEPTED a payload prediction'; end if;
+    v_failed := false;
+    begin
+      insert into public.predictions (user_id, fixture_id, payload)
+      values (v_users[1], v_scorefix, jsonb_build_object('order', jsonb_build_array(v_d[1], v_d[2], v_d[3], v_d[4], v_d[5])));
+    exception when others then v_failed := true;
+    end;
+    if v_failed then raise notice '✅ 4a score fixture rejects a payload prediction';
+    else raise exception '❌ 4a score fixture ACCEPTED a payload prediction'; end if;
 
-      insert into public.predictions (user_id, fixture_id, home_score, away_score)
-      values (v_users[1], v_scorefix, 2, 1);
-      raise notice '✅ 4b score fixture still accepts a normal prediction';
-    else
-      raise notice '⚠️ 4 skipped — no football competition found';
-    end if;
+    insert into public.predictions (user_id, fixture_id, home_score, away_score)
+    values (v_users[1], v_scorefix, 2, 1);
+    raise notice '✅ 4b score fixture still accepts a normal prediction';
   end;
 
   -- ── 5. Lock integrity (the audit finding 073 §0 fixes) ─────────
@@ -211,11 +208,16 @@ begin
   if v_failed then raise notice '✅ 5b post-lock insert rejected (or no spare user - inconclusive)';
   else raise exception '❌ 5b post-lock ordering INSERT was ACCEPTED — deadline trigger fix (073 §0) missing?'; end if;
 
-  -- Scoring updates must still pass after lock: rescore recomputes cleanly.
-  if public.rescore_fixture(v_fix) = 4 then
-    raise notice '✅ 5c scoring updates still pass post-lock (rescore ok)';
+  -- Scoring updates must still pass after lock: recompute cleanly. We call
+  -- apply_ordering_scoring directly (the recompute engine) rather than
+  -- rescore_fixture, because migration 076 gates rescore_fixture behind
+  -- assert_admin() and the SQL editor has no auth.uid() — the point here is
+  -- the deadline trigger allowing a points_awarded UPDATE post-lock, which
+  -- apply_ordering_scoring exercises identically.
+  if public.apply_ordering_scoring(v_fix) = 4 then
+    raise notice '✅ 5c scoring updates still pass post-lock (recompute ok)';
   else
-    raise exception '❌ 5c rescore did not update 4 predictions post-lock';
+    raise exception '❌ 5c recompute did not update 4 predictions post-lock';
   end if;
 
   raise notice '';

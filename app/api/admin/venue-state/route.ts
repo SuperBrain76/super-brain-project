@@ -179,6 +179,38 @@ export async function GET(req: NextRequest) {
     campaign_state = { error: String(e?.message ?? e).slice(0, 160) };
   }
 
+  // ── recent outreach activity ─────────────────────────────────────────────
+  // Commercially meaningful events only — a send, a reply, a suppression — so the
+  // Operations Control Center can show a readable history rather than a snapshot.
+  const activity_feed: Array<Record<string, unknown>> = [];
+  {
+    const { data: sends } = await db
+      .from("outreach_messages")
+      .select("sent_at, step, to_email, venue_id")
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .limit(60);
+    const { data: reps } = await db
+      .from("venue_replies")
+      .select("received_at, from_email, classification, venue_id")
+      .order("received_at", { ascending: false })
+      .limit(40);
+
+    const ids = [...new Set([...(sends ?? []).map(s => s.venue_id), ...(reps ?? []).map(r => r.venue_id)])];
+    const { data: vs } = ids.length
+      ? await db.from("venues").select("id, name, city").in("id", ids)
+      : { data: [] as any[] };
+    const nameOf = new Map((vs ?? []).map(v => [v.id, v.name as string]));
+
+    for (const s of sends ?? [])
+      activity_feed.push({ at: s.sent_at, kind: "email_sent",
+        venue: nameOf.get(s.venue_id) ?? s.to_email, detail: `email ${s.step}` });
+    for (const r of reps ?? [])
+      activity_feed.push({ at: r.received_at, kind: "reply",
+        venue: nameOf.get(r.venue_id) ?? r.from_email, detail: r.classification });
+    activity_feed.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  }
+
   // ── honest gaps ──────────────────────────────────────────────────────────
   const gaps: string[] = [];
   if (campaign_error) gaps.push(`Instantly campaigns unreadable: ${campaign_error}`);
@@ -209,6 +241,7 @@ export async function GET(req: NextRequest) {
     conversions,
     replies,
     sent_today,
+    activity_feed,
     campaign_state,
     sender_health,
     geography,

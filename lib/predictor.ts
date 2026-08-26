@@ -540,7 +540,8 @@ export async function upsertPrediction(
         fixture_id: fixtureId,
         home_score: homeScore,
         away_score: awayScore,
-        updated_at: new Date().toISOString(),
+        // updated_at is database-managed (default now() + deadline trigger
+        // re-stamps it); the client is not granted that column (migration 075).
       },
       { onConflict: "user_id,fixture_id" },
     );
@@ -576,7 +577,7 @@ export async function upsertOrderingPrediction(
         home_score: null,
         away_score: null,
         payload:    { order },
-        updated_at: new Date().toISOString(),
+        // updated_at is database-managed (see upsertPrediction; migration 075).
       },
       { onConflict: "user_id,fixture_id" },
     );

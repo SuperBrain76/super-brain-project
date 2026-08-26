@@ -34,10 +34,18 @@
 --      submitted_at and id are no longer writable by anon/authenticated.
 --      SECURITY DEFINER functions (scoring, settle_ordering_fixture,
 --      set_banker, admin RPCs) run as the owner and are unaffected.
---      NOTE: user_id and fixture_id STAY grantable because PostgREST
---      upserts emit `on conflict … do update set` over every supplied
---      column — revoking them would break every prediction upsert. The
---      trigger below is what actually pins them.
+--      INSERT and UPDATE are granted SEPARATELY (privilege sanity audit):
+--      · updated_at / submitted_at are NOT granted on either — both default
+--        to now() and updated_at is re-stamped by the deadline trigger, so
+--        they are database-managed, never client-written.
+--      · Ideally user_id/fixture_id would be INSERT-only (identity fixed at
+--        creation, immutable thereafter). That is NOT achievable at the
+--        grant layer: PostgREST's upsert emits the on-conflict columns in
+--        `do update set col = excluded.col`
+--        (github.com/PostgREST/postgrest/issues/2446), so an edit-via-upsert
+--        needs UPDATE on user_id/fixture_id or it 403s. They therefore stay
+--        in the UPDATE grant, and the identity-pin trigger (below) is the
+--        real immutability guarantee — defense-in-depth, not redundancy.
 --   2. IDENTITY PIN — a trigger rejects any UPDATE that changes user_id or
 --      fixture_id. Upserts are unaffected (the conflict target guarantees
 --      the "new" values equal the old ones); only genuine retargeting dies.
@@ -52,10 +60,16 @@
 
 revoke insert, update on public.predictions from anon, authenticated;
 
-grant insert (user_id, fixture_id, home_score, away_score, payload, updated_at)
+-- INSERT: create a prediction — identity (user_id, fixture_id) + the pick.
+-- No updated_at/submitted_at: both default to now(), so they are DB-managed.
+grant insert (user_id, fixture_id, home_score, away_score, payload)
   on public.predictions to authenticated;
 
-grant update (user_id, fixture_id, home_score, away_score, payload, updated_at)
+-- UPDATE: edit a pick before lock. home_score/away_score/payload are the
+-- editable pick; user_id/fixture_id are here ONLY because PostgREST's upsert
+-- forces them into `do update set` (issue #2446) — the identity-pin trigger,
+-- not this grant, guarantees they cannot change. updated_at stays DB-managed.
+grant update (user_id, fixture_id, home_score, away_score, payload)
   on public.predictions to authenticated;
 
 -- anon keeps nothing writable: RLS already blocked it (auth.uid() is null),

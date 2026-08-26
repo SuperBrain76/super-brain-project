@@ -31,10 +31,20 @@ The full product/architecture assessment lives in WorkBrain:
 
 1. **Apply `073_f1_ordering.sql`** (paste whole file).
 2. **Apply `074_challenge_score_only.sql`**.
-3. **Run `scripts/verify-073-ordering.sql`** — every line must print ✅ (it rolls itself back).
-4. **Apply the seed** `supabase/seeds/formula-1-2026.sql` (or `node scripts/run-sql.mjs --file supabase/seeds/formula-1-2026.sql`).
-5. **Run `scripts/verify-phase2-isolation.sql`** — must print `✅ ISOLATION PASSED` with F1 now present (the 038 lesson: leaks only show with more competitions).
-6. Deploy the code (if not already deployed).
+3. **Apply `075_prediction_write_privileges.sql`** (adversarial-audit fix — narrows client write columns so players cannot forge `points_awarded`/`is_banker`, retarget predictions, or write `updated_at`).
+4. **Apply `076_rescore_admin_only.sql`** (security cleanup — `assert_admin()` gate on `rescore_fixture`/`rescore_competition` so players can't invoke admin scoring RPCs; explicit `search_path` on two legacy SECURITY DEFINER read RPCs).
+5. **Apply `077_settlement_tables_readonly.sql`** (found by verify-075 on the live DB — revokes the Supabase-default client write grants on `fixtures`, `fixture_entrant_results`, `competition_standings`; no client writes them, RLS already blocked writes, this makes the grant layer agree).
+6. **Run `scripts/verify-073-ordering.sql`** — every line must print ✅ (self-rolls-back; also checks post-lock ordering edits are rejected).
+7. **Run `scripts/verify-075-privileges.sql`** — every line must print ✅ (settlement-controlled fields not player-writable, `updated_at` DB-managed, app paths still work).
+8. **Apply the seed** `supabase/seeds/formula-1-2026.sql` (or `node scripts/run-sql.mjs --file supabase/seeds/formula-1-2026.sql`).
+9. **Run `scripts/verify-phase2-isolation.sql`** — must print `✅ ISOLATION PASSED` with F1 now present (the 038 lesson: leaks only show with more competitions).
+10. Deploy the code (if not already deployed).
+
+> Migrations 075/076/077 are not F1-specific (they close holes that applied to football too), but they are safe and additive, and the hidden Monza rehearsal path does not depend on them — apply them in this sequence so the public launch is clean.
+>
+> Deployment notes (found while running the sequence interactively, 26 Aug 2026):
+> - verify-073 §4/§5c and verify-075's identity-pin block were updated so they satisfy the production hierarchy trigger (047, every fixture needs season+round) and don't call the now-admin-gated `rescore_fixture` from the SQL editor (no `auth.uid()` there).
+> - 077 exists because verify-075 caught `authenticated` holding a table-level UPDATE grant on `fixture_entrant_results` (Supabase auto-grants writes on new tables); RLS already blocked the write, 077 removes the grant too.
 
 After step 6 the competition exists **hidden**: not in choosers, not in venue pickers, not at `/formula-1`'s public listing — but the ingest cron sees it (`ingest_enabled` is true) and will settle Monza in the background.
 
@@ -70,6 +80,67 @@ payload change counts as a prediction change; the counterfactual (live body →
 post-lock edit passes) and the fix (patched body → rejected) were both proven
 in the replay, and `verify-073-ordering.sql` §5 re-proves it in production.
 
+**Pre-launch hardening (26 Aug 2026), two additive items — both proven in the
+same PGlite harness:**
+
+1. **48h automated correction watch** (`app/api/cron/ingest-results/route.ts`
+   `ingestJolpica`) — see the stewards'-correction procedure below. Proven:
+   unchanged board = no-op; DSQ correction re-settles, replaces the
+   classification without duplication, and rescores; idempotent on re-run.
+
+2. **Adversarial write-privilege proof + fix (migration 075).** Executing as
+   the real `authenticated` role under real RLS, the audit first REPRODUCED
+   that a player could directly `UPDATE` their own `points_awarded` (leaderboard
+   forgery, and it mints IQ at the next reconciliation) and `is_banker` (bypass
+   the one-banker-per-round rule), and retarget a scored prediction to another
+   fixture — because Supabase's default grants give `authenticated` full-column
+   write access and RLS gates rows, not columns, while the deadline trigger's
+   scores/payload short-circuit lets an unchanged-score UPDATE through. 075
+   narrows the client's writable columns to exactly the app write paths and pins
+   `user_id`/`fixture_id` with a trigger. Post-fix, all seven attacks are
+   permission-denied while the app's own edit, `set_banker`, and the scoring
+   engine still work. Not F1-specific (applied to football too) — closed now.
+
+**Privilege sanity check (26 Aug 2026, pre-execution) — refinements to 075:**
+- **`updated_at` is now database-managed.** It was client-writable but the
+  deadline trigger re-stamps it to `now()` on every write and the column
+  defaults to `now()`, so the client value was always overwritten. Removed
+  from both the 075 grants and the two app upsert payloads
+  (`lib/predictor.ts`). Proven: the trigger still stamps it with the client
+  no longer sending it.
+- **INSERT and UPDATE grants split explicitly.** `user_id`/`fixture_id`
+  cannot be excluded from the UPDATE grant: PostgREST's upsert emits the
+  on-conflict columns in `do update set` (issue #2446), so an edit-via-upsert
+  needs UPDATE on them or it 403s — proven as a counterfactual in the audit.
+  They stay granted; `enforce_prediction_identity` is the real immutability
+  guarantee, and the audit now proves that trigger *fires* on a retarget
+  attempt (not merely that the grant layer blocks it).
+- **SECURITY DEFINER review:** every settlement/reconciliation function
+  (`settle_ordering_fixture`, `apply_ordering_scoring`, `apply_fixture_scoring`,
+  `economy_award_fixture`, `economy_reconcile`) is `REVOKE ALL` from clients;
+  `set_banker` is authenticated-only; all have a safe explicit `search_path`;
+  **nothing grants EXECUTE to `public`/`anon`.** Two notes (no change made,
+  out of scope): `rescore_fixture`/`rescore_competition` are admin tools
+  granted to `authenticated` — post-075 they can only recompute points to
+  their *correct* values (no forgery, idempotent), so not a settlement risk,
+  but consider gating to admin later. Two legacy read-only RPCs from migration
+  001 (`get_leaderboard`, `get_all_feedback`) lack an explicit `search_path`;
+  unrelated to F1/settlement — flag for a separate cleanup.
+
+**Final security cleanup — migration 076 (26 Aug 2026, pre-execution):** both
+items above were closed rather than deferred.
+- `rescore_fixture`/`rescore_competition` now call `assert_admin()` — the same
+  gate every other admin RPC uses. A non-admin authenticated caller gets
+  "Admin privileges required."; the `/admin/fixtures` admin still rescores
+  (single and nested-loop paths both proven, since `auth.uid()` persists
+  through the nested SECURITY DEFINER call). EXECUTE stays with `authenticated`
+  because that is the only role an admin browser session has — the body, not
+  the grant, is the gate (Supabase has no separate admin Postgres role).
+- `get_leaderboard` and `get_all_feedback` re-declared verbatim with
+  `set search_path = public` added — identical body, identical grants, no
+  behaviour change (proven: still return correct rows, `user_id` still
+  excluded from the leaderboard).
+
 ## Operational procedures
 
 **Emergency manual settlement (Jolpica down / wrong / late).** Build the
@@ -93,14 +164,17 @@ Note the SQL requires ≥5 rows; list the full classification (retirees
 included, status 'Retired') to mirror the feed. Never settle a top-5 you are
 not certain of.
 
-**Stewards' correction after settlement (DSQ, post-race penalty).** The cron
-does NOT re-poll settled sessions — corrections are manual and rare (~1–2 per
-season). Procedure: re-run `settle_ordering_fixture` with the corrected
-classification (as above). It replaces the stored classification and rescores;
-the IQ ledger reconciles deltas per prediction (021: "a 5pt→0pt correction
-claws back"), proven idempotent in the audit. **Morning-after habit:** the day
-after each race, compare `/formula-1` standings to formula1.com; if a
-classification changed, re-settle.
+**Stewards' correction after settlement (DSQ, post-race penalty).** AUTOMATED
+for the first 48 hours after each session (pre-launch hardening, 26 Aug 2026):
+the ingest cron rechecks every settled session still inside the 48h window,
+re-fetches the official classification, and if it differs from what we stored,
+re-runs the idempotent `settle_ordering_fixture` — results replaced,
+predictions rescored, IQ reconciled, standings refreshed. It only acts on a
+genuine change (unchanged board = no-op) and never "corrects" from an
+incomplete feed response (same completeness gate as first settlement). Look
+for `[ingest:formula-1:CORRECTION]` in the logs. **Beyond 48 hours**,
+corrections are manual: re-run `settle_ordering_fixture` with the corrected
+classification (template above) — same function, still idempotent.
 
 **Schedule changes (session moved, race postponed).** NEVER re-run the seed on
 a live season — the generated SQL now refuses if predictions exist (audit
