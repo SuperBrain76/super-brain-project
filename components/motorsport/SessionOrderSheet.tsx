@@ -28,6 +28,7 @@ import { orderingHits, pointsForHits, ORDERING_SLOTS } from "@/lib/orderingModel
 import { f1DriverByCode } from "@/lib/f1/drivers2026";
 import { track } from "@/lib/analytics";
 import { localZoneLabel } from "@/lib/localTime";
+import { CheckeredFlag, CheckeredStrip, F1_INK } from "@/components/motorsport/F1Visuals";
 
 // ── Tokens (predict-shell light theme — same as MatchweekSheet) ──
 const GOLD   = "#b8972a";
@@ -179,15 +180,28 @@ export default function SessionOrderSheet({
   const zone = localZoneLabel();
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-16">
-      <header className="pt-6 pb-4">
-        <h1 className="text-[22px] font-extrabold" style={{ color: TEXT1 }}>{roundLabel}</h1>
-        <p className="text-[12px] mt-1" style={{ color: MUTED }}>
-          Pick the top five, in order — qualifying on Saturday, the race on Sunday.
-          Predictions lock when each session starts{zone ? ` (times in ${zone})` : ""}.
-        </p>
-      </header>
+    <div className="max-w-md mx-auto pb-16">
+      {/* Paddock hero */}
+      <div style={{ background: F1_INK, position: "relative", overflow: "hidden" }}>
+        <div aria-hidden style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(105deg, transparent 62%, rgba(255,255,255,0.05) 63%, transparent 64%)",
+        }} />
+        <div className="px-4 pt-6 pb-4" style={{ position: "relative" }}>
+          <div className="flex items-center gap-2">
+            <CheckeredFlag size={16} />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "#c9ced6" }}>Grand Prix weekend</span>
+          </div>
+          <h1 className="text-[24px] font-extrabold mt-1 leading-none" style={{ color: "#fff", letterSpacing: "-0.02em" }}>{roundLabel}</h1>
+          <p className="text-[12px] mt-2" style={{ color: "#9aa3ad" }}>
+            Pick the top five, in order — qualifying on Saturday, the race on Sunday.
+            Predictions lock when each session starts{zone ? ` (times in ${zone})` : ""}.
+          </p>
+        </div>
+        <CheckeredStrip height={10} cell={5} />
+      </div>
 
+      <div className="px-4 pt-5">
       {fixtures.map((f) => {
         const board = boards.get(f.id) ?? [];
         const open = isOpen(f);
@@ -321,6 +335,7 @@ export default function SessionOrderSheet({
           ) : <span />}
         </nav>
       )}
+      </div>
     </div>
   );
 }

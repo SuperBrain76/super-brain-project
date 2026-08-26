@@ -3,13 +3,15 @@
 /**
  * MotorsportHome — the F1 competition home.
  *
- * The ordering counterpart of PremierLeagueHome/CompetitionHome. That pair is
- * built around a featured two-team match, H/D/A crowd splits and a computed
- * W/D/L table — none of which exist for F1 — so F1 gets its own dashboard:
- * the next Grand Prix and its two predictable sessions, the drivers' and
- * constructors' championships (ingested from Jolpica), and THE GRID — every
- * driver grouped by team, so a visitor immediately sees who they're
- * predicting even before a wheel has turned.
+ * The ordering counterpart of PremierLeagueHome/CompetitionHome. F1 gets its
+ * own dashboard with a motorsport visual identity (F1Visuals): a dark paddock
+ * hero with a checkered finish line, race-weekend session cards (lights-out
+ * for the race, stopwatch for qualifying), the drivers'/constructors'
+ * championships once a race has settled, and THE GRID — every driver laid out
+ * in a staggered starting-grid, so a visitor sees the whole field at a glance.
+ *
+ * All artwork is our own (F1Visuals) — team colour + name + number only, no
+ * logos or liveries (licence-safe).
  *
  * Rendered by app/[competition]/page.tsx when home_style is 'matchweek' AND
  * the sport's kind is 'ordering'.
@@ -20,9 +22,13 @@ import Link from "next/link";
 import type { Competition, Fixture, Team } from "@/lib/predictor";
 import { getTeams } from "@/lib/predictor";
 import { getCurrentRoundContext, getRoundFixtures, type Round } from "@/lib/competitionEngine";
-import { getCompetitionStandings, sessionLabelOf, type CompetitionStandings } from "@/lib/motorsport";
+import { getCompetitionStandings, type CompetitionStandings } from "@/lib/motorsport";
 import { F1_DRIVERS_2026, f1DriverByCode, F1_CONSTRUCTOR_COLOURS } from "@/lib/f1/drivers2026";
 import ChampionshipTable from "@/components/motorsport/ChampionshipTable";
+import {
+  CheckeredStrip, CheckeredFlag, LightsOut, Stopwatch, DriverPlate,
+  F1_INK, F1_CARBON, F1_LINE,
+} from "@/components/motorsport/F1Visuals";
 
 const MUTED  = "#7a8f82";
 const BORDER = "#dde5d8";
@@ -31,13 +37,9 @@ const TEXT1  = "#0f1f17";
 const TEXT2  = "#2e4a37";
 const OK     = "#1a7a4a";
 
-// Canonical constructor order (registry order = roughly championship order),
-// so THE GRID reads top-team-first before any real standings exist.
-const CONSTRUCTOR_ORDER: string[] = (() => {
-  const seen: string[] = [];
-  for (const d of F1_DRIVERS_2026) if (!seen.includes(d.constructorName)) seen.push(d.constructorName);
-  return seen;
-})();
+// Canonical driver order (registry ≈ championship order) so the grid reads
+// top-team-first before any real standings exist.
+const DRIVER_ORDER = F1_DRIVERS_2026.map((d) => d.code);
 
 export default function MotorsportHome({ competition }: { competition: Competition }) {
   const [round, setRound]         = useState<Round | null>(null);
@@ -70,25 +72,20 @@ export default function MotorsportHome({ competition }: { competition: Competiti
     return () => { alive = false; };
   }, [competition.id]);
 
-  // Group the grid by constructor, in canonical order.
-  const byConstructor = useMemo(() => {
-    const groups = new Map<string, Team[]>();
-    for (const d of drivers) {
-      const c = d.groupName ?? "—";
-      if (!groups.has(c)) groups.set(c, []);
-      groups.get(c)!.push(d);
-    }
-    const ordered = [...groups.entries()].sort((a, b) => {
-      const ia = CONSTRUCTOR_ORDER.indexOf(a[0]); const ib = CONSTRUCTOR_ORDER.indexOf(b[0]);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  // Order the field: by championship if we have it, else canonical order.
+  const gridOrder = useMemo(() => {
+    const champIndex = new Map((standings?.drivers ?? []).map((r, i) => [r.code ?? "", i]));
+    return [...drivers].sort((a, b) => {
+      const ca = champIndex.has(a.code) ? champIndex.get(a.code)! : 900 + (DRIVER_ORDER.indexOf(a.code) < 0 ? 99 : DRIVER_ORDER.indexOf(a.code));
+      const cb = champIndex.has(b.code) ? champIndex.get(b.code)! : 900 + (DRIVER_ORDER.indexOf(b.code) < 0 ? 99 : DRIVER_ORDER.indexOf(b.code));
+      return ca - cb;
     });
-    return ordered;
-  }, [drivers]);
+  }, [drivers, standings]);
 
   if (!loaded) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <p className="text-sm" style={{ color: MUTED }}>Loading the Grand Prix…</p>
+        <p className="text-sm" style={{ color: MUTED }}>Warming up the grid…</p>
       </div>
     );
   }
@@ -97,42 +94,73 @@ export default function MotorsportHome({ competition }: { competition: Competiti
   const predicted = fixtures.filter((f) => f.myOrdering != null).length;
   const open = fixtures.filter((f) => f.status === "scheduled" && new Date(f.kicksOffAt).getTime() > Date.now()).length;
   const hasChampionship = (standings?.drivers.length ?? 0) > 0;
+  const roundNo = round?.shortLabel?.replace(/[^0-9]/g, "") || null;
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-16">
-      <header className="pt-6 pb-4">
-        <h1 className="text-[22px] font-extrabold" style={{ color: TEXT1 }}>{competition.name}</h1>
-        <p className="text-[12px] mt-1" style={{ color: MUTED }}>
-          Call the top five in qualifying and the race. Exact positions score — beat your mates over a season.
-        </p>
-      </header>
+    <div className="max-w-md mx-auto pb-16">
+      {/* ── Paddock hero ─────────────────────────────────────── */}
+      <div style={{ background: F1_INK, position: "relative", overflow: "hidden" }}>
+        {/* speed streaks */}
+        <div aria-hidden style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(105deg, transparent 60%, rgba(255,255,255,0.05) 61%, transparent 62%), linear-gradient(105deg, transparent 72%, rgba(255,255,255,0.04) 73%, transparent 74%)",
+        }} />
+        <div className="px-4 pt-7 pb-5" style={{ position: "relative" }}>
+          <div className="flex items-center gap-2">
+            <CheckeredFlag size={18} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#c9ced6" }}>
+              2026 World Championship
+            </span>
+          </div>
+          <h1 className="text-[30px] font-extrabold mt-1.5 leading-none" style={{ color: "#fff", letterSpacing: "-0.02em" }}>
+            {competition.name}
+          </h1>
+          <p className="text-[12.5px] mt-2 max-w-[19rem]" style={{ color: "#9aa3ad" }}>
+            Call the top five in qualifying and the race. Nail the exact positions and climb the table — beat your mates over a season.
+          </p>
+        </div>
+        <CheckeredStrip height={12} cell={6} />
+      </div>
 
-      {/* Next / current Grand Prix, with BOTH sessions */}
+      <div className="px-4">
+      {/* ── Next / current Grand Prix, race-weekend styled ───── */}
       {round ? (
-        <section className="rounded-2xl border mb-5 overflow-hidden" style={{ background: CARD, borderColor: BORDER }}>
-          <div className="px-4 pt-4 pb-2">
-            <div className="text-[11px] uppercase tracking-wide font-bold" style={{ color: MUTED }}>
-              {open > 0 ? "Next Grand Prix" : "This Grand Prix"}
+        <section className="rounded-2xl border mt-5 mb-5 overflow-hidden" style={{ background: CARD, borderColor: BORDER }}>
+          <div className="px-4 pt-4 pb-3" style={{ background: F1_CARBON }}>
+            <div className="flex items-center gap-2">
+              {roundNo && (
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded" style={{ background: "#e10600", color: "#fff", letterSpacing: "0.05em" }}>
+                  ROUND {roundNo}
+                </span>
+              )}
+              <span className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#9aa3ad" }}>
+                {open > 0 ? "Next Grand Prix" : "This Grand Prix"}
+              </span>
             </div>
-            <div className="text-[18px] font-extrabold mt-0.5" style={{ color: TEXT1 }}>{round.label}</div>
+            <div className="text-[19px] font-extrabold mt-1" style={{ color: "#fff" }}>{round.label}</div>
             {fixtures.length > 0 && (
-              <div className="text-[12px] mt-0.5" style={{ color: TEXT2 }}>{fmtRange(fixtures)}</div>
+              <div className="text-[12px] mt-0.5" style={{ color: "#9aa3ad" }}>{fmtRange(fixtures)}</div>
             )}
           </div>
 
-          {/* The two sessions */}
-          <div className="px-4 pb-1">
+          {/* Sessions */}
+          <div className="px-4">
             {fixtures.map((f) => {
-              const label = f.venue?.endsWith("Qualifying") ? "Qualifying" : f.venue?.endsWith("Race") ? "Race" : sessionLabelOf(null);
+              const isRace = f.venue?.endsWith("Race");
+              const label = isRace ? "Race" : f.venue?.endsWith("Qualifying") ? "Qualifying" : "Session";
               const done = f.myOrdering != null;
               const isOpen = f.status === "scheduled" && new Date(f.kicksOffAt).getTime() > Date.now();
               return (
-                <div key={f.id} className="flex items-center justify-between py-2 border-b last:border-b-0" style={{ borderColor: "#eef2ea" }}>
-                  <div>
-                    <div className="text-[14px] font-bold" style={{ color: TEXT1 }}>{label} — top 5</div>
+                <div key={f.id} className="flex items-center gap-3 py-3 border-b last:border-b-0" style={{ borderColor: "#eef2ea" }}>
+                  <span className="shrink-0">{isRace ? <LightsOut on size={15} /> : <Stopwatch size={16} color="#2e4a37" />}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-extrabold" style={{ color: TEXT1 }}>{label} — predict the top 5</div>
                     <div className="text-[11px]" style={{ color: MUTED }}>{fmtDay(f.kicksOffAt)}</div>
                   </div>
-                  <span className="text-[11px] font-bold" style={{ color: done ? OK : isOpen ? TEXT2 : MUTED }}>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-full shrink-0"
+                        style={done
+                          ? { color: OK, background: "#eaf5ef" }
+                          : isOpen ? { color: "#fff", background: TEXT2 } : { color: MUTED, background: "#f0f3ef" }}>
                     {done ? "Predicted ✓" : isOpen ? "Open" : "Locked"}
                   </span>
                 </div>
@@ -140,43 +168,37 @@ export default function MotorsportHome({ competition }: { competition: Competiti
             })}
           </div>
 
-          <div className="px-4 pt-2 pb-4">
+          <div className="px-4 pt-3 pb-4">
             <div className="text-[12px] mb-2 font-semibold" style={{ color: predicted === fixtures.length && fixtures.length > 0 ? OK : MUTED }}>
               {fixtures.length === 0 ? "Sessions appear here once scheduled."
                 : predicted === fixtures.length ? "Both sessions predicted ✓"
                 : `${predicted}/${fixtures.length} sessions predicted`}
             </div>
             <Link href={`${base}/predict`}
-                  className="block w-full text-center rounded-xl py-2.5 text-[14px] font-extrabold"
-                  style={{ background: TEXT2, color: "#fff" }}>
-              {predicted === fixtures.length && fixtures.length > 0 ? "Review your picks" : "Predict the top five →"}
+                  className="block w-full text-center rounded-xl py-3 text-[14px] font-extrabold"
+                  style={{ background: F1_INK, color: "#fff", letterSpacing: "0.02em" }}>
+              {predicted === fixtures.length && fixtures.length > 0 ? "Review your picks" : "Lights out — predict the top five →"}
             </Link>
           </div>
         </section>
       ) : (
-        <section className="rounded-2xl border mb-5 px-4 py-6 text-center" style={{ background: CARD, borderColor: BORDER }}>
+        <section className="rounded-2xl border mt-5 mb-5 px-4 py-6 text-center" style={{ background: CARD, borderColor: BORDER }}>
           <p className="text-[13px]" style={{ color: MUTED }}>The next round hasn&apos;t been scheduled yet.</p>
         </section>
       )}
 
-      {/* Championship — drivers + constructors (once a race has settled) */}
+      {/* ── Championship ─────────────────────────────────────── */}
       {hasChampionship ? (
         <>
           <section className="rounded-2xl border mb-4 px-4 py-4" style={{ background: CARD, borderColor: BORDER }}>
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-wide font-bold" style={{ color: MUTED }}>Drivers&apos; championship</div>
-              <Link href={`${base}/standings`} className="text-[11px] font-bold" style={{ color: TEXT2 }}>Full table →</Link>
-            </div>
+            <SectionTitle label="Drivers' championship" href={`${base}/standings`} />
             <div className="mt-2">
               <ChampionshipTable rows={standings!.drivers.slice(0, 5)} scope="driver" throughRound={standings!.throughRound} />
             </div>
           </section>
           {standings!.constructors.length > 0 && (
             <section className="rounded-2xl border mb-5 px-4 py-4" style={{ background: CARD, borderColor: BORDER }}>
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] uppercase tracking-wide font-bold" style={{ color: MUTED }}>Constructors&apos; championship</div>
-                <Link href={`${base}/standings`} className="text-[11px] font-bold" style={{ color: TEXT2 }}>Full table →</Link>
-              </div>
+              <SectionTitle label="Constructors' championship" href={`${base}/standings`} />
               <div className="mt-2">
                 <ChampionshipTable rows={standings!.constructors.slice(0, 5)} scope="constructor" throughRound={standings!.throughRound} />
               </div>
@@ -184,57 +206,64 @@ export default function MotorsportHome({ competition }: { competition: Competiti
           )}
         </>
       ) : (
-        <section className="rounded-2xl border mb-5 px-4 py-4" style={{ background: CARD, borderColor: BORDER }}>
-          <div className="text-[11px] uppercase tracking-wide font-bold" style={{ color: MUTED }}>Championship</div>
-          <p className="text-[12px] mt-1" style={{ color: TEXT2 }}>
-            The drivers&apos; and constructors&apos; standings begin after the {round?.label ?? "first Grand Prix"}.
-          </p>
+        <section className="rounded-2xl border mb-5 px-4 py-4 flex items-center gap-3" style={{ background: CARD, borderColor: BORDER }}>
+          <CheckeredFlag size={22} />
+          <div>
+            <div className="text-[13px] font-extrabold" style={{ color: TEXT1 }}>Championship starts soon</div>
+            <p className="text-[12px] mt-0.5" style={{ color: MUTED }}>
+              The drivers&apos; and constructors&apos; tables light up after the {round?.label ?? "first Grand Prix"}.
+            </p>
+          </div>
         </section>
       )}
 
-      {/* THE GRID — every driver, by team */}
+      {/* ── THE GRID — staggered starting grid ───────────────── */}
       {drivers.length > 0 && (
         <section className="mb-5">
-          <div className="flex items-center justify-between px-1 mb-2">
-            <div className="text-[11px] uppercase tracking-wide font-bold" style={{ color: MUTED }}>
-              The grid · {drivers.length} drivers
+          <div className="flex items-center justify-between px-1 mb-2.5">
+            <div className="flex items-center gap-1.5">
+              <CheckeredFlag size={15} />
+              <span className="text-[11px] uppercase tracking-[0.15em] font-bold" style={{ color: TEXT2 }}>
+                The grid
+              </span>
             </div>
-            <div className="text-[11px]" style={{ color: MUTED }}>{byConstructor.length} teams</div>
+            <span className="text-[11px]" style={{ color: MUTED }}>{drivers.length} drivers · {new Set(drivers.map((d) => d.groupName)).size} teams</span>
           </div>
-          <div className="rounded-2xl border overflow-hidden" style={{ background: CARD, borderColor: BORDER }}>
-            {byConstructor.map(([constructor, cars], ci) => {
-              const colour = F1_CONSTRUCTOR_COLOURS[constructorKey(constructor)] ?? "#44584a";
+
+          <div className="grid grid-cols-2 gap-2.5">
+            {gridOrder.map((car, i) => {
+              const reg = f1DriverByCode(car.code);
+              const colour = reg?.primary ?? F1_CONSTRUCTOR_COLOURS[""] ?? "#44584a";
+              // Stagger the right column down half a slot for the grid look.
+              const rightCol = i % 2 === 1;
               return (
-                <div key={constructor} className="flex items-stretch" style={{ borderTop: ci === 0 ? "none" : `1px solid ${BORDER}` }}>
-                  <span style={{ width: 4, background: colour }} />
-                  <div className="flex-1 px-3 py-2.5">
-                    <div className="text-[12px] font-extrabold" style={{ color: TEXT1 }}>{constructor}</div>
-                    <div className="mt-1 flex flex-col gap-1">
-                      {cars.map((car) => {
-                        const reg = f1DriverByCode(car.code);
-                        return (
-                          <div key={car.id} className="flex items-center gap-2.5">
-                            <span className="inline-flex items-center justify-center rounded-full text-[9px] font-extrabold shrink-0"
-                                  style={{ width: 22, height: 22, background: colour, color: "#fff" }}>
-                              {car.code}
-                            </span>
-                            <span className="text-[13px] font-semibold truncate" style={{ color: TEXT2 }}>{car.name}</span>
-                            {reg?.number != null && (
-                              <span className="ml-auto text-[11px] tabular-nums font-bold" style={{ color: MUTED }}>#{reg.number}</span>
-                            )}
-                          </div>
-                        );
-                      })}
+                <div key={car.id}
+                     className="rounded-xl border overflow-hidden"
+                     style={{ background: CARD, borderColor: BORDER, marginTop: rightCol ? 18 : 0 }}>
+                  <div style={{ height: 3, background: colour }} />
+                  <div className="px-2.5 py-2.5 flex items-center gap-2.5">
+                    <span className="text-[11px] font-black tabular-nums w-4 text-center shrink-0" style={{ color: MUTED }}>
+                      {i + 1}
+                    </span>
+                    <DriverPlate code={car.code} colour={colour} number={reg?.number ?? null} size={38} />
+                    <div className="min-w-0">
+                      <div className="text-[12.5px] font-extrabold truncate leading-tight" style={{ color: TEXT1 }}>
+                        {reg?.short ?? car.name}
+                      </div>
+                      <div className="text-[10px] truncate" style={{ color: MUTED }}>{car.groupName ?? ""}</div>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
+          <p className="text-[10px] text-center mt-3" style={{ color: MUTED }}>
+            {hasChampionship ? "Ordered by the drivers' championship." : "The 2026 line-up — championship order once the lights go out."}
+          </p>
         </section>
       )}
 
-      {/* Leagues CTA */}
+      {/* ── Leagues CTA ──────────────────────────────────────── */}
       <section className="rounded-2xl border px-4 py-4" style={{ background: CARD, borderColor: BORDER }}>
         <div className="text-[14px] font-extrabold" style={{ color: TEXT1 }}>Beat your mates</div>
         <p className="text-[12px] mt-1" style={{ color: MUTED }}>
@@ -251,14 +280,18 @@ export default function MotorsportHome({ competition }: { competition: Competiti
           </Link>
         </div>
       </section>
+      </div>
     </div>
   );
 }
 
-/** Map a constructor display name back to the colour-map key (e.g. "Racing Bulls" → "rb"). */
-function constructorKey(name: string): string {
-  const d = F1_DRIVERS_2026.find((x) => x.constructorName === name);
-  return d?.constructorId ?? "";
+function SectionTitle({ label, href }: { label: string; href: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="text-[11px] uppercase tracking-[0.15em] font-bold" style={{ color: MUTED }}>{label}</div>
+      <Link href={href} className="text-[11px] font-bold" style={{ color: TEXT2 }}>Full table →</Link>
+    </div>
+  );
 }
 
 function fmtRange(fixtures: Fixture[]): string {
