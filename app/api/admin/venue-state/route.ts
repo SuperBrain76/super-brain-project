@@ -211,6 +211,66 @@ export async function GET(req: NextRequest) {
     activity_feed.sort((a, b) => String(b.at).localeCompare(String(a.at)));
   }
 
+  // ── per-venue outreach status ────────────────────────────────────────────
+  // One row per venue ever pushed to outreach, so the Operations Control Center
+  // can answer "what was sent, what happened, what happens next" per venue
+  // without anyone querying Instantly by hand. Same no-PII rule as the rest of
+  // this route: venue names, never contact addresses.
+  const contacted: Array<Record<string, unknown>> = [];
+  {
+    const FOLLOW_UP_DELAY_DAYS = 4; // the step-1 delay configured in Instantly
+    const { data: pushed } = await db
+      .from("venues")
+      .select("id, name, country, status, outreach_pushed_at, first_emailed_at, last_emailed_at, replied_at, emails_sent")
+      .not("outreach_pushed_at", "is", null)
+      .order("outreach_pushed_at", { ascending: true });
+    const ids = (pushed ?? []).map((v) => v.id);
+    const { data: msgs } = ids.length
+      ? await db.from("outreach_messages")
+          .select("venue_id, step, sent_at, bounced_at")
+          .in("venue_id", ids)
+      : { data: [] as any[] };
+    const { data: reps } = ids.length
+      ? await db.from("venue_replies")
+          .select("venue_id, received_at, classification")
+          .in("venue_id", ids)
+      : { data: [] as any[] };
+
+    for (const v of pushed ?? []) {
+      const m = (msgs ?? []).filter((x) => x.venue_id === v.id && x.sent_at)
+        .sort((a, b) => String(a.sent_at).localeCompare(String(b.sent_at)));
+      const bounced = (msgs ?? []).find((x) => x.venue_id === v.id && x.bounced_at);
+      const rep = (reps ?? []).filter((x) => x.venue_id === v.id)
+        .sort((a, b) => String(b.received_at).localeCompare(String(a.received_at)))[0];
+      const first = m[0]?.sent_at ?? v.first_emailed_at ?? null;
+      const followUp = m.find((x) => Number(x.step) > 1) ?? null;
+
+      // Follow-up state, in order of precedence: a reply or bounce stops the
+      // sequence; a sent step 2 is final; otherwise it is due 4 days after
+      // email 1. "unknown" only when nothing has been sent at all.
+      let follow_up: string;
+      if (rep || v.replied_at) follow_up = "stopped on reply";
+      else if (bounced) follow_up = "stopped (bounced)";
+      else if (followUp) follow_up = `sent ${followUp.sent_at}`;
+      else if (first) {
+        const due = new Date(new Date(first).getTime() + FOLLOW_UP_DELAY_DAYS * 864e5);
+        follow_up = `${due <= new Date() ? "overdue since" : "due"} ${due.toISOString().slice(0, 10)}`;
+      } else follow_up = "not yet emailed";
+
+      contacted.push({
+        venue: v.name,
+        country: v.country,
+        crm_status: v.status,
+        pushed_at: v.outreach_pushed_at,
+        email1_sent_at: first,
+        emails_sent: m.length || v.emails_sent || 0,
+        delivery: bounced ? "bounced" : first ? "no bounce recorded" : null,
+        reply: rep ? { at: rep.received_at, classification: rep.classification } : null,
+        follow_up,
+      });
+    }
+  }
+
   // ── honest gaps ──────────────────────────────────────────────────────────
   const gaps: string[] = [];
   if (campaign_error) gaps.push(`Instantly campaigns unreadable: ${campaign_error}`);
@@ -242,6 +302,7 @@ export async function GET(req: NextRequest) {
     replies,
     sent_today,
     activity_feed,
+    contacted,
     campaign_state,
     sender_health,
     geography,
