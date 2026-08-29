@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isNativeApp } from "@/lib/platform";
 
 type Platform = "ios" | "android" | null;
 
@@ -18,6 +19,10 @@ export default function PWAInstallBanner() {
   const [deferredEvt, setDeferredEvt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
+    // Inside the native app there is nothing to install — never show.
+    // (Also an App Review risk: "no App Store needed" in front of a reviewer.)
+    if (isNativeApp()) return;
+
     // Already installed as PWA — never show
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
