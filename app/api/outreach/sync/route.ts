@@ -28,6 +28,7 @@ import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDa
 import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
 import { planCapacity, followUpsDue, pendingFirstSends, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
 import { SITE } from "@/lib/stripe";
+import { isMockMode } from "@/lib/enrichment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,17 @@ export async function GET(req: NextRequest)  { return run(req); }
 export async function POST(req: NextRequest) { return run(req); }
 
 async function run(req: NextRequest) {
+  // Fail closed while scoring is offline. Without ANTHROPIC_API_KEY every new
+  // enrichment is a mock score, so a live push would be qualified on nothing.
+  // `dry` is still allowed, because inspecting the pipeline is always safe.
+  const dryRun = req.nextUrl.searchParams.get("dry") === "1";
+  if (isMockMode() && !dryRun) {
+    return NextResponse.json({
+      error: "Scoring is in mock mode (ANTHROPIC_API_KEY is not set). Refusing to push live leads.",
+      hint: "Set ANTHROPIC_API_KEY, re-score prospects, then retry. Use ?dry=1 to inspect.",
+    }, { status: 503 });
+  }
+
   // Prefers its own secret so a dry run can be delegated without handing out
   // CRON_SECRET, which unlocks every other admin route. Scoped to this route
   // alone — nothing else reads OUTREACH_SYNC_SECRET. Falls back to CRON_SECRET
@@ -112,11 +124,18 @@ async function run(req: NextRequest) {
   // the same ones twice.
   let query = db
     .from("venues")
-    .select("id, name, contact_email, contact_name, city, country, website, contact_phone, competition_slug, fit_score, shows_live_sport")
+    .select("id, name, contact_email, contact_name, city, country, website, contact_phone, competition_slug, fit_score, shows_live_sport, enrichment")
     .eq("status", "verified")
     .eq("contact_email_status", "valid")
     .is("outreach_pushed_at", null)
     .gte("fit_score", MIN_FIT)
+    // A fit_score produced by mockScore() is not a qualification. Without
+    // ANTHROPIC_API_KEY, isMockMode() is true and enrichment silently falls back
+    // to the offline stub, which writes enrichment.mock = true. Those rows must
+    // never reach a live send whatever their score says. Rows enriched before
+    // the flag existed carry no `mock` key at all, so require an explicit
+    // false — unknown provenance is treated as mock.
+    .eq("enrichment->>mock", "false")
     .not("country", "in", "(DE,AT)");
   for (const o of SELECTION_ORDER) query = query.order(o.column, { ascending: o.ascending });
   const { data: eligible, error } = await query.limit(5000);

@@ -1,0 +1,48 @@
+# Daily config health check.
+#
+# Exists because a missing env var that THROWS is found in minutes, while one
+# that silently degrades is found in months. N8N_VENUE_WEBHOOK_URL was never
+# set, so every venue lifecycle notification no-opped from the day it shipped
+# and no trial email was ever sent. ANTHROPIC_API_KEY was never set, so every
+# prospect fit score is a mock the outreach gate then qualified on.
+#
+# The endpoint returns 503 when any critical check fails, so this job fails and
+# GitHub emails the repo owner. Silence here is the signal that all is well.
+name: Config health
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC daily, before the working day
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query config-health
+        run: |
+          set -uo pipefail
+          BODY=$(curl -sS --max-time 60 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/admin/config-health")
+          CODE=$(printf '%s' "$BODY" | tail -n1)
+          JSON=$(printf '%s' "$BODY" | sed '$d')
+          echo "$JSON"
+
+          if [ "$CODE" = "401" ]; then
+            echo "::error::config-health rejected the CRON_SECRET"; exit 1
+          fi
+          if [ "$CODE" != "200" ] && [ "$CODE" != "503" ]; then
+            echo "::error::config-health unreachable (HTTP $CODE)"; exit 1
+          fi
+
+          # Degraded is reported but does not fail the run - it is a decision,
+          # not an outage. Critical means something advertised as working is not.
+          DEG=$(printf '%s' "$JSON" | grep -o '"degraded":[0-9]*' | head -1 | cut -d: -f2)
+          [ "${DEG:-0}" -gt 0 ] && echo "::warning::$DEG degraded config item(s)"
+
+          if [ "$CODE" = "503" ]; then
+            echo "::error::config-health reports CRITICAL missing configuration"
+            exit 1
+          fi
+          echo "config-health OK"
