@@ -9,11 +9,16 @@
  * to load. The monogram is the safety net + loading state, so a badge is never
  * blank and never breaks — Anfield red, City sky blue, Wolves gold still carry
  * the recognition for anything the feed doesn't cover.
+ *
+ * In the NATIVE APP (Capacitor shell) crest images are never shown — the
+ * monogram always renders instead, per our App Review agreement with Apple
+ * (guideline 5.2.1). The website is unaffected. See lib/platform.ts.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { club, textOn } from "@/lib/premierLeague/clubs";
 import { CREST_BY_CODE } from "@/lib/leagues/crests";
+import { isNativeApp } from "@/lib/platform";
 
 export default function ClubCrest({
   code,
@@ -23,11 +28,17 @@ export default function ClubCrest({
   size?: number;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
+  // Per App Review agreement, the native app never shows crest images —
+  // it always uses the coloured monogram. See lib/platform.ts.
+  const [native, setNative] = useState(false);
+  useEffect(() => {
+    if (isNativeApp()) setNative(true);
+  }, []);
   const c = code ? club(code) : undefined;
   const crest = code ? (CREST_BY_CODE[code] ?? CREST_BY_CODE[code.toUpperCase()]) : undefined;
 
   // Real crest — free-standing logo, transparent background.
-  if (c && crest && !imgFailed) {
+  if (c && crest && !imgFailed && !native) {
     return (
       <span
         aria-hidden
