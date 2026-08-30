@@ -80,7 +80,7 @@ jobs:
 
       # dry=1 first: proves the Places key authenticates without writing a row.
       - name: Places discovery — dry run
-        if: github.event.inputs.places_country != ''
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.places_country != '' }}
         run: |
           set -uo pipefail
           C="${{ github.event.inputs.places_country || 'GB' }}"
@@ -99,7 +99,7 @@ jobs:
           { echo "## Places dry run"; echo ""; echo '```json'; echo "$JSON"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Places discovery — small live test
-        if: github.event.inputs.places_country != ''
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.places_country != '' }}
         run: |
           set -uo pipefail
           C="${{ github.event.inputs.places_country || 'GB' }}"
