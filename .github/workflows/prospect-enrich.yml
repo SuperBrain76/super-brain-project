@@ -149,8 +149,22 @@ jobs:
             NOEMAIL=$((NOEMAIL + ${E:-0})); LOWFIT=$((LOWFIT + ${L:-0})); FAILED=$((FAILED + ${F:-0}))
 
             if [ "${N:-0}" -eq 0 ]; then echo "queue empty"; break; fi
+
+            # A batch that considers the same number of venues twice running is
+            # not making progress. Two venues were once reported "verified" on
+            # every pass while a rejected write left them in the queue; only the
+            # batch cap stopped it. Silence is what made that expensive.
+            if [ "${PREV:-}" = "${N:-0}" ] && [ "${V:-0}" -gt 0 ]; then
+              echo "::error::enrich is not draining — batch considered ${N} twice with ${V} reported verified. A write is being rejected and swallowed."
+              exit 1
+            fi
+            PREV="${N:-0}"
             sleep 3
           done
+
+          if [ "$i" -ge "$MAXB" ] && [ "${N:-0}" -gt 0 ]; then
+            echo "::warning::stopped at the ${MAXB}-batch cap with venues still queued — dispatch again to finish"
+          fi
 
           {
             echo "## Prospect enrichment — real AI scoring"
