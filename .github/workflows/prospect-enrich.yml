@@ -34,11 +34,12 @@ on:
         required: false
         default: "2"
       places_offset:
-        description: "Skip the first N cities. 3 = Leeds, Liverpool — ground not swept before."
+        description: "Skip the first N cities. Leeds and Liverpool (3,4) are done; 5 is the next unswept pair."
         required: false
-        default: "3"
-  # Runs once when this file lands, so a pass starts without a manual click.
-  # Afterwards it is dispatch-only — there is deliberately no schedule here.
+        default: "5"
+  # Landing this file runs health, scoring and the audit — never discovery.
+  # Discovery costs money per call and adds rows we do not currently need, so
+  # it only ever runs when someone dispatches it on purpose. No schedule here.
   push:
     paths:
       - ".github/workflows/prospect-enrich.yml"
@@ -80,7 +81,7 @@ jobs:
 
       # dry=1 first: proves the Places key authenticates without writing a row.
       - name: Places discovery — dry run
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.places_country != '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.places_country != '' }}
         run: |
           set -uo pipefail
           C="${{ github.event.inputs.places_country || 'GB' }}"
@@ -99,7 +100,7 @@ jobs:
           { echo "## Places dry run"; echo ""; echo '```json'; echo "$JSON"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Places discovery — small live test
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.places_country != '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.places_country != '' }}
         run: |
           set -uo pipefail
           C="${{ github.event.inputs.places_country || 'GB' }}"
