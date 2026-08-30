@@ -96,6 +96,34 @@ async function run(req: NextRequest) {
   return NextResponse.json(result);
 }
 
+/**
+ * Every write here used to be fire-and-forget. When a scraped email was already
+ * held by another venue, the unique index on lower(contact_email) rejected the
+ * update, supabase-js returned the error into a variable nobody read, and the
+ * route counted the venue as verified. The row kept enriched_at NULL, so the
+ * next batch selected it again — two venues were "verified" on every single
+ * pass and never left the queue.
+ *
+ * A shared address is a real thing (one group email across several pubs). It
+ * disqualifies the venue rather than failing the run, but it must be recorded,
+ * not silently retried forever.
+ */
+async function write(db: any, id: string, patch: Record<string, unknown>) {
+  const { error } = await db.from("venues").update(patch).eq("id", id);
+  if (!error) return;
+  const dup = error.code === "23505" || /duplicate key|contact_email_key/i.test(error.message ?? "");
+  if (dup) {
+    const { error: e2 } = await db.from("venues").update({
+      enriched_at: new Date().toISOString(),
+      status: "disqualified",
+      fit_reason: "contact email already belongs to another venue in the CRM",
+    }).eq("id", id);
+    if (e2) throw new Error(`disqualify-on-duplicate failed: ${e2.message}`);
+    return "duplicate_email";
+  }
+  throw new Error(`venue update failed: ${error.message}`);
+}
+
 async function enrichOne(db: any, v: any, result: any) {
   const place: PlaceResult = {
     placeId: "", name: v.name, address: v.address, city: v.city,
@@ -110,10 +138,10 @@ async function enrichOne(db: any, v: any, result: any) {
   // No email means no outreach, whatever the fit — don't pay for the AI call.
   if (!scrape.email) {
     result.no_email++;
-    await db.from("venues").update({
+    await write(db, v.id, {
       enriched_at: now, status: "disqualified",
       fit_reason: "no contact email found on website",
-    }).eq("id", v.id);
+    });
     await emit(db, EVENT.PROSPECT_REJECTED, {
       venueId: v.id, source: "scraper", detail: { reason: "no_email", website: v.website },
     });
@@ -122,17 +150,17 @@ async function enrichOne(db: any, v: any, result: any) {
 
   if (await isSuppressed(db, scrape.email)) {
     result.suppressed++;
-    await db.from("venues").update({
+    await write(db, v.id, {
       enriched_at: now, status: "disqualified",
       contact_email: scrape.email, fit_reason: "email on suppression list",
-    }).eq("id", v.id);
+    });
     return;
   }
 
   const fit = await scoreVenue(place, scrape, v.country);
   const passes = fit.fit_score >= MIN_FIT && fit.venue_type !== "not_a_venue";
 
-  await db.from("venues").update({
+  const outcome = await write(db, v.id, {
     enriched_at:          now,
     verified_at:          passes ? now : null,
     contact_email:        scrape.email,
@@ -149,7 +177,10 @@ async function enrichOne(db: any, v: any, result: any) {
       sport_signals:  scrape.sportSignals,
       socials:        scrape.socials,
     },
-  }).eq("id", v.id);
+  });
+
+  // The address belongs to a venue we already hold; it was disqualified above.
+  if (outcome === "duplicate_email") { result.low_fit++; return; }
 
   if (passes) {
     result.verified++;
