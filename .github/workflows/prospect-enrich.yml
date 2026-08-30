@@ -1,0 +1,174 @@
+# Prospect pipeline: verify the three integrations, discover, score, audit.
+#
+# Exists because /api/prospect/* authenticates on CRON_SECRET, which lives only
+# in Vercel and in this repo's secrets. Running these passes therefore has to
+# happen from here — there is no local path that does not involve copying the
+# secret somewhere it should not go.
+#
+# Fails loudly if the app reports mock_mode: a run that scored offline must
+# never be mistaken for a qualified list. That is the whole point of the pass.
+#
+# Repo secrets required (both already used by ingest-results.yml):
+#   CRON_SECRET — same value as the Vercel env var
+#   APP_URL     — https://www.superbrain.social  (no trailing slash)
+
+name: Prospect enrich (real AI scoring)
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch:
+        description: "Venues per enrich request (route caps at 500; keep under the 300s function limit)"
+        required: false
+        default: "25"
+      max_batches:
+        description: "Safety stop"
+        required: false
+        default: "8"
+      places_country:
+        description: "Places sweep country (GB|ES|FR|IT|DE), or blank to skip discovery"
+        required: false
+        default: "GB"
+      places_cities:
+        description: "Cities to sweep. Deliberately small — sourcing volume is not raised without a decision."
+        required: false
+        default: "2"
+      places_offset:
+        description: "Skip the first N cities. Leeds and Liverpool (3,4) are done; 5 is the next unswept pair."
+        required: false
+        default: "5"
+  # Landing this file runs health, scoring and the audit — never discovery.
+  # Discovery costs money per call and adds rows we do not currently need, so
+  # it only ever runs when someone dispatches it on purpose. No schedule here.
+  push:
+    paths:
+      - ".github/workflows/prospect-enrich.yml"
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preflight
+        run: |
+          set -uo pipefail
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET secret is not set. Add it in Settings → Secrets → Actions."; exit 1
+          fi
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL secret is not set."; exit 1
+          fi
+
+      # Grades every env var by consequence and returns 503 on any critical miss.
+      - name: Integration health
+        run: |
+          set -uo pipefail
+          OUT=$(curl -sS --max-time 60 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/admin/config-health")
+          CODE=$(printf '%s' "$OUT" | tail -n1)
+          JSON=$(printf '%s' "$OUT" | sed '$d')
+          echo "$JSON"
+          {
+            echo "## Integration health (HTTP $CODE)"
+            echo ""
+            echo '```json'
+            echo "$JSON"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$CODE" = "401" ] && { echo "::error::config-health rejected the CRON_SECRET"; exit 1; }
+          [ "$CODE" = "503" ] && echo "::warning::config-health reports a CRITICAL miss — read the JSON above"
+          exit 0
+
+      # dry=1 first: proves the Places key authenticates without writing a row.
+      - name: Places discovery — dry run
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.places_country != '' }}
+        run: |
+          set -uo pipefail
+          C="${{ github.event.inputs.places_country || 'GB' }}"
+          N="${{ github.event.inputs.places_cities || '2' }}"
+          O="${{ github.event.inputs.places_offset || '3' }}"
+          OUT=$(curl -sS --max-time 320 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/prospect/places?country=$C&cities=$N&offset=$O&dry=1")
+          CODE=$(printf '%s' "$OUT" | tail -n1); JSON=$(printf '%s' "$OUT" | sed '$d')
+          echo "$JSON"
+          [ "$CODE" != "200" ] && { echo "::error::places dry run returned HTTP $CODE"; exit 1; }
+          # An unset or rejected key surfaces here as a populated errors array.
+          if printf '%s' "$JSON" | grep -q '"errors":\[[^]]'; then
+            echo "::error::Places returned errors — the key is missing, unauthorised, or the API is not enabled"; exit 1
+          fi
+          { echo "## Places dry run"; echo ""; echo '```json'; echo "$JSON"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Places discovery — small live test
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.places_country != '' }}
+        run: |
+          set -uo pipefail
+          C="${{ github.event.inputs.places_country || 'GB' }}"
+          N="${{ github.event.inputs.places_cities || '2' }}"
+          O="${{ github.event.inputs.places_offset || '3' }}"
+          OUT=$(curl -sS --max-time 320 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/prospect/places?country=$C&cities=$N&offset=$O")
+          CODE=$(printf '%s' "$OUT" | tail -n1); JSON=$(printf '%s' "$OUT" | sed '$d')
+          echo "$JSON"
+          [ "$CODE" != "200" ] && { echo "::error::places live run returned HTTP $CODE"; exit 1; }
+          { echo "## Places live test"; echo ""; echo '```json'; echo "$JSON"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enrich until the queue is empty
+        run: |
+          set -uo pipefail
+          BATCH="${{ github.event.inputs.batch || '25' }}"
+          MAXB="${{ github.event.inputs.max_batches || '8' }}"
+          TOTAL=0; VERIFIED=0; NOEMAIL=0; LOWFIT=0; FAILED=0
+
+          for i in $(seq 1 "$MAXB"); do
+            echo "── batch $i (limit $BATCH) ──"
+            OUT=$(curl -sS --max-time 320 -w '\n%{http_code}' \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "${{ secrets.APP_URL }}/api/prospect/enrich?limit=$BATCH")
+            CODE=$(printf '%s' "$OUT" | tail -n1)
+            JSON=$(printf '%s' "$OUT" | sed '$d')
+            echo "$JSON"
+
+            if [ "$CODE" = "401" ]; then echo "::error::enrich rejected the CRON_SECRET"; exit 1; fi
+            if [ "$CODE" != "200" ]; then echo "::error::enrich returned HTTP $CODE"; exit 1; fi
+
+            # A mock run is worse than no run: it produces numbers the outreach
+            # gate would treat as qualification.
+            if printf '%s' "$JSON" | grep -q '"mock_mode":true'; then
+              echo "::error::app reports mock_mode — ANTHROPIC_API_KEY is not visible to the running deployment. Redeploy after setting it."
+              exit 1
+            fi
+
+            N=$(printf '%s' "$JSON" | grep -o '"considered":[0-9]*' | head -1 | cut -d: -f2)
+            V=$(printf '%s' "$JSON" | grep -o '"verified":[0-9]*'   | head -1 | cut -d: -f2)
+            E=$(printf '%s' "$JSON" | grep -o '"no_email":[0-9]*'   | head -1 | cut -d: -f2)
+            L=$(printf '%s' "$JSON" | grep -o '"low_fit":[0-9]*'    | head -1 | cut -d: -f2)
+            F=$(printf '%s' "$JSON" | grep -o '"failed":[0-9]*'     | head -1 | cut -d: -f2)
+            TOTAL=$((TOTAL + ${N:-0})); VERIFIED=$((VERIFIED + ${V:-0}))
+            NOEMAIL=$((NOEMAIL + ${E:-0})); LOWFIT=$((LOWFIT + ${L:-0})); FAILED=$((FAILED + ${F:-0}))
+
+            if [ "${N:-0}" -eq 0 ]; then echo "queue empty"; break; fi
+            sleep 3
+          done
+
+          {
+            echo "## Prospect enrichment — real AI scoring"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Considered | $TOTAL |"
+            echo "| Verified (fit at or above threshold, email found) | $VERIFIED |"
+            echo "| No contact email | $NOEMAIL |"
+            echo "| Below fit threshold | $LOWFIT |"
+            echo "| Failed | $FAILED |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Provenance audit
+        run: |
+          set -uo pipefail
+          curl -sS --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/admin/prospect-audit" | tee /tmp/audit.json
+          echo ""
+          { echo "## Provenance audit"; echo ""; echo '```json'; cat /tmp/audit.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

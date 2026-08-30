@@ -15,7 +15,15 @@ export function admin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
   if (!url || !key) throw new Error("Supabase service-role env missing");
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    // Next patches global fetch with its Data Cache, and a plain GET to
+    // PostgREST is cacheable. /api/admin/prospect-audit was caught serving a
+    // 90-minute-old snapshot — 128 prospects and 0 real scores while the
+    // database held 251 and 56. A safety gate that reports a stale world is
+    // worse than no gate, because it reports it confidently.
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+  });
 }
 
 // ── Funnel status ─────────────────────────────────────────────
