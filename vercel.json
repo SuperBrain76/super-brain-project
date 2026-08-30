@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/instantly-poll",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/prospect-buffer",
+      "schedule": "0 4 * * *"
     }
   ]
 }
