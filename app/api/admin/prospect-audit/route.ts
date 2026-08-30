@@ -13,7 +13,7 @@
  * Auth: Bearer MARKETING_API_SECRET, falling back to CRON_SECRET.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { admin } from "@/lib/venueDb";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +24,11 @@ export async function GET(req: NextRequest) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const srk = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  if (!url || !srk) return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-
-  const db = createClient(url, srk, { auth: { persistSession: false } });
+  // Was building its own client; that one read through Next's fetch cache and
+  // served a 90-minute-old snapshot. admin() pins cache: "no-store".
+  let db;
+  try { db = admin(); }
+  catch { return NextResponse.json({ error: "Supabase not configured" }, { status: 500 }); }
   const MIN_FIT = Number(process.env.OUTREACH_MIN_FIT_SCORE ?? 60);
 
   const { data: rows, error } = await db
