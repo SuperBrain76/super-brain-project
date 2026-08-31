@@ -40,7 +40,10 @@ function anthropic(): Anthropic {
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
 /** Addresses that are never a venue's real inbox. */
-const JUNK_EMAIL = /(sentry|wixpress|example|yourdomain|domain\.com|\.png|\.jpg|\.webp|godaddy|squarespace|wordpress|@2x)/i;
+// ^\d+@ catches chain-internal pub-code addresses (5751@greeneking.co.uk
+// bounced on 31 Aug and four siblings were pulled before sending): numeric
+// local parts are routing codes scraped off websites, not monitored inboxes.
+const JUNK_EMAIL = /(sentry|wixpress|example|yourdomain|domain\.com|\.png|\.jpg|\.webp|godaddy|squarespace|wordpress|@2x)|^\d+@/i;
 
 /** Generic mailboxes are fine — a pub's info@ is usually the owner's inbox. */
 const PREFERRED = ["info@", "hello@", "contact@", "manager@", "owner@", "office@", "mail@"];
