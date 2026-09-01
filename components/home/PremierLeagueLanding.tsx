@@ -19,6 +19,7 @@ import Link from "next/link";
 import { BRAND } from "@/lib/brand";
 import { ALL_CLUBS, club, textOn } from "@/lib/premierLeague/clubs";
 import ClubCrest from "@/components/premier/ClubCrest";
+import AppStoreBadge from "@/components/AppStoreBadge";
 import { IQ_LEVELS } from "@/lib/iqLevel";
 import LeagueChooser from "@/components/LeagueChooser";
 
@@ -96,9 +97,13 @@ function Hero() {
           </a>
         </div>
 
-        <p className="pl-in text-xs mb-9" style={{ color: BRAND.dim, animationDelay: "300ms" }}>
+        <p className="pl-in text-xs mb-5" style={{ color: BRAND.dim, animationDelay: "300ms" }}>
           No entry fee · Predictions lock at kickoff · The table never lies
         </p>
+
+        <div className="pl-in mb-9" style={{ animationDelay: "340ms" }}>
+          <AppStoreBadge />
+        </div>
       </div>
 
       {/* Crest wall — the whole league, scrolling. Instantly reads as football. */}

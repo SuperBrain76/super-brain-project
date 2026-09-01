@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { isNativeApp } from "@/lib/platform";
+import { APP_STORE_URL } from "@/components/AppStoreBadge";
 
 type Platform = "ios" | "android" | null;
 
@@ -90,23 +91,11 @@ export default function PWAInstallBanner() {
             </p>
             {platform === "ios" ? (
               <p className="text-cockpit-dim text-xs mt-1 leading-relaxed">
-                Tap{" "}
-                <span className="inline-flex items-center gap-0.5 text-cockpit-accent font-medium">
-                  {/* iOS share icon */}
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                    <polyline points="16 6 12 2 8 6"/>
-                    <line x1="12" y1="2" x2="12" y2="15"/>
-                  </svg>
-                  Share
-                </span>
-                {" "}then{" "}
-                <span className="text-cockpit-accent font-medium">Add to Home Screen</span>
-                {" "}— works like a native app, no App Store needed.
+                Get the SuperBrain app on the App Store — free.
               </p>
             ) : (
               <p className="text-cockpit-dim text-xs mt-1 leading-relaxed">
-                Install for a native app experience — no App Store needed.
+                Install for a native app experience.
               </p>
             )}
           </div>
@@ -123,6 +112,23 @@ export default function PWAInstallBanner() {
             </svg>
           </button>
         </div>
+
+        {/* iOS: link to the App Store listing */}
+        {platform === "ios" && (
+          <div className="px-4 pb-4 flex gap-2">
+            <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" className="flex-1">
+              <button className="w-full btn-primary text-sm py-2">
+                Get the App
+              </button>
+            </a>
+            <button
+              onClick={dismiss}
+              className="px-4 py-2 text-cockpit-muted text-sm hover:text-cockpit-dim transition-colors"
+            >
+              Not now
+            </button>
+          </div>
+        )}
 
         {/* Android install button */}
         {platform === "android" && (
