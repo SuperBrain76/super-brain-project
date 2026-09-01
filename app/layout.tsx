@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title:        TITLE,
   description:  DESC,
   manifest:     "/manifest.json",
+  // Safari Smart App Banner — iOS visitors get a native "GET — App Store"
+  // strip above the site. Safari-only; never renders inside the WKWebView app.
+  itunes: { appId: "6780331791" },
   appleWebApp: {
     capable:          true,
     statusBarStyle:   "black-translucent",
