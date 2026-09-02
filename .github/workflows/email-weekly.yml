@@ -8,9 +8,13 @@ name: Email — Weekly (ramp / matchweek / results)
 # round's first kickoff and a daily run can only ever be accurate to a day.
 # Sending is still gated per competition by a round marker, so a round can never
 # be emailed twice however often this runs.
+# SCHEDULE PAUSED 2 Sep 2026 while the email is regrouped from one-per-league
+# to one-per-sport. Nine active competitions meant a single user could receive
+# seven emails in 48 hours. Dispatch still works; restore the cron line below
+# once grouping has shipped and been verified.
 on:
-  schedule:
-    - cron: "0 */3 * * *"
+  # schedule:
+  #   - cron: "0 */3 * * *"
   workflow_dispatch: {}
 
 jobs:
