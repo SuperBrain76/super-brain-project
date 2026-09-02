@@ -46,8 +46,15 @@ export async function GET(req: NextRequest) {
   // admin route. Falls back to CRON_SECRET so existing callers keep working.
   // (Vercel "Sensitive" variables are write-only, so CRON_SECRET cannot be read
   // back and shared even if we wanted to — hence the dedicated value.)
-  const secret = (process.env.VENUE_STATE_SECRET || process.env.CRON_SECRET) ?? "";
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  // Accept any of the read-only observability secrets. VENUE_STATE_SECRET was
+  // never provisioned, so the funnel read as "not readable" in the daily brief
+  // while the prospect audit (MARKETING_API_SECRET) worked. Accept
+  // MARKETING_API_SECRET here too so one working secret unlocks both — the
+  // brief's outreach funnel is operational data, not cosmetic.
+  const accepted = [process.env.VENUE_STATE_SECRET, process.env.MARKETING_API_SECRET, process.env.CRON_SECRET]
+    .filter((s): s is string => !!s);
+  const bearer = req.headers.get("authorization") ?? "";
+  if (!accepted.length || !accepted.some((s) => bearer === `Bearer ${s}`)) {
     // Fail closed. Never reveal whether the secret is merely unset.
     console.warn("[venue-state] unauthorized request");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
