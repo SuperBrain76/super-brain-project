@@ -1,0 +1,45 @@
+# One-time App Store announcement to every registered user.
+#
+# Manual only — there is no schedule and there must never be one. Defaults to a
+# test send to a single inbox, because a broadcast to the whole list is not
+# something anyone should be able to trigger by accident.
+#
+# To send for real, dispatch with mode = send.
+
+name: Send App Launch Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry_run (count only) | test (one inbox) | send (everyone)"
+        required: true
+        default: "test"
+        type: choice
+        options: [dry_run, test, send]
+      test_email:
+        description: "Inbox for mode=test"
+        required: false
+        default: "dylan@vidaevergreen.ae"
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger
+        run: |
+          set -uo pipefail
+          BASE="${{ secrets.APP_URL }}/api/admin/send-app-launch"
+          case "${{ github.event.inputs.mode }}" in
+            dry_run) URL="$BASE?dry_run=true" ;;
+            test)    URL="$BASE?test=${{ github.event.inputs.test_email }}" ;;
+            send)    URL="$BASE" ;;
+            *) echo "::error::unknown mode"; exit 1 ;;
+          esac
+          OUT=$(curl -sS --max-time 300 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$URL")
+          CODE=$(printf '%s' "$OUT" | tail -n1); JSON=$(printf '%s' "$OUT" | sed '$d')
+          echo "$JSON"
+          { echo "## App launch email — mode ${{ github.event.inputs.mode }}"; echo ""; echo '```json'; echo "$JSON"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          [ "$CODE" != "200" ] && { echo "::error::HTTP $CODE"; exit 1; }
+          exit 0
