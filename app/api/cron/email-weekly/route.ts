@@ -80,9 +80,18 @@ async function getSetting(db: SupabaseClient, compId: string, key: string): Prom
   const { data } = await db.from("competition_settings").select("value").eq("competition_id", compId).eq("key", key).maybeSingle();
   return data?.value ?? null;
 }
+/**
+ * Never swallow this. competition_settings.key has a foreign key to
+ * competition_setting_defs; on 2 Sep 2026 email_digest_sent was not registered
+ * there, every upsert was rejected, and the error went into a variable nobody
+ * read. The digest sent, recorded nothing, and was set to send again three
+ * hours later. These rows are the only thing standing between one email a week
+ * and eight.
+ */
 async function setSetting(db: SupabaseClient, compId: string, key: string, value: unknown) {
-  await db.from("competition_settings")
+  const { error } = await db.from("competition_settings")
     .upsert({ competition_id: compId, key, value }, { onConflict: "competition_id,key" });
+  if (error) throw new Error(`competition_settings write failed (${key}): ${error.message}`);
 }
 
 interface Fixture { id: string; round_id: string; home: string; away: string; ko: string; status: string; hs: number | null; as: number | null; }
@@ -344,14 +353,19 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Claim the week BEFORE sending, not after. A send that dies half way through
+  // must not leave the digest free to go out again to everyone; better to miss
+  // a week than to mail the list twice. Throwing here means the send never
+  // starts, which is the safe direction.
+  await Promise.all(comps.map((c) => setSetting(db, c.id as string, "email_digest_sent", week)));
+
   const { sent, failed } = await sendToAll(users, subject, (f) => buildBody(f, gathered, now));
 
-  // Mark on EVERY active competition, so deactivating one cannot resurrect the
-  // week's digest, and per-competition results are not re-reported next week.
-  await Promise.all([
-    ...comps.map((c) => setSetting(db, c.id as string, "email_digest_sent", week)),
-    ...gathered.filter((g) => g.results).map((g) => setSetting(db, g.comp.id, "email_summary_sent", g.results!.round.code)),
-  ]);
+  // Results markers after the fact: re-reporting a round is a cosmetic fault,
+  // and losing them to a failed send would only mean one repeated section.
+  await Promise.all(
+    gathered.filter((g) => g.results).map((g) => setSetting(db, g.comp.id, "email_summary_sent", g.results!.round.code)),
+  );
 
   console.log(`[email-weekly] ${week} sent=${sent} failed=${failed}`);
   return NextResponse.json({ ok: true, sent, failed, subject, ...summary });
