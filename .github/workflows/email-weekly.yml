@@ -1,21 +1,21 @@
-name: Email — Weekly (ramp / matchweek / results)
+name: Email — Weekly digest
 
-# The per-league weekly email engine. Runs daily; the route decides per league
-# whether to send a pre-launch ramp nudge, a matchweek fixtures email, or a
-# results + leaderboard wrap. Stays silent until SEASON_EMAILS_ENABLED=true.
-
-# Every three hours, because the matchweek email is timed 36 hours before the
-# round's first kickoff and a daily run can only ever be accurate to a day.
-# Sending is still gated per competition by a round marker, so a round can never
-# be emailed twice however often this runs.
-# SCHEDULE PAUSED 2 Sep 2026 while the email is regrouped from one-per-league
-# to one-per-sport. Nine active competitions meant a single user could receive
-# seven emails in 48 hours. Dispatch still works; restore the cron line below
-# once grouping has shipped and been verified.
+# One digest a week across every active sport: how last week finished, what is
+# coming this week. Silent until SEASON_EMAILS_ENABLED=true.
+#
+# Every three hours. The route itself decides: it sends at most ONE digest per
+# ISO week, when the week's first kickoff is about 36 hours away. Running often
+# is what makes "36 hours" mean 36 hours rather than "some time that day"; the
+# week key is what stops it ever sending twice.
 on:
-  # schedule:
-  #   - cron: "0 */3 * * *"
-  workflow_dispatch: {}
+  schedule:
+    - cron: "0 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "dry=1 shows what would go out, to how many, without sending"
+        required: false
+        default: "0"
 
 jobs:
   send:
@@ -25,4 +25,4 @@ jobs:
         run: |
           curl -fsSL --max-time 120 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.APP_URL }}/api/cron/email-weekly"
+            "${{ secrets.APP_URL }}/api/cron/email-weekly?dry=${{ github.event.inputs.dry || '0' }}"
