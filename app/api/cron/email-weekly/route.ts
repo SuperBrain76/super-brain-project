@@ -151,17 +151,17 @@ async function processCompetition(
     const marker = RAMP_DAYS.find((d) => daysUntil <= d && !rampSent.includes(d));
     if (marker) {
       const soon = daysUntil <= 1 ? "tomorrow" : `in ${daysUntil} days`;
-      const sent = await sendToAll(users, `⏳ ${comp.name} kicks off ${soon} — get your crew ready`, (first) => `
+      const sent = await sendToAll(users, `${comp.name} kicks off ${soon} — get your crew ready`, (first) => `
         <p style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#b8972a;font-family:sans-serif;margin:0 0 6px;">Almost kickoff</p>
-        <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 10px;font-family:Georgia,serif;">${comp.name} starts ${soon}. ⚽</h2>
+        <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 10px;font-family:Georgia,serif;">${comp.name} starts ${soon}</h2>
         <p style="font-size:15px;color:#5a6b60;font-family:sans-serif;line-height:1.6;margin:0 0 18px;">
           Hi ${first}, the new ${comp.name} season is nearly here. Now's the time to set up your league and pull your friends in — first predictions open ${fmtDate(seasonStart.toISOString())}.
         </p>
         ${divider}
         <p style="font-size:15px;color:#1a3a2a;font-family:Georgia,serif;line-height:1.75;margin:14px 0 6px;">
-          👉 <strong>Start a private league</strong> and invite your mates, your city, your club or the office.<br/>
-          🧠 Every correct call builds your <strong>SuperBrain IQ</strong>.<br/>
-          🏆 Big things planned for our league winners this season.
+          <strong>Start a private league</strong> and invite your mates, your city, your club or the office.<br/>
+          Every correct call builds your <strong>SuperBrain IQ</strong>.<br/>
+          Big things planned for our league winners this season.
         </p>
         ${ctaButton(`Set up your league — free →`, compUrl)}`);
       await setSetting(db, comp.id, "email_ramp_sent", [...rampSent, marker]);
@@ -178,15 +178,15 @@ async function processCompetition(
     const opensInDays = Math.ceil((new Date(upcoming.ko).getTime() - now.getTime()) / DAY_MS);
     const lastMwSent = (await getSetting(db, comp.id, "email_matchweek_sent")) as string | null;
     if (round && opensInDays <= 2 && lastMwSent !== round.code) {
-      const sent = await sendToAll(users, `⚽ ${comp.name} — ${round.label}: get your predictions in`, (first) => `
+      const sent = await sendToAll(users, `${comp.name} — ${round.label}: get your predictions in`, (first) => `
         <p style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#b8972a;font-family:sans-serif;margin:0 0 6px;">${comp.name}</p>
-        <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 6px;font-family:Georgia,serif;">${round.label} is here ⚽</h2>
+        <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 6px;font-family:Georgia,serif;">${round.label} is here</h2>
         <p style="font-size:14px;color:#5a6b60;font-family:sans-serif;margin:0 0 16px;">Hi ${first}, here's every match this gameweek. Lock your scores before kickoff.</p>
         ${divider}
         <table width="100%" style="margin:14px 0;"><tbody>${fixtureRows(roundFx)}</tbody></table>
         ${divider}
         ${ctaButton("Make your predictions →", compUrl)}
-        <p style="font-size:12px;color:#9fb0a4;font-family:sans-serif;text-align:center;margin:6px 0 0;">One tap a match. Beat your mates. 🧠</p>`);
+        <p style="font-size:12px;color:#9fb0a4;font-family:sans-serif;text-align:center;margin:6px 0 0;">One tap a match. Beat your mates.</p>`);
       await setSetting(db, comp.id, "email_matchweek_sent", round.code);
       result[comp.slug] = { ...(result[comp.slug] as object ?? {}), matchweek: { round: round.code, fixtures: roundFx.length, sent } };
     }
@@ -209,15 +209,15 @@ async function processCompetition(
       const board = (lb ?? []) as Array<{ rank: number; user_id: string; display_name: string; total_points: number }>;
       const top10 = board.slice(0, 10);
       const boardRows = top10.map((u) => `
-        <tr><td style="padding:7px 4px;font-size:13px;color:#7a8f82;width:30px;text-align:center;font-family:sans-serif;">${u.rank === 1 ? "🥇" : u.rank === 2 ? "🥈" : u.rank === 3 ? "🥉" : `${u.rank}.`}</td>
+        <tr><td style="padding:7px 4px;font-size:13px;color:#7a8f82;width:30px;text-align:center;font-family:sans-serif;">${u.rank}.</td>
         <td style="padding:7px 4px;font-size:14px;color:#1a3a2a;font-family:Georgia,serif;font-weight:600;">${u.display_name ?? "—"}</td>
         <td style="padding:7px 4px;font-size:14px;color:#b8972a;font-family:sans-serif;font-weight:700;text-align:right;">${u.total_points} pts</td></tr>`).join("");
       const rankMap = new Map(board.map((r) => [r.user_id, { rank: Number(r.rank), pts: Number(r.total_points) }]));
 
-      const sent = await sendToAll(users, `📊 ${comp.name} — ${toWrap.label} results & table`, (first) => {
+      const sent = await sendToAll(users, `${comp.name} — ${toWrap.label} results and table`, (first) => {
         return `
         <p style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#b8972a;font-family:sans-serif;margin:0 0 6px;">${comp.name}</p>
-        <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 6px;font-family:Georgia,serif;">${toWrap.label} — how it finished 📊</h2>
+        <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 6px;font-family:Georgia,serif;">${toWrap.label} — how it finished</h2>
         <p style="font-size:14px;color:#5a6b60;font-family:sans-serif;margin:0 0 16px;">Hi ${first}, the results are in. Here's the round and where the table stands.</p>
         ${divider}
         <table width="100%" style="margin:12px 0;"><tbody>${fixtureRows(roundFx, true)}</tbody></table>
