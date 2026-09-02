@@ -170,14 +170,21 @@ async function processCompetition(
     return; // pre-launch → no matchweek/summary yet
   }
 
-  // ── 2. MATCHWEEK (upcoming round, ~2 days before it opens) ──
+  // ── 2. MATCHWEEK (36h before the round's first kickoff) ──
+  //
+  // Keyed to the first kickoff of the round, not to when the round opens, and
+  // measured in hours rather than days: "<= 2 days" with a daily cron could
+  // land anywhere between 24 and 48 hours out. The cron now runs every three
+  // hours, so a send lands between 33 and 36 hours before the first match —
+  // Friday morning for a Saturday afternoon kickoff, which is when someone
+  // still has time to pull a league together.
   const upcoming = fixtures.find((f) => f.status === "scheduled" && new Date(f.ko) > now);
   if (upcoming) {
     const round = rounds.find((r) => r.id === upcoming.round_id);
     const roundFx = round ? byRound(round.id).filter((f) => f.status === "scheduled") : [];
-    const opensInDays = Math.ceil((new Date(upcoming.ko).getTime() - now.getTime()) / DAY_MS);
+    const hoursToKickoff = (new Date(upcoming.ko).getTime() - now.getTime()) / 3_600_000;
     const lastMwSent = (await getSetting(db, comp.id, "email_matchweek_sent")) as string | null;
-    if (round && opensInDays <= 2 && lastMwSent !== round.code) {
+    if (round && hoursToKickoff <= MATCHWEEK_LEAD_HOURS && lastMwSent !== round.code) {
       const sent = await sendToAll(users, `${comp.name} — ${round.label}: get your predictions in`, (first) => `
         <p style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#b8972a;font-family:sans-serif;margin:0 0 6px;">${comp.name}</p>
         <h2 style="font-size:23px;color:#1a3a2a;margin:0 0 6px;font-family:Georgia,serif;">${round.label} is here</h2>
@@ -188,7 +195,7 @@ async function processCompetition(
         ${ctaButton("Make your predictions →", compUrl)}
         <p style="font-size:12px;color:#9fb0a4;font-family:sans-serif;text-align:center;margin:6px 0 0;">One tap a match. Beat your mates.</p>`);
       await setSetting(db, comp.id, "email_matchweek_sent", round.code);
-      result[comp.slug] = { ...(result[comp.slug] as object ?? {}), matchweek: { round: round.code, fixtures: roundFx.length, sent } };
+      result[comp.slug] = { ...(result[comp.slug] as object ?? {}), matchweek: { round: round.code, fixtures: roundFx.length, hours_to_kickoff: Math.round(hoursToKickoff), sent } };
     }
   }
 
@@ -236,6 +243,9 @@ async function processCompetition(
     }
   }
 }
+
+/** How far ahead of the round's first kickoff the matchweek email goes out. */
+const MATCHWEEK_LEAD_HOURS = Number(process.env.MATCHWEEK_LEAD_HOURS ?? 36);
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization") ?? "";

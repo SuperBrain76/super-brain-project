@@ -4,9 +4,13 @@ name: Email — Weekly (ramp / matchweek / results)
 # whether to send a pre-launch ramp nudge, a matchweek fixtures email, or a
 # results + leaderboard wrap. Stays silent until SEASON_EMAILS_ENABLED=true.
 
+# Every three hours, because the matchweek email is timed 36 hours before the
+# round's first kickoff and a daily run can only ever be accurate to a day.
+# Sending is still gated per competition by a round marker, so a round can never
+# be emailed twice however often this runs.
 on:
   schedule:
-    - cron: "0 8 * * *" # 08:00 UTC daily (noon Dubai)
+    - cron: "0 */3 * * *"
   workflow_dispatch: {}
 
 jobs:
