@@ -35,6 +35,12 @@ const MAX_ROWS = Number(process.env.DIGEST_MAX_ROWS_PER_COMP ?? 5);
 const QUIET_WEEK_DAYS = 8;
 /** A round older than this is history, not "last week". */
 const RESULTS_MAX_AGE_DAYS = Number(process.env.DIGEST_RESULTS_MAX_AGE_DAYS ?? 8);
+/** And a round further out than this is not "this week" either. SHL opens on
+ *  19 September and Premiership Rugby on the 25th; listing them under "this
+ *  week" in early September is the same mistake at the other end. They get a
+ *  one-line mention instead, which is genuinely useful — it is a reason to set
+ *  a league up now. */
+const UPCOMING_WINDOW_DAYS = Number(process.env.DIGEST_UPCOMING_WINDOW_DAYS ?? 8);
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -87,6 +93,7 @@ interface Gathered {
   comp: Comp;
   results?: { round: RoundInfo; fixtures: Fixture[]; top3: Array<{ rank: number; name: string; pts: number }> };
   upcoming?: { round: RoundInfo; fixtures: Fixture[]; firstKO: string };
+  starting?: { round: RoundInfo; firstKO: string; days: number };
 }
 
 async function loadUsers(db: SupabaseClient) {
@@ -203,20 +210,27 @@ async function gather(db: SupabaseClient, comp: Comp, now: Date): Promise<Gather
     };
   }
 
-  // This week: the round containing the next scheduled kickoff.
+  // This week: the round containing the next scheduled kickoff, if it is
+  // actually within the week. Anything further out is flagged, not listed.
   const next = fixtures.find((f) => f.status === "scheduled" && new Date(f.ko) > now);
   if (next) {
+    const daysOut = (new Date(next.ko).getTime() - now.getTime()) / DAY_MS;
     const round = rounds.find((r) => r.id === next.round_id);
-    if (round) out.upcoming = { round, fixtures: byRound(round.id).filter((f) => f.status === "scheduled"), firstKO: next.ko };
+    if (round && daysOut <= UPCOMING_WINDOW_DAYS) {
+      out.upcoming = { round, fixtures: byRound(round.id).filter((f) => f.status === "scheduled"), firstKO: next.ko };
+    } else if (round) {
+      out.starting = { round, firstKO: next.ko, days: Math.round(daysOut) };
+    }
   }
 
-  return out.results || out.upcoming ? out : null;
+  return out.results || out.upcoming || out.starting ? out : null;
 }
 
 // ── Body ─────────────────────────────────────────────────────────
 function buildBody(first: string, weeks: Gathered[], now: Date) {
   const withResults = weeks.filter((g) => g.results);
   const withUpcoming = weeks.filter((g) => g.upcoming);
+  const starting = weeks.filter((g) => g.starting);
 
   const resultsBlock = withResults.map((g) => `
     <p style="font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#b8972a;font-family:sans-serif;margin:18px 0 4px;">${g.comp.name} — ${g.results!.round.label}</p>
@@ -247,6 +261,12 @@ function buildBody(first: string, weeks: Gathered[], now: Date) {
     ${withUpcoming.length ? `${divider}
       <h3 style="font-size:17px;color:#1a3a2a;margin:18px 0 0;font-family:Georgia,serif;">This week</h3>
       ${upcomingBlock}` : ""}
+
+    ${starting.length ? `${divider}
+      <p style="font-size:14px;color:#5a6b60;font-family:sans-serif;line-height:1.7;margin:14px 0 0;">
+        Opening soon: ${starting.map((g) => `<strong style="color:#1a3a2a;">${g.comp.name}</strong> ${fmtDate(g.starting!.firstKO)}`).join(" &nbsp;·&nbsp; ")}.
+        Worth setting a league up before the first round.
+      </p>` : ""}
 
     ${divider}
 
@@ -304,6 +324,7 @@ export async function GET(req: NextRequest) {
     lead_hours: LEAD_HOURS, due,
     results_from: gathered.filter((g) => g.results).map((g) => `${g.comp.slug}:${g.results!.round.code}`),
     upcoming_in: gathered.filter((g) => g.upcoming).map((g) => `${g.comp.slug}:${g.upcoming!.round.code}(${g.upcoming!.fixtures.length})`),
+    opening_soon: gathered.filter((g) => g.starting).map((g) => `${g.comp.slug}:+${g.starting!.days}d`),
   };
 
   if (!due && !dry) return NextResponse.json({ skipped: true, reason: "first kickoff is further out than the lead time", ...summary });
