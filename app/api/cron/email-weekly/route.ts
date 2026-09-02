@@ -33,6 +33,8 @@ const LEAD_HOURS = Number(process.env.MATCHWEEK_LEAD_HOURS ?? 36);
 const MAX_ROWS = Number(process.env.DIGEST_MAX_ROWS_PER_COMP ?? 5);
 /** With no fixtures ahead — an international break — still wrap up results. */
 const QUIET_WEEK_DAYS = 8;
+/** A round older than this is history, not "last week". */
+const RESULTS_MAX_AGE_DAYS = Number(process.env.DIGEST_RESULTS_MAX_AGE_DAYS ?? 8);
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -166,12 +168,29 @@ async function gather(db: SupabaseClient, comp: Comp, now: Date): Promise<Gather
 
   const out: Gathered = { comp };
 
-  // Last week: the most recent fully-completed round we have not reported.
+  // Last week: the round most recently PLAYED, not the highest-numbered one.
+  //
+  // Sort order is not chronology. Allsvenskan runs spring to autumn with
+  // rescheduled games, so its highest completed round was Matchweek 17, played
+  // 16 days ago, while Matchweek 10 still had a postponed fixture to come. By
+  // sort order the digest would have announced "last week: Matchweek 17"直
+  // beside "this week: Matchweek 10", which reads as broken software.
+  //
+  // A round also has to be recent to be "last week" at all. Serie A Matchweek 1
+  // finished nine days ago; nobody wants that reported as news.
   const lastReported = (await getSetting(db, comp.id, "email_summary_sent")) as string | null;
   const completed = rounds
-    .filter((r) => { const fx = byRound(r.id); return fx.length > 0 && fx.every((f) => f.status === "completed"); })
-    .sort((a, b) => b.sort - a.sort);
-  const toWrap = completed.find((r) => r.code !== lastReported);
+    .map((r) => {
+      const fx = byRound(r.id);
+      if (!fx.length || !fx.every((f) => f.status === "completed")) return null;
+      return { round: r, lastKO: Math.max(...fx.map((f) => new Date(f.ko).getTime())) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b!.lastKO - a!.lastKO) as Array<{ round: RoundInfo; lastKO: number }>;
+  const recent = completed.find((x) =>
+    x.round.code !== lastReported &&
+    (now.getTime() - x.lastKO) <= RESULTS_MAX_AGE_DAYS * DAY_MS);
+  const toWrap = recent?.round;
   if (toWrap) {
     const roundFx = byRound(toWrap.id);
     const { data: lb } = await anonDb().rpc("get_predictor_leaderboard", { p_competition_id: comp.id });

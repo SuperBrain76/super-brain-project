@@ -8,11 +8,8 @@ name: Email — Weekly digest
 # is what makes "36 hours" mean 36 hours rather than "some time that day"; the
 # week key is what stops it ever sending twice.
 on:
-  # PAUSED: a completed round is picked by sort order, not by when it was
-  # actually played, so Allsvenskan reported "last week: Matchweek 17" beside
-  # "this week: Matchweek 10". Restore once results carry a recency guard.
-  # schedule:
-  #   - cron: "0 */3 * * *"
+  schedule:
+    - cron: "0 */3 * * *"
   workflow_dispatch:
     inputs:
       dry:
