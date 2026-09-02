@@ -8,8 +8,13 @@ name: Email — Weekly digest
 # is what makes "36 hours" mean 36 hours rather than "some time that day"; the
 # week key is what stops it ever sending twice.
 on:
-  schedule:
-    - cron: "0 */3 * * *"
+  # PAUSED 18:32 UTC 2 Sep. The once-a-week marker could not be written:
+  # competition_settings.key has an FK to competition_setting_defs and
+  # email_digest_sent was never registered there, so every upsert failed and
+  # setSetting swallowed the error. Without the marker the digest re-sends on
+  # every run. Restore once the key is registered and setSetting throws.
+  # schedule:
+  #   - cron: "0 */3 * * *"
   workflow_dispatch:
     inputs:
       dry:
