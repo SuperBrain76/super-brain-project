@@ -16,6 +16,7 @@ import {
   type PredictionLeague,
 } from "@/lib/predictor";
 import { track } from "@/lib/analytics";
+import { trackLeagueJoined } from "@/lib/joinTracking";
 
 // ── Design tokens ─────────────────────────────────────────────
 const GREEN  = "#1a3a2a";
@@ -227,7 +228,7 @@ function LeaguesContent() {
     const { error } = await joinLeague(foundLeague.id);
     setJoining(false);
     if (error) { setJoinError(error); return; }
-    track.leagueJoined(foundLeague.id);
+    trackLeagueJoined(foundLeague, "code");
     router.push(`/${competitionSlug}/leagues/${foundLeague.id}`);
   }, [foundLeague, myLeagues, router]);
 

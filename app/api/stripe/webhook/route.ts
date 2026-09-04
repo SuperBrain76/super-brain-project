@@ -32,6 +32,7 @@ import type Stripe from "stripe";
 import { getStripe, planFromInterval, toMrrCents, SITE } from "@/lib/stripe";
 import { admin, logEvent, advanceStatus } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
+import { BILLING, captureBilling, flushBilling, venueDistinctId } from "@/lib/analyticsServer";
 import { provisionVenue, notifyN8n } from "@/lib/provisioning";
 import { sendTrialEnding, sendLeaguePaused } from "@/lib/venueEmail";
 import { sendPaymentFailed } from "@/lib/venueEmail";
@@ -41,6 +42,15 @@ export const dynamic = "force-dynamic";
 
 /** Days a league stays live after a failed payment before it is suspended. */
 const DUNNING_GRACE_DAYS = 7;
+
+/**
+ * Analytics context threaded through the handlers.
+ *
+ * `at` is Stripe's own event.created, never the wall clock — PostHog
+ * de-duplicates on (event, distinct_id, timestamp, $insert_id), so a retry only
+ * collapses if the timestamp is identical between attempts. See lib/analyticsServer.
+ */
+interface Ax { id: string; at: Date }
 
 export async function POST(req: NextRequest) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -69,6 +79,8 @@ export async function POST(req: NextRequest) {
     console.error("[stripe] event ledger write failed", dupe.message);
   }
 
+  const ax: Ax = { id: event.id, at: new Date(event.created * 1000) };
+
   try {
     switch (event.type) {
       case "checkout.session.completed":
@@ -77,7 +89,11 @@ export async function POST(req: NextRequest) {
 
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await onSubscriptionChanged(db, event.data.object as Stripe.Subscription, ageSec);
+        await onSubscriptionChanged(
+          db, event.data.object as Stripe.Subscription, ageSec, ax,
+          event.type === "customer.subscription.created",
+          (event.data.previous_attributes ?? {}) as Partial<Stripe.Subscription>,
+        );
         break;
 
       case "customer.subscription.trial_will_end":
@@ -85,15 +101,15 @@ export async function POST(req: NextRequest) {
         break;
 
       case "invoice.payment_succeeded":
-        await onPaymentSucceeded(db, event.data.object as Stripe.Invoice, ageSec);
+        await onPaymentSucceeded(db, event.data.object as Stripe.Invoice, ageSec, ax);
         break;
 
       case "invoice.payment_failed":
-        await onPaymentFailed(db, event.data.object as Stripe.Invoice, ageSec);
+        await onPaymentFailed(db, event.data.object as Stripe.Invoice, ageSec, ax);
         break;
 
       case "customer.subscription.deleted":
-        await onSubscriptionDeleted(db, event.data.object as Stripe.Subscription);
+        await onSubscriptionDeleted(db, event.data.object as Stripe.Subscription, ax);
         break;
 
       default:
@@ -109,6 +125,12 @@ export async function POST(req: NextRequest) {
     }
     await db.from("stripe_events").delete().eq("id", event.id);
     return NextResponse.json({ error: "handler failed" }, { status: 500 });
+  } finally {
+    // A serverless function is frozen as soon as it responds, so anything still
+    // queued in posthog-node would be lost. Flush on the failure path too: those
+    // events describe writes that already committed, and the $insert_id keys make
+    // the inevitable Stripe retry collapse into the same rows rather than double.
+    await flushBilling();
   }
 
   return NextResponse.json({ ok: true });
@@ -151,7 +173,10 @@ async function onCheckoutCompleted(db: any, s: Stripe.Checkout.Session) {
 }
 
 /** Mirror Stripe's subscription into venue_subscriptions. */
-async function onSubscriptionChanged(db: any, sub: Stripe.Subscription, ageSec = 0) {
+async function onSubscriptionChanged(
+  db: any, sub: Stripe.Subscription, ageSec = 0,
+  ax?: Ax, isCreate = false, prev: Partial<Stripe.Subscription> = {},
+) {
   const venueId = await venueForSubscription(db, sub, ageSec);
   if (!venueId) return;
 
@@ -186,6 +211,47 @@ async function onSubscriptionChanged(db: any, sub: Stripe.Subscription, ageSec =
     await advanceStatus(db, venueId, "active");
   } else if (sub.status === "trialing") {
     await advanceStatus(db, venueId, "trialing");
+  }
+
+  if (!ax) return;
+  const { distinctId, identitySource } = await venueDistinctId(db, venueId);
+  const base = {
+    venue_id: venueId, identity_source: identitySource,
+    plan, interval, currency: item?.price?.currency ?? "eur",
+    amount_cents: amount, is_comp: isComp,
+  };
+
+  if (isCreate && sub.status === "trialing") {
+    // Card-less 7-day trial: the top of the B2B funnel.
+    captureBilling({
+      event: BILLING.TRIAL_STARTED, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+      properties: {
+        ...base,
+        trial_ends_at:      sub.trial_end ? iso(sub.trial_end) : null,
+        has_payment_method: Boolean(sub.default_payment_method),
+      },
+    });
+  } else if (isCreate && sub.status === "active") {
+    // Paid straight away, no trial leg.
+    captureBilling({
+      event: BILLING.SUBSCRIPTION_STARTED, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+      properties: base,
+    });
+  }
+
+  // Cancellation *intent*. This fires when the venue turns off auto-renew, which
+  // is days or weeks before customer.subscription.deleted — it is the signal you
+  // can still act on. Guarded on the transition (prev false → now true) so the
+  // routine subscription.updated churn does not re-fire it every cycle.
+  if (!isCreate && sub.cancel_at_period_end && prev.cancel_at_period_end === false) {
+    captureBilling({
+      event: BILLING.SUBSCRIPTION_CANCELLED, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+      properties: {
+        ...base,
+        ends_at:        periodEnd ? iso(periodEnd) : null,
+        mrr_cents_lost: (!isComp && toMrrCents(amount, plan)) || 0,
+      },
+    });
   }
 }
 
@@ -241,7 +307,7 @@ async function onTrialWillEnd(db: any, sub: Stripe.Subscription) {
 }
 
 /** A real invoice cleared → this venue is paying. */
-async function onPaymentSucceeded(db: any, inv: Stripe.Invoice, ageSec = 0) {
+async function onPaymentSucceeded(db: any, inv: Stripe.Invoice, ageSec = 0, ax?: Ax) {
   // €0 trial invoices also succeed — they are not revenue.
   if ((inv.amount_paid ?? 0) <= 0) return;
 
@@ -263,10 +329,36 @@ async function onPaymentSucceeded(db: any, inv: Stripe.Invoice, ageSec = 0) {
       amount: inv.amount_paid, currency: inv.currency,
     });
   }
+
+  if (!ax) return;
+  const { distinctId, identitySource } = await venueDistinctId(db, venueId);
+  const base = {
+    venue_id: venueId, identity_source: identitySource,
+    amount_cents: inv.amount_paid, currency: inv.currency,
+    // subscription_create vs subscription_cycle — separates new revenue from
+    // renewal revenue, which is the whole point of tracking payments at all.
+    billing_reason: inv.billing_reason ?? null,
+  };
+
+  captureBilling({
+    event: BILLING.PAYMENT_SUCCEEDED, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+    properties: base,
+  });
+
+  // The conversion event. Gated on paid_at having been null when this handler
+  // read it, which is the venue's first-ever successful payment — a fact that
+  // can only be true once, so this cannot double-count even if every other
+  // idempotency layer failed.
+  if (!v?.paid_at) {
+    captureBilling({
+      event: BILLING.CONVERTED_TO_PAID, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+      properties: base,
+    });
+  }
 }
 
 /** Card declined → warn, keep the league live through the grace window. */
-async function onPaymentFailed(db: any, inv: Stripe.Invoice, ageSec = 0) {
+async function onPaymentFailed(db: any, inv: Stripe.Invoice, ageSec = 0, ax?: Ax) {
   const venueId = await venueForCustomer(db, String(inv.customer), ageSec);
   if (!venueId) return;
 
@@ -288,12 +380,29 @@ async function onPaymentFailed(db: any, inv: Stripe.Invoice, ageSec = 0) {
     event: "venue.payment_failed", venue_id: venueId,
     venue: v?.name, email: v?.contact_email, attempt: inv.attempt_count,
   });
+
+  if (!ax) return;
+  const { distinctId, identitySource } = await venueDistinctId(db, venueId);
+  captureBilling({
+    event: BILLING.PAYMENT_FAILED, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+    properties: {
+      venue_id: venueId, identity_source: identitySource,
+      amount_cents: inv.amount_due, currency: inv.currency,
+      attempt: inv.attempt_count,
+    },
+  });
 }
 
 /** Subscription gone → suspend the league and mark the venue churned. */
-async function onSubscriptionDeleted(db: any, sub: Stripe.Subscription) {
+async function onSubscriptionDeleted(db: any, sub: Stripe.Subscription, ax?: Ax) {
   const venueId = await venueForSubscription(db, sub);
   if (!venueId) return;
+
+  // Read the mirror before it is zeroed, so the churn event can carry the MRR
+  // actually lost rather than the 0 it is about to be set to.
+  const { data: priorSub } = await db.from("venue_subscriptions")
+    .select("plan, currency, amount_cents, mrr_cents")
+    .eq("stripe_subscription_id", sub.id).maybeSingle();
 
   await db.from("venue_subscriptions")
     .update({ status: "canceled", mrr_cents: 0 })
@@ -325,6 +434,19 @@ async function onSubscriptionDeleted(db: any, sub: Stripe.Subscription) {
   }
 
   await notifyN8n({ event: "venue.churned", venue_id: venueId, subscription: sub.id });
+
+  if (!ax) return;
+  const { distinctId, identitySource } = await venueDistinctId(db, venueId);
+  captureBilling({
+    event: BILLING.SUBSCRIPTION_ENDED, distinctId, stripeEventId: ax.id, occurredAt: ax.at,
+    properties: {
+      venue_id: venueId, identity_source: identitySource,
+      plan:           priorSub?.plan          ?? null,
+      currency:       priorSub?.currency      ?? null,
+      amount_cents:   priorSub?.amount_cents  ?? null,
+      mrr_cents_lost: priorSub?.mrr_cents     ?? 0,
+    },
+  });
 }
 
 // ══════════════════════════ LOOKUPS ══════════════════════════

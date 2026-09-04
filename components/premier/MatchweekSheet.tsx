@@ -179,8 +179,11 @@ export default function MatchweekSheet({
   const applyPick = useCallback((fixtureId: string, pick: ScorePick, isFirst: boolean) => {
     setPicks((prev) => new Map(prev).set(fixtureId, pick));
     void save(fixtureId, pick);
-    if (isFirst) track.firstPredictionSaved(fixtureId);
-    else track.predictionSaved(fixtureId, true);
+    // These used to be mutually exclusive here while the competition page fired
+    // both, so prediction_saved counted every save on one surface and only edits
+    // on the other. Always emit the save; emit created when it is genuinely new.
+    if (isFirst) track.predictionCreated(fixtureId);
+    track.predictionSaved(fixtureId, !isFirst);
   }, [save]);
 
   const onOutcome = useCallback((f: Fixture, outcome: Outcome) => {
@@ -206,14 +209,33 @@ export default function MatchweekSheet({
 
   const runBulk = useCallback((targets: BulkTarget[], label: string) => {
     if (targets.length === 0) return;
+
+    // Newness is read from state BEFORE the optimistic update below, otherwise
+    // the bulk apply would label its own writes as edits.
+    const applied = targets.map((t) => ({
+      t,
+      isNew: !picks.get(t.fixtureId) &&
+             !fixtures.find((f) => f.id === t.fixtureId)?.myPrediction,
+    }));
+
     setPicks((prev) => {
       const m = new Map(prev);
       for (const t of targets) m.set(t.fixtureId, t.pick);
       return m;
     });
     for (const t of targets) void save(t.fixtureId, t.pick);
-    track.predictionSaved(`bulk:${label}:${targets.length}`, true);
-  }, [save]);
+
+    // One event per prediction actually written, exactly as a single tap would
+    // emit. Previously this fired ONE prediction_saved for N predictions with a
+    // fake fixture_id of `bulk:<label>:<n>`, so bulk users were under-counted
+    // and prediction_created never fired for them at all.
+    for (const { t, isNew } of applied) {
+      if (isNew) track.predictionCreated(t.fixtureId);
+      track.predictionSaved(t.fixtureId, !isNew);
+    }
+    // The action itself, separately — never as a prediction.
+    track.bulkPredictionApplied(label, applied.length, applied.filter((a) => a.isNew).length);
+  }, [picks, fixtures, save]);
 
   // ── Derived ─────────────────────────────────────────────────
   const liveFixtures = fixtures.map((f) => {

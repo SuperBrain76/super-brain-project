@@ -25,7 +25,23 @@ const ALLOWED = new Set<string>([
   EVENT.LANDING_VIEWED,
   EVENT.START_CLICKED,
   EVENT.SIGNUP_STARTED,
+  EVENT.PLAYER_JOINED,
 ]);
+
+/**
+ * Kinds logged only the FIRST time per venue.
+ *
+ * This endpoint is necessarily public and unauthenticated — a cold prospect and
+ * a bar's customer both fire it before they have any credential. For a funnel
+ * milestone that is fine, but an unbounded per-join write would let anyone
+ * inflate a venue's activity. First-only caps the blast radius at one bogus row
+ * per venue, the same trade-off /j/[slug] already makes for qr_scanned.
+ *
+ * Consequence to remember: `player_joined` in venue_events answers "did anyone
+ * ever join?", NOT "how many joined". Player COUNTS come from
+ * prediction_league_members and from PostHog's venue_player_joined.
+ */
+const FIRST_ONLY = new Set<string>([EVENT.PLAYER_JOINED]);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -51,6 +67,12 @@ export async function POST(req: NextRequest) {
   const detail = (body.detail && typeof body.detail === "object")
     ? { ...body.detail, path: String(body.path ?? "").slice(0, 200) }
     : { path: String(body.path ?? "").slice(0, 200) };
+
+  if (FIRST_ONLY.has(event)) {
+    const { data: seen } = await db.from("venue_events")
+      .select("id").eq("venue_id", venueId).eq("kind", event).limit(1).maybeSingle();
+    if (seen) return new NextResponse(null, { status: 204 });
+  }
 
   await emit(db, event as any, { venueId, source: "web", detail });
 

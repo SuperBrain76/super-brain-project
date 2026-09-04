@@ -10,7 +10,8 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { leadTrack, leadTrackOnce } from "@/lib/leadTrack";
+import { leadTrack, leadTrackOnce, leadId } from "@/lib/leadTrack";
+import { track, setVenueContext } from "@/lib/analytics";
 
 const C = {
   bg: "#05130C", panel: "#0C1A12", panel2: "#10231A", line: "#20342A",
@@ -42,7 +43,15 @@ const FAQ = [
 ];
 
 export default function VenuesLanding() {
-  useEffect(() => { leadTrackOnce("landing_viewed"); }, []);
+  // leadTrack writes the venue_events CRM row (outreach attribution); PostHog
+  // gets the same moment for funnel analysis. Both, not one — the CRM log only
+  // ever sees prospects we emailed, PostHog sees everyone who lands.
+  useEffect(() => {
+    leadTrackOnce("landing_viewed");
+    const v = leadId();
+    if (v) setVenueContext({ venue_id: v });
+    track.venue.landingViewed(v ? "outreach" : "direct");
+  }, []);
   const onStart = () => leadTrack("start_clicked");
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: "100vh" }}>

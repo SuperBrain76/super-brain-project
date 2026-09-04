@@ -14,6 +14,7 @@ import {
 } from "@/lib/predictor";
 import { signInWithGoogle } from "@/lib/googleAuth";
 import { track } from "@/lib/analytics";
+import { trackLeagueJoined } from "@/lib/joinTracking";
 import { WhatsAppChannelCard } from "@/components/WhatsAppChannelCard";
 import { GrandPrizeJoinCard } from "@/components/GrandPrize";
 import { FALLBACK_COMPETITION_SLUG } from "@/lib/competitionEngine";
@@ -132,6 +133,21 @@ export default function JoinContent({ code }: { code: string }) {
       }
 
       try { localStorage.removeItem(PENDING_LEAGUE_JOIN_KEY); } catch { /* ignore */ }
+
+      // The join that was never reported. This surface is the target of the
+      // venue QR redirect (/j/<slug>) and of every shared invite link, so it is
+      // where the overwhelming majority of real joins happen — 647 invite page
+      // views against 7 league_joined events, none since 25 June 2026.
+      // Emitted only here, on the success path: the already-member branch above
+      // returns first, because re-opening an invite is not a new join.
+      // Read straight off the URL rather than via useSearchParams(), which would
+      // need its own Suspense boundary here. `code` arrives as a server prop, so
+      // this is the only place the query string is consulted client-side.
+      const srcParam = typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("src")
+        : null;
+      trackLeagueJoined(found, srcParam === "qr" ? "qr" : "link");
+
       setStatus("success");
       setTimeout(() => router.replace(`/${competitionSlug}/leagues/${found.id}`), 1800);
     }

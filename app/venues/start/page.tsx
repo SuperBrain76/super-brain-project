@@ -16,10 +16,11 @@
  * playing" line, because that would not be true.
  */
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { leadTrackOnce } from "@/lib/leadTrack";
+import { leadTrackOnce, leadId } from "@/lib/leadTrack";
+import { track, setVenueContext } from "@/lib/analytics";
 
 type Lang = "en" | "es" | "fr" | "it" | "de";
 
@@ -163,7 +164,22 @@ function VenueStartPageInner() {
 
   // Funnel: landing on the signup page is a click-through (the email's
   // signup_url points straight here). signup_started fires on first interaction.
-  useEffect(() => { leadTrackOnce("landing_viewed"); }, []);
+  useEffect(() => {
+    leadTrackOnce("landing_viewed");
+    const v = leadId();
+    if (v) setVenueContext({ venue_id: v });
+    track.venue.landingViewed(v ? "outreach" : "direct");
+  }, []);
+
+  // Intent, not traffic: signup_started fires on the first real edit of the form,
+  // once per mount. The gap between landing_viewed and this is the page's single
+  // most useful number — a page view is not an intention to buy.
+  const startedRef = useRef(false);
+  const signupStartedOnce = () => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    track.venue.signupStarted(leadId() ? "outreach" : "direct");
+  };
 
   useEffect(() => {
     if (!venueId) return;
@@ -186,6 +202,8 @@ function VenueStartPageInner() {
     e.preventDefault();
     if (!form.venueName.trim() || !form.email.trim()) { setErr(t.required); return; }
     setErr(""); setBusy(true);
+
+    track.venue.checkoutOpened(plan, form.country === "GB" ? "gbp" : "eur");
 
     try {
       const res = await fetch("/api/venues/checkout", {
@@ -276,7 +294,7 @@ function VenueStartPageInner() {
 
       <form onSubmit={submit} className="flex flex-col gap-4 max-w-md">
         <Field label={t.venue} value={form.venueName}
-               onChange={(v) => { leadTrackOnce("signup_started"); setForm({ ...form, venueName: v }); }} required />
+               onChange={(v) => { leadTrackOnce("signup_started"); signupStartedOnce(); setForm({ ...form, venueName: v }); }} required />
 
         <Field label={t.yourName} value={form.ownerName} onChange={(v) => setForm({ ...form, ownerName: v })} />
         <Field label={t.email} type="email" value={form.email}

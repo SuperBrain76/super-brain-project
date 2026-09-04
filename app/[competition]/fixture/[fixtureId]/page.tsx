@@ -101,6 +101,8 @@ export default function FixturePredictPage() {
     const { error: err } = await upsertPrediction(fixture.id, homeScore, awayScore);
     setSaving(false);
     if (err) { setError(err); return; }
+    // Both halves, on every surface: created is the subset of saves that were new.
+    if (!isEdit) track.predictionCreated(fixture.id);
     track.predictionSaved(fixture.id, isEdit);
     setSaved(true);
     const updated = await getFixture(fixture.id);

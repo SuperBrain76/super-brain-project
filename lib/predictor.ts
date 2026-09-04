@@ -111,6 +111,8 @@ export interface PredictionLeague {
   sponsorDescription:  string | null;
   sponsorLogoUrl:      string | null;
   suspended:           boolean;
+  /** Venue that owns this league, or null for an ordinary user league. */
+  venueId?: string | null;
 }
 
 export interface LeagueMember {
@@ -645,7 +647,7 @@ export async function getMyPredictions(
 
 const LEAGUE_SELECT =
   "id, competition_id, name, normalized_name, invite_code, created_by, created_at, " +
-  "max_members, visibility, is_featured, sponsor_name, sponsor_url, sponsor_description, sponsor_logo_url, suspended";
+  "max_members, visibility, is_featured, sponsor_name, sponsor_url, sponsor_description, sponsor_logo_url, suspended, venue_id";
 
 function mapLeagueRow(l: Record<string, unknown>, extra?: { memberCount?: number }): PredictionLeague {
   return {
@@ -664,6 +666,10 @@ function mapLeagueRow(l: Record<string, unknown>, extra?: { memberCount?: number
     sponsorDescription: (l.sponsor_description as string | null) ?? null,
     sponsorLogoUrl:     (l.sponsor_logo_url as string | null) ?? null,
     suspended:          (l.suspended as boolean) ?? false,
+    // Present only on venue-owned leagues. It is what lets a customer's join or
+    // prediction be attributed to the venue whose QR code they scanned — without
+    // it, B2B activation and retention cannot be measured from product usage.
+    venueId:            (l.venue_id as string | null) ?? null,
     ...extra,
   };
 }

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { initPostHog, trackPageView } from "@/lib/analytics";
+import { applyReplayPolicy, initPostHog, trackPageView } from "@/lib/analytics";
 
 // Needs Suspense because useSearchParams() opts into dynamic rendering
 function PageViewTracker() {
@@ -10,6 +10,9 @@ function PageViewTracker() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Re-apply BEFORE the pageview, so navigating into /login or /settings stops
+    // replay on entry rather than after the first frame of the page is captured.
+    applyReplayPolicy(pathname);
     trackPageView();
   }, [pathname, searchParams]);
 

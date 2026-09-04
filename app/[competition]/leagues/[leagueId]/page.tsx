@@ -4,6 +4,7 @@ import { useCompetition } from "@/components/CompetitionProvider";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { track } from "@/lib/analytics";
+import { trackLeagueJoined } from "@/lib/joinTracking";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { nameToFlag } from "@/lib/countries";
@@ -553,7 +554,7 @@ export default function LeagueDetailPage() {
     const { error: err } = await fn(league.id);
     setJoining(false);
     if (err) { setJoinError(err); return; }
-    track.leagueJoined(league.id);
+    trackLeagueJoined(league, "link");
     load();
   };
 

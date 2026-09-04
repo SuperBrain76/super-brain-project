@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { identifyUser, resetUser } from "@/lib/analytics";
 import type { AuthUser } from "@/types";
 import type { User } from "@supabase/supabase-js";
 
@@ -43,6 +44,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // ── PostHog identity ────────────────────────────────────────────────────────
+  // Mirror auth state into PostHog. The ref tracks the previous id so identify()
+  // fires once per user rather than on every render, and reset() fires only on a
+  // real sign-out — never on the initial anonymous load, which would churn the
+  // anonymous id and break PostHog's anonymous → identified stitching at signup.
+  const prevUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    const id = user?.id ?? null;
+    if (id === prevUserId.current) return;
+    if (id)                      identifyUser(id);   // Supabase user id only
+    else if (prevUserId.current) resetUser();        // genuine sign-out
+    prevUserId.current = id;
+  }, [user?.id]);
 
   const signOut = async () => {
     if (isSupabaseConfigured) await supabase.auth.signOut();

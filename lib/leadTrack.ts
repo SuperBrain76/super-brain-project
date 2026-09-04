@@ -44,6 +44,25 @@ export function leadTrack(event: "landing_viewed" | "start_clicked" | "signup_st
   } catch { /* best-effort */ }
 }
 
+/**
+ * Fire a funnel beacon for an EXPLICIT venue, independent of the outreach lead id.
+ *
+ * leadTrack() only fires for someone who arrived from a cold email. A customer
+ * scanning a poster in the bar has no lead id, but their join is still the
+ * venue's most important funnel milestone — hence the separate entry point.
+ */
+export function venueTrack(venueId: string, event: "player_joined", detail?: Record<string, unknown>) {
+  if (typeof window === "undefined" || !UUID.test(venueId)) return;
+  try {
+    const body = JSON.stringify({ v: venueId, event, detail, path: window.location.pathname });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/venues/track", new Blob([body], { type: "application/json" }));
+    } else {
+      fetch("/api/venues/track", { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => {});
+    }
+  } catch { /* best-effort */ }
+}
+
 /** Fire an event at most once per session (for page-view style beacons). */
 export function leadTrackOnce(event: "landing_viewed" | "signup_started", detail?: Record<string, unknown>) {
   if (typeof window === "undefined") return;

@@ -225,7 +225,7 @@ export default function PredictHub() {
 
     // Fire analytics events
     if (wasNew) {
-      track.firstPredictionSaved(fixtureId);
+      track.predictionCreated(fixtureId);
       // Show WhatsApp channel banner once per session on first ever save
       try {
         const dismissed = sessionStorage.getItem("waBannerDismissed");

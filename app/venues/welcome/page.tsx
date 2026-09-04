@@ -20,6 +20,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { track, setVenueContext } from "@/lib/analytics";
 
 const INK = "#12100E", AMBER = "#F5B301", CREAM = "#FBF5E9", MUTED = "#B7AC97";
 const PANEL = "#1B1712", LINE = "rgba(255,255,255,0.12)";
@@ -107,6 +108,11 @@ function Wizard({ sessionId, initial }: { sessionId: string; initial: State }) {
     return res.ok ? res.json() : Promise.reject(await res.json().catch(() => ({})));
   }, [sessionId]);
 
+  // Attach the venue to every event this wizard fires. Only the slug is known
+  // client-side here; the Stripe webhook attributes billing by venue_id, and the
+  // two are joined in analysis via the venues table.
+  useEffect(() => { if (v.slug) setVenueContext({ venue_slug: v.slug }); }, [v.slug]);
+
   const go = (n: number) => setStep(Math.max(0, Math.min(STEPS.length - 1, n)));
 
   return (
@@ -121,6 +127,7 @@ function Wizard({ sessionId, initial }: { sessionId: string; initial: State }) {
               try { await post("/api/venues/onboarding/branding", {
                 primary: v.primary, secondary: v.secondary || "",
                 website: v.website || "", instagram: v.instagram || "", facebook: v.facebook || "", step: "competitions" });
+                track.venue.wizardStepCompleted("branding", 0);
                 go(1); } finally { setBusy(false); } }} />}
 
           {step === 1 && <CompetitionsStep leagues={leagues} comps={comps}
@@ -140,18 +147,24 @@ function Wizard({ sessionId, initial }: { sessionId: string; initial: State }) {
                 return { ok: false as const, error: e?.error || e?.message || "Could not activate that competition. Please try again." };
               }
             }}
-            onNext={() => { post("/api/venues/onboarding/branding", { step: "posters" }).catch(() => {}); go(2); }}
+            onNext={() => { post("/api/venues/onboarding/branding", { step: "posters" }).catch(() => {});
+              track.venue.wizardStepCompleted("competitions", 1); go(2); }}
             onBack={() => go(0)} />}
 
           {step === 2 && <LaunchPackStep v={v} urls={initial.urls} assetKinds={initial.assetKinds}
-            onNext={() => { post("/api/venues/onboarding/branding", { step: "staff" }).catch(() => {}); go(3); }}
+            onNext={() => { post("/api/venues/onboarding/branding", { step: "staff" }).catch(() => {});
+              track.venue.wizardStepCompleted("launch_pack", 2); go(3); }}
             onBack={() => go(1)} />}
 
           {step === 3 && <StaffStep initial={v.staffEmails} busy={busy}
             onSave={async (emails) => { setBusy(true);
               try { await post("/api/venues/onboarding/staff", { emails }); patch({ staffEmails: emails }); }
               finally { setBusy(false); } }}
-            onNext={async () => { await post("/api/venues/onboarding/complete", {}).catch(() => {}); go(4); }}
+            onNext={async () => { await post("/api/venues/onboarding/complete", {}).catch(() => {});
+              track.venue.wizardStepCompleted("staff", 3);
+              // onboarding/complete stamps venues.onboarded_at — this is "live".
+              track.venue.launchCompleted(leagues.length > 0, leagues.length);
+              go(4); }}
             onBack={() => go(2)} />}
 
           {step === 4 && <LaunchStep v={v} leagues={leagues} urls={initial.urls} />}

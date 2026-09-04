@@ -30,7 +30,11 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
   if (!league) return NextResponse.redirect(`${SITE}/venues`, 302);
 
   const compSlug = (league.competition as any)?.slug ?? "premier-league";
-  const joinUrl  = `${SITE}/${compSlug}/leagues/join?code=${league.invite_code}`;
+  // src=qr survives into the join page so venue_player_joined can record HOW the
+  // player arrived. Without it a poster scan is indistinguishable from someone
+  // pasting the same invite link, and the QR — the venue's main channel — cannot
+  // be measured.
+  const joinUrl  = `${SITE}/${compSlug}/leagues/join?code=${league.invite_code}&src=qr`;
 
   // Log only the FIRST scan for this venue (the funnel milestone).
   try {
