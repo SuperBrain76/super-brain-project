@@ -15,6 +15,7 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { signInWithGoogle } from "@/lib/googleAuth";
 import { upsertPrediction } from "@/lib/predictor";
+import { track, setVenueContext } from "@/lib/analytics";
 import { supabase } from "@/lib/supabase";
 
 interface Fixture {
@@ -67,16 +68,32 @@ export default function ChallengePage() {
     supabase.rpc("join_challenge", { p_code: code }).then(() => load());
   }, [user, d, code, load]);
 
+  // The venue this challenge belongs to, attached to every event fired from this
+  // page — including the prediction events below, which are the venue activation
+  // signal. Set from the challenge payload rather than a URL param, because a QR
+  // scanner lands here with no lead id.
+  useEffect(() => {
+    if (d?.venue?.slug) setVenueContext({ venue_slug: d.venue.slug });
+  }, [d?.venue?.slug]);
+
   const save = useCallback(async (f: Fixture) => {
     const p = picks[f.id];
     if (!p || p.h === "" || p.a === "") return;
     const h = Math.max(0, Math.min(20, parseInt(p.h, 10)));
     const a = Math.max(0, Math.min(20, parseInt(p.a, 10)));
     if (Number.isNaN(h) || Number.isNaN(a)) return;
+    // Read newness BEFORE the save; load() below refetches and would make every
+    // prediction look like an edit.
+    const wasNew = f.my_home == null;
     setSaving(f.id); setErr("");
     const res = await upsertPrediction(f.id, h, a);
     setSaving(null);
     if (res.error) { setErr(res.error); return; }
+    // This page had NO analytics at all. It is the QR destination — the surface a
+    // venue's own customers use — so venue activation, which is defined on
+    // predictions by non-owners, was unmeasurable exactly where it matters.
+    if (wasNew) track.predictionCreated(f.id);
+    track.predictionSaved(f.id, !wasNew);
     load();
   }, [picks, load]);
 
