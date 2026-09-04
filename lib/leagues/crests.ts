@@ -8,7 +8,22 @@
  */
 
 export const CREST_BY_CODE: Record<string, string> = {
+  "AEK": "https://crests.football-data.org/1899.png",
   "AIK": "https://r2.thesportsdb.com/images/media/team/badge/rwsrxq1420769503.png",
+  "BOD": "https://crests.football-data.org/5721.png",
+  "BRU": "https://crests.football-data.org/851.png",
+  "FEN": "https://crests.football-data.org/613.png",
+  "FEY": "https://crests.football-data.org/675.png",
+  "GAL": "https://crests.football-data.org/610.png",
+  "LAS": "https://crests.football-data.org/2016.png",
+  "POR": "https://crests.football-data.org/503.png",
+  "PSV": "https://crests.football-data.org/674.png",
+  "SAB": "https://crests.football-data.org/10233.png",
+  "SHK": "https://crests.football-data.org/1887.png",
+  "SLA": "https://crests.football-data.org/930.png",
+  "SLB": "https://crests.football-data.org/7509.png",
+  "SPO": "https://crests.football-data.org/498.png",
+  "VIK": "https://crests.football-data.org/5720.png",
   "ALA": "https://crests.football-data.org/263.png",
   "ANA": "https://r2.thesportsdb.com/images/media/team/badge/1d465t1719573796.png",
   "ANG": "https://crests.football-data.org/532.png",

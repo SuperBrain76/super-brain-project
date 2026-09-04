@@ -56,6 +56,7 @@ import { ALLSVENSKAN_CLUBS } from "@/lib/leagues/allsvenskan";
 import { SHL_CLUBS } from "@/lib/hockey/shl";
 import { NHL_CLUBS } from "@/lib/hockey/nhl";
 import { PREM_RUGBY_CLUBS } from "@/lib/rugby/prem";
+import { CHAMPIONS_LEAGUE_CLUBS } from "@/lib/leagues/champions-league";
 
 export const ALL_CLUBS: Club[] = [
   ...PREMIER_LEAGUE_CLUBS,
@@ -67,6 +68,7 @@ export const ALL_CLUBS: Club[] = [
   ...SHL_CLUBS,
   ...NHL_CLUBS,
   ...PREM_RUGBY_CLUBS,
+  ...CHAMPIONS_LEAGUE_CLUBS,
 ];
 
 const BY_CODE = new Map(ALL_CLUBS.map((c) => [c.code, c]));
