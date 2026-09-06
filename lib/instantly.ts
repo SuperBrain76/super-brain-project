@@ -212,6 +212,21 @@ export async function campaignState() {
     step_delays: (c.sequences?.[0]?.steps ?? []).map((s: any) => s.delay),
     window: sch ? `${sch.timing?.from}-${sch.timing?.to} ${sch.timezone}` : null,
     days: sch ? Object.keys(sch.days ?? {}).length : null,
+    // The raw schedule, not just a count. A reporting environment that has no
+    // Instantly key of its own (the cloud brief runner) reconstructs "is today
+    // a sending day, and when is the next send" from these — otherwise it can
+    // only say "not readable", which is what made a starving campaign and a
+    // healthy weekend look identical in the daily brief.
+    schedule: sch
+      ? {
+          timezone: sch.timezone ?? "UTC",
+          from: sch.timing?.from ?? null,
+          to: sch.timing?.to ?? null,
+          day_numbers: Object.entries(sch.days ?? {})
+            .filter(([, v]) => v)
+            .map(([k]) => Number(k)),
+        }
+      : null,
     senders: c.email_list ?? [],
   };
 }

@@ -57,8 +57,21 @@ async function pageAll(path: string, cap = 10): Promise<any[]> {
 const norm = (v: unknown) => String(v ?? "").toLowerCase().trim();
 
 export async function GET(req: NextRequest) {
-  const secret = (process.env.OUTREACH_SYNC_SECRET || process.env.CRON_SECRET) ?? "";
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  // ACCEPT EITHER SECRET — do not collapse this back to `A || B`.
+  //
+  // Vercel Cron always sends `Bearer $CRON_SECRET`; it cannot be told to send
+  // anything else. The previous form resolved to OUTREACH_SYNC_SECRET the
+  // moment that variable existed, so from the day it was added (24 Aug 2026)
+  // every scheduled invocation 401'd silently: no writes, no error, and a CRM
+  // mirror that froze while Instantly kept sending. Two weeks of sends went
+  // unrecorded and the daily brief reported "no emails sent".
+  //
+  // prospect-buffer and venue-state already accept a LIST of valid secrets.
+  // This route is the one that didn't. Same pattern now.
+  const accepted = [process.env.OUTREACH_SYNC_SECRET, process.env.CRON_SECRET]
+    .filter(Boolean)
+    .map((s) => `Bearer ${s}`);
+  if (!accepted.length || !accepted.includes(req.headers.get("authorization") ?? "")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const campaign = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
