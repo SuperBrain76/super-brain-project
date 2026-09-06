@@ -34,8 +34,20 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const MIN_FIT = Number(process.env.OUTREACH_MIN_FIT_SCORE ?? 60);
-const BUFFER_MIN = Number(process.env.PROSPECT_BUFFER_MIN ?? 30);
-const BUFFER_TARGET = Number(process.env.PROSPECT_BUFFER_TARGET ?? 60);
+/**
+ * Buffer floor and target, in VERIFIED-DELIVERABLE prospects.
+ *
+ * Was 30/60. At the campaign's 12 emails/day a floor of 30 is two and a half
+ * days of inventory — and that is before verification, which on the first real
+ * batch rejected 16 of 33 addresses as invalid or catch-all. 30 nominal leads
+ * were really about 15 sendable ones, i.e. one day. The campaign ran dry on
+ * 4 Sep for exactly that reason.
+ *
+ * 100 is roughly eight sending days of headroom after verification losses;
+ * 150 is where a sweep stops. Discovery is cheap, a starved campaign is not.
+ */
+const BUFFER_MIN = Number(process.env.PROSPECT_BUFFER_MIN ?? 100);
+const BUFFER_TARGET = Number(process.env.PROSPECT_BUFFER_TARGET ?? 150);
 /** Country order the sweep walks. Mailable markets only. */
 const SWEEP_ORDER = ["GB", "ES", "FR", "IT"];
 

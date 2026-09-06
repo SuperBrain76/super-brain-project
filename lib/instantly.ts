@@ -231,6 +231,115 @@ export async function campaignState() {
   };
 }
 
+// ── Observability ─────────────────────────────────────────────
+/** Per-day send counts straight from Instantly, newest last. */
+export async function dailySends(): Promise<Array<{ date: string; sent: number }>> {
+  const id = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
+  if (!id) throw new InstantlyError("INSTANTLY_CAMPAIGN_DEFAULT missing");
+  const rows = await call(`/campaigns/analytics/daily?campaign_id=${encodeURIComponent(id)}`);
+  return (Array.isArray(rows) ? rows : []).map((r: any) => ({
+    date: String(r.date), sent: Number(r.sent ?? 0),
+  }));
+}
+
+/**
+ * What the campaign actually has left to send.
+ *
+ * `queued` is the number that matters: leads Instantly still considers ACTIVE
+ * and has never contacted. A campaign can hold 38 leads and still be starved
+ * because 36 of them are finished — which is exactly the state that produced
+ * five zero-send days between 25 Aug and 6 Sep while every dashboard said
+ * "active".
+ */
+export async function campaignQueue() {
+  const id = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
+  if (!id) throw new InstantlyError("INSTANTLY_CAMPAIGN_DEFAULT missing");
+  const STATUS: Record<string, string> = {
+    "1": "active", "2": "paused", "3": "completed", "-1": "bounced", "-2": "unsubscribed", "-3": "skipped",
+  };
+  let items: any[] = [];
+  let after: string | undefined;
+  do {
+    const page = await call("/leads/list", {
+      method: "POST",
+      body: JSON.stringify({ campaign: id, limit: 100, ...(after ? { starting_after: after } : {}) }),
+    });
+    items = items.concat(page.items ?? []);
+    after = page.next_starting_after;
+  } while (after && items.length < 5000);
+
+  const by: Record<string, number> = {};
+  let queued = 0, contacted = 0;
+  for (const l of items) {
+    const k = STATUS[String(l.status)] ?? String(l.status);
+    by[k] = (by[k] ?? 0) + 1;
+    if (l.timestamp_last_contact) contacted++;
+    else if (Number(l.status) === 1) queued++;
+  }
+  return { total: items.length, by_status: by, queued, contacted, bounced: by.bounced ?? 0 };
+}
+
+// ── Deliverability ────────────────────────────────────────────
+/**
+ * Verify one address against Instantly's verifier before it is ever pushed.
+ *
+ * This exists because `contact_email_status = 'valid'` never meant the mailbox
+ * was reachable. It was set in two places — a fit_score >= MIN_FIT in
+ * /api/prospect/enrich, and "an email string was scraped off the venue's own
+ * website" in the research loader — and neither one contacts a mail server. The
+ * first six sends to chain-pub addresses (stonegategroup, fullers, greeneking)
+ * bounced for exactly that reason: the addresses were real-looking, published
+ * or pattern-derived, and dead. 6 bounces in 26 contacts is 23%, and a sending
+ * domain does not survive that rate for long.
+ *
+ * Verdicts are deliberately pessimistic. Only a clean, non-catch-all pass is
+ * `valid`. A catch-all domain accepts every address at the SMTP layer and
+ * decides later, so it can neither be trusted nor proven wrong — `risky`. An
+ * unreadable or timed-out check is `unknown`, never `valid`: fail closed.
+ *
+ * Costs 0.25 verification credits per address.
+ */
+export type EmailVerdict = {
+  email: string;
+  verdict: "valid" | "risky" | "invalid" | "unknown";
+  raw_status: string;
+  catch_all: boolean | null;
+};
+
+export async function verifyEmail(
+  email: string,
+  opts: { timeoutMs?: number } = {},
+): Promise<EmailVerdict> {
+  const timeoutMs = opts.timeoutMs ?? 30_000;
+  const wrap = (r: any): EmailVerdict => {
+    const raw = String(r?.verification_status ?? "unknown").toLowerCase();
+    const catchAll = r?.catch_all === true ? true : r?.catch_all === false ? false : null;
+    let verdict: EmailVerdict["verdict"];
+    if (raw === "invalid" || raw === "bad" || raw === "undeliverable") verdict = "invalid";
+    else if (raw === "verified" || raw === "valid") verdict = catchAll === true ? "risky" : "valid";
+    else if (raw === "risky" || raw === "accept_all" || raw === "catch_all") verdict = "risky";
+    else verdict = "unknown";           // includes "pending" that never resolved
+    return { email, verdict, raw_status: raw, catch_all: catchAll };
+  };
+
+  let r: any;
+  try {
+    r = await call("/email-verification", { method: "POST", body: JSON.stringify({ email }) });
+  } catch (e: any) {
+    // A verifier that is down must not become a licence to send.
+    return { email, verdict: "unknown", raw_status: `error:${String(e?.message ?? e).slice(0, 80)}`, catch_all: null };
+  }
+
+  // The POST returns immediately with "pending"; the verdict lands on the GET.
+  const deadline = Date.now() + timeoutMs;
+  while (String(r?.verification_status).toLowerCase() === "pending" && Date.now() < deadline) {
+    await new Promise((res) => setTimeout(res, 2_500));
+    try { r = await call(`/email-verification/${encodeURIComponent(email)}`); }
+    catch { break; }
+  }
+  return wrap(r);
+}
+
 /** Warm-up state of the sending mailbox. */
 export async function senderHealth() {
   const r = await call("/accounts?limit=100");

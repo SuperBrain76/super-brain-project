@@ -34,11 +34,14 @@ type TeamRow = { id: string; name: string; code: string };
 export async function GET(req: NextRequest) {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const SUPABASE_SRK = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  const SECRET =
-    process.env.MARKETING_API_SECRET || process.env.CRON_SECRET || "";
+  // Accept either — `A || B` makes B stop working the day A is set, which is
+  // how /api/cron/instantly-poll silently 401'd for eleven days.
+  const ACCEPTED = [process.env.MARKETING_API_SECRET, process.env.CRON_SECRET]
+    .filter(Boolean)
+    .map((s) => `Bearer ${s}`);
 
-  const auth = req.headers.get("authorization");
-  if (!SECRET || auth !== `Bearer ${SECRET}`) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!ACCEPTED.length || !ACCEPTED.includes(auth)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!SUPABASE_URL || !SUPABASE_SRK) {

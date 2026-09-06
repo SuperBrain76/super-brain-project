@@ -24,7 +24,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
-import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit } from "@/lib/instantly";
+import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit, verifyEmail } from "@/lib/instantly";
 import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
 import { planCapacity, followUpsDue, pendingFirstSends, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
 import { SITE } from "@/lib/stripe";
@@ -35,6 +35,26 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const MIN_FIT = Number(process.env.OUTREACH_MIN_FIT_SCORE ?? 60);
+
+/**
+ * Verify deliverability before pushing. On by default; OUTREACH_VERIFY=0 turns
+ * it off, which should only ever be a deliberate, temporary choice.
+ *
+ * `contact_email_status = 'valid'` in this database has never meant the mailbox
+ * exists — it is set when an AI fit score clears MIN_FIT, or simply when an
+ * address was scraped off the venue's own website. That is why 6 of the first
+ * 26 contacts bounced (23%). Verification is the gate that word was always
+ * assumed to be.
+ */
+const VERIFY = process.env.OUTREACH_VERIFY !== "0";
+/**
+ * How many addresses one run may verify while looking for `limit` good ones.
+ * Without this, a run that hits a run of dead chain-pub addresses would walk
+ * the entire eligible pool and spend the whole credit balance in one morning.
+ */
+const VERIFY_BUDGET_MULTIPLE = Number(process.env.OUTREACH_VERIFY_BUDGET_MULTIPLE ?? 4);
+/** A verdict older than this is re-checked; mailboxes close. */
+const VERDICT_TTL_DAYS = Number(process.env.OUTREACH_VERDICT_TTL_DAYS ?? 30);
 
 export async function GET(req: NextRequest)  { return run(req); }
 export async function POST(req: NextRequest) { return run(req); }
@@ -51,13 +71,21 @@ async function run(req: NextRequest) {
     }, { status: 503 });
   }
 
-  // Prefers its own secret so a dry run can be delegated without handing out
-  // CRON_SECRET, which unlocks every other admin route. Scoped to this route
-  // alone — nothing else reads OUTREACH_SYNC_SECRET. Falls back to CRON_SECRET
-  // so existing callers are unaffected, and still fails closed when neither
-  // is set. Same pattern as /api/admin/venue-state.
-  const secret = (process.env.OUTREACH_SYNC_SECRET || process.env.CRON_SECRET) ?? "";
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  // ACCEPT EITHER SECRET — do not collapse this back to `A || B`.
+  //
+  // OUTREACH_SYNC_SECRET exists so a dry run can be delegated without handing
+  // out CRON_SECRET, which unlocks every other admin route. But `A || B`
+  // resolves to A the moment A is set, which makes B stop working rather than
+  // remain a fallback. /api/cron/instantly-poll carried exactly this bug: from
+  // the day OUTREACH_SYNC_SECRET was added to production, every scheduled run
+  // 401'd silently and the CRM mirror froze for eleven days while Instantly
+  // went on sending. This route is called by a GitHub Actions schedule that can
+  // only send CRON_SECRET, so the same collapse would silently stop the entire
+  // lead supply. Both are accepted; it still fails closed when neither is set.
+  const accepted = [process.env.OUTREACH_SYNC_SECRET, process.env.CRON_SECRET]
+    .filter(Boolean)
+    .map((s) => `Bearer ${s}`);
+  if (!accepted.length || !accepted.includes(req.headers.get("authorization") ?? "")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -149,14 +177,25 @@ async function run(req: NextRequest) {
 
   // ONE ordering path. `dry` only decides whether pushLead() runs further down —
   // it never changes who is selected.
-  const candidates = selectForOutreach(eligible ?? [], limit);
+  //
+  // The list is deliberately LONGER than `limit`: verification will reject some
+  // of it, and a run that verified exactly `limit` addresses would under-fill
+  // the campaign by however many turned out to be dead. The loop below stops as
+  // soon as `limit` good leads are pushed, so the extra rows cost nothing when
+  // the pool is clean.
+  const candidates = selectForOutreach(
+    eligible ?? [],
+    VERIFY ? limit * Math.max(1, VERIFY_BUDGET_MULTIPLE) : limit,
+  );
 
   const result = {
     capacity: plan,
     considered: candidates?.length ?? 0,
     eligible_total: eligible?.length ?? 0,
     pushed: 0, skipped_suppressed: 0, skipped_no_campaign: 0, failed: 0,
-    dry, min_fit_score: MIN_FIT, limit,
+    verified_valid: 0, suppressed_invalid: 0, skipped_risky: 0, skipped_unverifiable: 0,
+    verifications_spent: 0,
+    dry, min_fit_score: MIN_FIT, limit, verification: VERIFY,
     failures: [] as Array<{ venue: string; error: string }>,
   };
 
@@ -173,6 +212,7 @@ async function run(req: NextRequest) {
   }
 
   for (const v of candidates ?? []) {
+    if (result.pushed >= limit) break;      // capacity filled; stop verifying
     if (!v.contact_email) continue;
 
     if (await isSuppressed(db, v.contact_email)) {
@@ -186,6 +226,69 @@ async function run(req: NextRequest) {
     if (!campaignFor(v.country)) {
       result.skipped_no_campaign++;
       continue;
+    }
+
+    // ── deliverability gate ────────────────────────────────────────────────
+    // Runs in dry mode too. A dry run whose job is to answer "who goes out
+    // tomorrow" is worthless if it names addresses that will bounce.
+    if (VERIFY) {
+      const cached = (v as any).enrichment?.verify;
+      const fresh =
+        cached?.at &&
+        Date.now() - new Date(cached.at).getTime() < VERDICT_TTL_DAYS * 864e5;
+
+      let verdict: string;
+      let raw = cached?.raw_status ?? null;
+      let catchAll = cached?.catch_all ?? null;
+
+      if (fresh) {
+        verdict = cached.verdict;
+      } else {
+        const r = await verifyEmail(v.contact_email);
+        result.verifications_spent++;
+        verdict = r.verdict; raw = r.raw_status; catchAll = r.catch_all;
+        if (!dry) {
+          await db.from("venues").update({
+            enrichment: {
+              ...((v as any).enrichment ?? {}),
+              verify: { verdict, raw_status: raw, catch_all: catchAll, at: new Date().toISOString() },
+            },
+            contact_email_status:
+              verdict === "valid" ? "valid" : verdict === "invalid" ? "invalid" : verdict,
+          }).eq("id", v.id);
+        }
+      }
+
+      if (verdict === "invalid") {
+        result.suppressed_invalid++;
+        if (!dry) {
+          // Suppress the address, not just the venue: the same dead inbox is
+          // often published for several venues in a chain.
+          await db.from("email_suppressions").upsert(
+            { email: v.contact_email.toLowerCase(), reason: "invalid", detail: `verifier: ${raw}` },
+            { onConflict: "email" },
+          );
+          await db.from("venues").update({ status: "disqualified" }).eq("id", v.id);
+          await emit(db, EVENT.SYNC_FAILED, {
+            venueId: v.id, source: "instantly", severity: "info",
+            detail: { stage: "verify", verdict, raw_status: raw, email_domain: v.contact_email.split("@")[1] },
+          });
+        }
+        continue;
+      }
+      if (verdict === "risky") {
+        // Catch-all domain: the server accepts everything and decides later, so
+        // a send is a coin toss charged to our sending reputation. Keep the
+        // venue — a better address may surface — but never send to this one.
+        result.skipped_risky++;
+        continue;
+      }
+      if (verdict === "unknown") {
+        // Verifier unreachable or inconclusive. Fail closed.
+        result.skipped_unverifiable++;
+        continue;
+      }
+      result.verified_valid++;
     }
 
     if (dry) { result.pushed++; continue; }

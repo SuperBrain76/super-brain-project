@@ -246,8 +246,16 @@ export async function GET(req: NextRequest) {
     for (const l of scoped) {
       const email = norm(l.email);
       if (!email) continue;
-      const bounced = Number(l.email_bounced_count ?? 0) > 0 || norm(l.status) === "bounced";
-      const unsub = l.is_unsubscribed === true || norm(l.status) === "unsubscribed";
+      // Instantly's /leads/list payload carries NEITHER `email_bounced_count`
+      // NOR a textual status — `status` is a number, and a bounced lead is -1
+      // (-2 unsubscribed, -3 skipped). Both original tests were therefore
+      // permanently false, and this loop suppressed nothing: 6 addresses
+      // bounced between 31 Aug and 1 Sep and only the 2 inserted by hand ever
+      // reached email_suppressions. The numeric check is the real signal; the
+      // other two are kept as fallbacks in case the payload shape changes.
+      const st = Number(l.status);
+      const bounced = st === -1 || Number(l.email_bounced_count ?? 0) > 0 || norm(l.status) === "bounced";
+      const unsub = st === -2 || l.is_unsubscribed === true || norm(l.status) === "unsubscribed";
       if (!bounced && !unsub) continue;
 
       if (await isSuppressed(db, email)) continue;      // already handled

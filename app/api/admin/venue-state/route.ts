@@ -226,6 +226,30 @@ export async function GET(req: NextRequest) {
   const contacted: Array<Record<string, unknown>> = [];
   {
     const FOLLOW_UP_DELAY_DAYS = 4; // the step-1 delay configured in Instantly
+
+    /**
+     * A follow-up is only late once a day the campaign could actually have sent
+     * on has come and gone.
+     *
+     * The old test was `due <= now`, which on 6 Sep 2026 printed five venues as
+     * "overdue since 2026-08-30" when every one of them had received its step 2
+     * on 31 Aug. Two separate mistakes stacked: the CRM mirror was eleven days
+     * stale (the poller was 401'ing), and even with a correct mirror a due date
+     * that lands on a Saturday is not overdue — the campaign sends Mon-Fri, so
+     * nothing was ever going to happen until Monday.
+     *
+     * Only the sending calendar can answer this, so it is read from the
+     * campaign's own schedule rather than assumed.
+     */
+    const sendDays: number[] = (campaign_state as any)?.schedule?.day_numbers ?? [1, 2, 3, 4, 5];
+    const nextSendingDay = (from: Date): Date => {
+      const d = new Date(from);
+      for (let i = 0; i < 8; i++) {
+        if (sendDays.includes(d.getUTCDay())) return d;
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      return d;
+    };
     const { data: pushed } = await db
       .from("venues")
       .select("id, name, country, status, outreach_pushed_at, first_emailed_at, last_emailed_at, replied_at, emails_sent")
@@ -261,7 +285,12 @@ export async function GET(req: NextRequest) {
       else if (followUp) follow_up = `sent ${followUp.sent_at}`;
       else if (first) {
         const due = new Date(new Date(first).getTime() + FOLLOW_UP_DELAY_DAYS * 864e5);
-        follow_up = `${due <= new Date() ? "overdue since" : "due"} ${due.toISOString().slice(0, 10)}`;
+        const window = nextSendingDay(due);          // the first day it COULD go
+        const day = window.toISOString().slice(0, 10);
+        follow_up =
+          window.getTime() + 864e5 <= Date.now()
+            ? `overdue since ${day}`                 // a whole sending day passed
+            : `due ${day}`;
       } else follow_up = "not yet emailed";
 
       contacted.push({

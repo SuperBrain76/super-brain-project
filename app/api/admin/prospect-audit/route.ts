@@ -20,8 +20,12 @@ export const dynamic = "force-dynamic";
 const BANDS = [0, 20, 40, 60, 70, 80, 90, 101];
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.MARKETING_API_SECRET || process.env.CRON_SECRET || "";
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  // Accept either — `A || B` makes B stop working the day A is set, which is
+  // how /api/cron/instantly-poll silently 401'd for eleven days.
+  const accepted = [process.env.MARKETING_API_SECRET, process.env.CRON_SECRET]
+    .filter(Boolean)
+    .map((s) => `Bearer ${s}`);
+  if (!accepted.length || !accepted.includes(req.headers.get("authorization") ?? "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   // Was building its own client; that one read through Next's fetch cache and

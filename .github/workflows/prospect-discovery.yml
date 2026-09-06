@@ -1,0 +1,49 @@
+# Keeps the prospect buffer full so the push job always has something to push.
+#
+# /api/cron/prospect-buffer is self-limiting: it holds and does nothing while the
+# buffer is at or above PROSPECT_BUFFER_MIN, and otherwise sweeps exactly ONE
+# unswept city and enriches what it finds. Calling it often is therefore cheap —
+# on a healthy buffer every extra call is a no-op that touches no external API.
+#
+# It is also scheduled in vercel.json at 04:00 UTC. That single daily sweep is one
+# city per day, and after verification a city yields only a handful of sendable
+# addresses — far too slow to refill a buffer the campaign empties at 12/day. This
+# runs it every four hours so a depleted buffer recovers in days rather than weeks,
+# then goes quiet on its own the moment the floor is reached.
+
+name: Prospect discovery — keep the buffer full
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "1 = report the next city, sweep nothing"
+        default: "0"
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Top up the prospect buffer
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::APP_URL or CRON_SECRET is not configured; refusing to run blind."
+            exit 1
+          fi
+          OUT=$(curl -sS --max-time 320 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/prospect-buffer?dry=${{ github.event.inputs.dry || '0' }}")
+          CODE=$(echo "$OUT" | tail -1)
+          BODY=$(echo "$OUT" | sed '$d')
+          echo "$BODY"
+          [ "$CODE" = "200" ] || { echo "::error::HTTP $CODE from /api/cron/prospect-buffer"; exit 1; }
+          # Every mailable city swept and still short: that is a strategy decision
+          # (more countries, more search terms), not something a retry will fix.
+          echo "$BODY" | grep -q '"action":"exhausted"' \
+            && echo "::warning::Every city in every mailable market is swept and the buffer is still below the floor." || true

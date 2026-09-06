@@ -1,0 +1,76 @@
+# The lead supply chain for the venue cold-outreach campaign.
+#
+# Until 6 Sep 2026 this step existed only as a route nobody called. /api/outreach/sync
+# was in the codebase, documented as "runs daily from GitHub Actions", and scheduled
+# NOWHERE — not in vercel.json, not in any workflow. It was last invoked by hand on
+# 28 Aug. Instantly drained that batch by 4 Sep and then sent nothing for two days
+# while the campaign sat "active" with an empty queue.
+#
+# Why here and not vercel.json: Vercel Hobby crons fire once a day at a fixed hour
+# and cannot express "weekdays only". Instantly sends Mon-Fri 11:00-13:00
+# Europe/Helsinki, which is 08:00-10:00 UTC, so the push has to land on a weekday
+# morning before that window opens. 06:00 UTC gives two hours of margin.
+#
+# The route is conservative by construction and is the only thing that decides how
+# many leads actually move: it protects follow-ups already promised, refuses to plan
+# at all if it cannot read the mailbox's limit, verifies every address before pushing
+# and never exceeds the campaign's own daily limit. This workflow only decides WHEN.
+
+name: Outreach — push verified leads into Instantly
+
+on:
+  schedule:
+    - cron: "0 6 * * 1-5" # 06:00 UTC, Mon-Fri, two hours before the sending window
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "1 = report who would be pushed, push nothing"
+        default: "0"
+      venues:
+        description: "Cap on NEW venues this run (blank = OUTREACH_DAILY_CAP)"
+        default: ""
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push verified leads
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::APP_URL or CRON_SECRET is not configured; refusing to run blind."
+            exit 1
+          fi
+          QS="dry=${{ github.event.inputs.dry || '0' }}"
+          [ -n "${{ github.event.inputs.venues }}" ] && QS="$QS&venues=${{ github.event.inputs.venues }}"
+          OUT=$(curl -sS --max-time 300 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/outreach/sync?$QS")
+          CODE=$(echo "$OUT" | tail -1)
+          BODY=$(echo "$OUT" | sed '$d')
+          echo "$BODY"
+          # 401 here is the exact failure that took the poller down for eleven days:
+          # it returns quietly and nothing downstream notices. Make it loud.
+          if [ "$CODE" = "401" ]; then
+            echo "::error::/api/outreach/sync rejected CRON_SECRET. The route must ACCEPT EITHER OUTREACH_SYNC_SECRET or CRON_SECRET — check it has not been collapsed back to 'A || B'."
+            exit 1
+          fi
+          [ "$CODE" = "200" ] || { echo "::error::HTTP $CODE from /api/outreach/sync"; exit 1; }
+          echo "$BODY" | grep -q '"pushed":0' && echo "::warning::0 leads pushed — check supply and verification counts above." || true
+
+      - name: Health check
+        if: always()
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          BODY=$(curl -sS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/admin/outreach-health" || true)
+          echo "$BODY"
+          echo "$BODY" | grep -q 'CAMPAIGN STARVED'    && echo "::warning::CAMPAIGN STARVED"    || true
+          echo "$BODY" | grep -q 'HIGH BOUNCE RISK'    && echo "::warning::HIGH BOUNCE RISK"    || true
+          echo "$BODY" | grep -q 'MONITORING DEGRADED' && echo "::warning::MONITORING DEGRADED" || true

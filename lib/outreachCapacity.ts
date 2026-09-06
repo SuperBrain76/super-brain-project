@@ -13,8 +13,20 @@
  * ceiling, NEW venues are reduced instead.
  */
 
-/** Emails/day this sender may send while the mailbox is young. */
-export const SAFETY_CEILING = 10;
+/**
+ * Emails/day this sender may send.
+ *
+ * Was a flat 10, set on 25 Aug when alex@superbrain.bar was days old. The
+ * mailbox now reports warmup_score 100 and a 30/day limit, and the campaign
+ * itself is capped at 12 — so a ceiling of 10 no longer protects anything, it
+ * just silently withholds two sends a day below a cap that is already in force
+ * one layer down. Instantly's own daily_limit is the governing number; this is
+ * a second, lower guard for the days when it is not.
+ *
+ * Keep this at or below the campaign's daily_limit. Raising the campaign cap is
+ * a deliberate decision about sender reputation, never a side effect of a push.
+ */
+export const SAFETY_CEILING = Number(process.env.OUTREACH_SAFETY_CEILING ?? 12);
 
 export interface FollowUpCandidate {
   venue_id: string;
