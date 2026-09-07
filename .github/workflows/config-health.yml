@@ -1,13 +1,20 @@
 # Daily config health check.
 #
 # Exists because a missing env var that THROWS is found in minutes, while one
-# that silently degrades is found in months. N8N_VENUE_WEBHOOK_URL was never
-# set, so every venue lifecycle notification no-opped from the day it shipped
-# and no trial email was ever sent. ANTHROPIC_API_KEY was never set, so every
-# prospect fit score is a mock the outreach gate then qualified on.
+# that silently degrades is found in months.
 #
-# The endpoint returns 503 when any critical check fails, so this job fails and
-# GitHub emails the repo owner. Silence here is the signal that all is well.
+# It then demonstrated the failure mode it was built to catch. From its first
+# run on 30 Aug 2026 to 7 Sep it returned 503 on all eight runs it ever made —
+# never once green — for N8N_VENUE_WEBHOOK_URL, the wiring for an n8n workflow
+# that had never been imported and whose absence changed nothing. The original
+# design said "silence here is the signal that all is well", and relied on
+# GitHub emailing the repo owner. Nobody saw eight consecutive failures.
+#
+# Two things changed. The endpoint now returns 503 only for CRITICAL, so
+# unbuilt work no longer cries wolf. And this job reports its own failure
+# STREAK and the daily brief carries the state every morning, because a channel
+# nobody reads is not an alert.
+
 name: Config health
 
 on:
@@ -15,18 +22,23 @@ on:
     - cron: "0 6 * * *"   # 06:00 UTC daily, before the working day
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  actions: read           # to read this workflow's own run history for the streak
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - name: Query config-health
+        id: query
         run: |
           set -uo pipefail
-          BODY=$(curl -sS --max-time 60 -w '\n%{http_code}' \
+          OUT=$(curl -sS --max-time 60 -w '\n%{http_code}' \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/admin/config-health")
-          CODE=$(printf '%s' "$BODY" | tail -n1)
-          JSON=$(printf '%s' "$BODY" | sed '$d')
+          CODE=$(printf '%s' "$OUT" | tail -n1)
+          JSON=$(printf '%s' "$OUT" | sed '$d')
           echo "$JSON"
 
           if [ "$CODE" = "401" ]; then
@@ -36,13 +48,50 @@ jobs:
             echo "::error::config-health unreachable (HTTP $CODE)"; exit 1
           fi
 
-          # Degraded is reported but does not fail the run - it is a decision,
-          # not an outage. Critical means something advertised as working is not.
-          DEG=$(printf '%s' "$JSON" | grep -o '"degraded":[0-9]*' | head -1 | cut -d: -f2)
-          [ "${DEG:-0}" -gt 0 ] && echo "::warning::$DEG degraded config item(s)"
+          STATE=$(printf '%s' "$JSON" | sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
+          NCRIT=$(printf '%s' "$JSON" | sed -n 's/.*"critical":\([0-9]*\).*/\1/p')
+          NDEG=$(printf  '%s' "$JSON" | sed -n 's/.*"degraded":\([0-9]*\).*/\1/p')
+          NOPT=$(printf  '%s' "$JSON" | sed -n 's/.*"optionalMissing":\([0-9]*\).*/\1/p')
+          echo "state=${STATE:-UNKNOWN}" >> "$GITHUB_OUTPUT"
 
-          if [ "$CODE" = "503" ]; then
-            echo "::error::config-health reports CRITICAL missing configuration"
+          {
+            echo "### Config health: ${STATE:-UNKNOWN}"
+            echo ""
+            echo "- CRITICAL: ${NCRIT:-?}  — something advertised as working does not work"
+            echo "- DEGRADED: ${NDEG:-?}  — running on a fallback not fit for production"
+            echo "- OPTIONAL CONFIG MISSING: ${NOPT:-?}  — wiring for a subsystem that is not built"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Three distinct outcomes, three distinct signals. Only CRITICAL fails
+          # the job — the whole reason this check became noise was that it failed
+          # on work nobody had started.
+          [ "${NOPT:-0}" -gt 0 ] && echo "::notice::$NOPT optional config item(s) missing — not built yet, not a fault."
+          [ "${NDEG:-0}" -gt 0 ] && echo "::warning::$NDEG DEGRADED config item(s) — running on a production-unfit fallback."
+          if [ "$CODE" = "503" ] || [ "${NCRIT:-0}" -gt 0 ]; then
+            echo "::error::CRITICAL: ${NCRIT:-?} configuration item(s) missing. $JSON"
             exit 1
           fi
-          echo "config-health OK"
+          echo "config-health OK ($STATE)"
+
+      # A single red run is an alert. Eight in a row is a broken alert, and the
+      # only thing that makes that visible is counting them.
+      - name: Report the failure streak
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          RUNS=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/config-health.yml/runs?per_page=30&status=completed" \
+            | grep -o '"conclusion":"[a-z_]*"' | cut -d'"' -f4)
+          STREAK=0
+          for c in $RUNS; do
+            [ "$c" = "failure" ] || break
+            STREAK=$((STREAK+1))
+          done
+          STREAK=$((STREAK+1))   # including the run happening now
+          echo "::error::config-health has now failed $STREAK run(s) in a row."
+          if [ "$STREAK" -ge 3 ]; then
+            echo "::error::$STREAK consecutive failures. This check is being ignored — either fix the configuration or fix the classification. It failed 8 times unnoticed between 30 Aug and 7 Sep 2026."
+          fi
+          echo "### Failure streak: $STREAK consecutive run(s)" >> "$GITHUB_STEP_SUMMARY"
