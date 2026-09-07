@@ -2,46 +2,42 @@
 #
 # Until 6 Sep 2026 this step existed only as a route nobody called. /api/outreach/sync
 # was in the codebase, documented as "runs daily from GitHub Actions", and scheduled
-# NOWHERE — not in vercel.json, not in any workflow. It was last invoked by hand on
-# 28 Aug. Instantly drained that batch by 4 Sep and then sent nothing for two days
+# NOWHERE. Instantly drained its last batch on 4 Sep and then sent nothing for two days
 # while the campaign sat "active" with an empty queue.
 #
-# Why here and not vercel.json: Vercel Hobby crons fire once a day at a fixed hour
-# and cannot express "weekdays only". Instantly sends Mon-Fri 11:00-13:00
-# Europe/Helsinki, which is 08:00-10:00 UTC, so the push has to be in Instantly
-# before that window opens.
+# WHY A FOUR-HOURLY SCHEDULE FOR A ONCE-A-DAY JOB.
 #
-# WHY 20:00 THE NIGHT BEFORE, NOT 06:00 THE SAME MORNING.
+# Because on this repository a once-a-day GitHub cron does not reliably run at all.
+# This workflow was first scheduled at 06:00 UTC Mon-Fri, then moved to 20:00 UTC
+# Sun-Thu, and it executed on NEITHER: zero runs, ever, across two different slots on
+# 7 Sep. Its sibling prospect-discovery, created in the same commit and equally
+# "active", runs on `0 */4 * * *` and fired five of six slots that day, none more than
+# 1h48 late. config-health's daily 06:00 slot does fire, but has landed as late as
+# 13:26. Low-frequency schedules are best-effort here, and this is the one job the
+# campaign cannot survive without.
 #
-# 06:00 UTC was the first schedule, on the reasoning that it left two hours of
-# margin. It does not. GitHub's cron carries no delivery guarantee, and on this
-# repository a once-daily schedule is delivered HOURS late as a rule, not as an
-# exception: config-health is scheduled at 06:00 UTC and its eight runs landed at
-# 10:25, 10:44, 11:02, 11:04, 11:06, 11:31, 11:44 and 13:26 — every single one
-# after 08:00, median lag about four and three quarter hours. A 06:00 push would
-# therefore have arrived after the window closed every day, supplying tomorrow
-# instead of today, and on 7 Sep 2026 — its first scheduled day — it had still
-# not run by 10:10.
+# So it runs every four hours and decides FOR ITSELF whether there is anything to do.
+# The guard is the campaign's own queue depth, read from /api/admin/outreach-health:
 #
-# Frequent schedules are not affected the same way: prospect-discovery runs every
-# four hours and lands within about forty minutes. It is the once-a-day slots,
-# and 06:00 UTC in particular, that queue.
+#   queued uncontacted leads >= one day's cap  ->  skip, nothing to do
+#   queued below that                          ->  top it up
 #
-# So the push runs the EVENING BEFORE each sending day: Sun-Thu at 20:00 UTC
-# feeds Mon-Fri. Even a six-hour delay still lands before 02:00 UTC, six hours
-# clear of the window. The cost is that leads wait overnight in Instantly, which
-# costs nothing — Instantly does not send outside its own schedule.
+# That makes every slot idempotent in effect. Two slots firing back to back is not two
+# pushes; the second sees a full queue and stops. Any single slot being dropped costs
+# nothing, because the next one four hours later does the same work. There is no
+# weekday or hour logic, and there does not need to be: leads pushed at any hour simply
+# wait, since Instantly never sends outside its own 11:00-13:00 Europe/Helsinki window.
 #
-# The route is conservative by construction and is the only thing that decides how
-# many leads actually move: it protects follow-ups already promised, refuses to plan
-# at all if it cannot read the mailbox's limit, verifies every address before pushing
-# and never exceeds the campaign's own daily limit. This workflow only decides WHEN.
+# The route itself is what decides how many leads actually move, and it is conservative
+# by construction: it protects follow-ups already promised, refuses to plan at all if it
+# cannot read the mailbox limit, verifies every address before pushing, and never
+# exceeds the campaign's own daily limit. This workflow only decides WHEN to ask.
 
 name: Outreach — push verified leads into Instantly
 
 on:
   schedule:
-    - cron: "0 20 * * 0-4" # Sun-Thu 20:00 UTC — the evening before each Mon-Fri sending day
+    - cron: "0 */4 * * *"
   workflow_dispatch:
     inputs:
       dry:
@@ -50,37 +46,84 @@ on:
       venues:
         description: "Cap on NEW venues this run (blank = OUTREACH_DAILY_CAP)"
         default: ""
+      force:
+        description: "1 = push even if the queue already looks healthy"
+        default: "0"
 
 jobs:
   push:
     runs-on: ubuntu-latest
     steps:
-      - name: Push verified leads
+      - name: Is the campaign short of leads?
+        id: need
         env:
           APP_URL: ${{ secrets.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
             echo "::error::APP_URL or CRON_SECRET is not configured; refusing to run blind."
             exit 1
           fi
-          QS="dry=${{ github.event.inputs.dry || '0' }}"
-          [ -n "${{ github.event.inputs.venues }}" ] && QS="$QS&venues=${{ github.event.inputs.venues }}"
+          BODY=$(curl -sS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/admin/outreach-health")
+          echo "$BODY"
+          QUEUED=$(printf '%s' "$BODY" | sed -n 's/.*"queued_in_instantly":\([0-9]*\).*/\1/p')
+          PERDAY=$(printf '%s' "$BODY" | sed -n 's/.*"per_day":\([0-9]*\).*/\1/p')
+          FORCE="${{ github.event.inputs.force || '0' }}"
+          # Unreadable health is a reason to push, not a reason to skip: the campaign
+          # running dry is far more expensive than one redundant top-up, and the route
+          # will refuse on its own if anything is actually wrong.
+          if [ -z "${QUEUED:-}" ]; then
+            echo "::warning::Could not read the queue depth; proceeding with the push."
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          elif [ "$FORCE" = "1" ] || [ "$QUEUED" -lt "${PERDAY:-12}" ]; then
+            echo "Queue $QUEUED < ${PERDAY:-12}/day — topping up."
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Queue $QUEUED already covers a full day at ${PERDAY:-12}/day — nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push verified leads
+        if: steps.need.outputs.go == 'true'
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY: ${{ github.event.inputs.dry || '0' }}
+          VENUES: ${{ github.event.inputs.venues }}
+        run: |
+          set -uo pipefail
+          QS="dry=$DRY"
+          # `[ -n "$X" ] && QS=...` returns 1 when X is empty, which under `set -e`
+          # aborts the step. On a scheduled run VENUES is always empty, so the first
+          # time this workflow ever managed to trigger it would have failed here.
+          if [ -n "${VENUES:-}" ]; then QS="$QS&venues=$VENUES"; fi
           OUT=$(curl -sS --max-time 300 -w '\n%{http_code}' \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/outreach/sync?$QS")
           CODE=$(echo "$OUT" | tail -1)
           BODY=$(echo "$OUT" | sed '$d')
           echo "$BODY"
+          {
+            echo "### Outreach supply"
+            echo '```json'
+            echo "$BODY"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
           # 401 here is the exact failure that took the poller down for eleven days:
           # it returns quietly and nothing downstream notices. Make it loud.
           if [ "$CODE" = "401" ]; then
             echo "::error::/api/outreach/sync rejected CRON_SECRET. The route must ACCEPT EITHER OUTREACH_SYNC_SECRET or CRON_SECRET — check it has not been collapsed back to 'A || B'."
             exit 1
           fi
-          [ "$CODE" = "200" ] || { echo "::error::HTTP $CODE from /api/outreach/sync"; exit 1; }
-          echo "$BODY" | grep -q '"pushed":0' && echo "::warning::0 leads pushed — check supply and verification counts above." || true
+          if [ "$CODE" != "200" ]; then
+            echo "::error::HTTP $CODE from /api/outreach/sync"
+            exit 1
+          fi
+          if printf '%s' "$BODY" | grep -q '"pushed":0'; then
+            echo "::warning::0 leads pushed — check the verification counts above (suppressed_invalid / skipped_risky) and the buffer."
+          fi
 
       - name: Health check
         if: always()
@@ -88,10 +131,10 @@ jobs:
           APP_URL: ${{ secrets.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           BODY=$(curl -sS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/admin/outreach-health" || true)
           echo "$BODY"
-          echo "$BODY" | grep -q 'CAMPAIGN STARVED'    && echo "::warning::CAMPAIGN STARVED"    || true
-          echo "$BODY" | grep -q 'HIGH BOUNCE RISK'    && echo "::warning::HIGH BOUNCE RISK"    || true
-          echo "$BODY" | grep -q 'MONITORING DEGRADED' && echo "::warning::MONITORING DEGRADED" || true
+          printf '%s' "$BODY" | grep -q 'CAMPAIGN STARVED'    && echo "::warning::CAMPAIGN STARVED"    || true
+          printf '%s' "$BODY" | grep -q 'HIGH BOUNCE RISK'    && echo "::warning::HIGH BOUNCE RISK"    || true
+          printf '%s' "$BODY" | grep -q 'MONITORING DEGRADED' && echo "::warning::MONITORING DEGRADED" || true
