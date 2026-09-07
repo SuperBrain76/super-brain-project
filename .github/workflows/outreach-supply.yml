@@ -8,8 +8,29 @@
 #
 # Why here and not vercel.json: Vercel Hobby crons fire once a day at a fixed hour
 # and cannot express "weekdays only". Instantly sends Mon-Fri 11:00-13:00
-# Europe/Helsinki, which is 08:00-10:00 UTC, so the push has to land on a weekday
-# morning before that window opens. 06:00 UTC gives two hours of margin.
+# Europe/Helsinki, which is 08:00-10:00 UTC, so the push has to be in Instantly
+# before that window opens.
+#
+# WHY 20:00 THE NIGHT BEFORE, NOT 06:00 THE SAME MORNING.
+#
+# 06:00 UTC was the first schedule, on the reasoning that it left two hours of
+# margin. It does not. GitHub's cron carries no delivery guarantee, and on this
+# repository a once-daily schedule is delivered HOURS late as a rule, not as an
+# exception: config-health is scheduled at 06:00 UTC and its eight runs landed at
+# 10:25, 10:44, 11:02, 11:04, 11:06, 11:31, 11:44 and 13:26 — every single one
+# after 08:00, median lag about four and three quarter hours. A 06:00 push would
+# therefore have arrived after the window closed every day, supplying tomorrow
+# instead of today, and on 7 Sep 2026 — its first scheduled day — it had still
+# not run by 10:10.
+#
+# Frequent schedules are not affected the same way: prospect-discovery runs every
+# four hours and lands within about forty minutes. It is the once-a-day slots,
+# and 06:00 UTC in particular, that queue.
+#
+# So the push runs the EVENING BEFORE each sending day: Sun-Thu at 20:00 UTC
+# feeds Mon-Fri. Even a six-hour delay still lands before 02:00 UTC, six hours
+# clear of the window. The cost is that leads wait overnight in Instantly, which
+# costs nothing — Instantly does not send outside its own schedule.
 #
 # The route is conservative by construction and is the only thing that decides how
 # many leads actually move: it protects follow-ups already promised, refuses to plan
@@ -20,7 +41,7 @@ name: Outreach — push verified leads into Instantly
 
 on:
   schedule:
-    - cron: "0 6 * * 1-5" # 06:00 UTC, Mon-Fri, two hours before the sending window
+    - cron: "0 20 * * 0-4" # Sun-Thu 20:00 UTC — the evening before each Mon-Fri sending day
   workflow_dispatch:
     inputs:
       dry:
