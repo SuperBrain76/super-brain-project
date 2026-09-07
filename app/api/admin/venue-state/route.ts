@@ -252,7 +252,7 @@ export async function GET(req: NextRequest) {
     };
     const { data: pushed } = await db
       .from("venues")
-      .select("id, name, country, status, outreach_pushed_at, first_emailed_at, last_emailed_at, replied_at, emails_sent")
+      .select("id, name, country, status, contact_email_status, outreach_pushed_at, first_emailed_at, last_emailed_at, replied_at, emails_sent")
       .not("outreach_pushed_at", "is", null)
       .order("outreach_pushed_at", { ascending: true });
     const ids = (pushed ?? []).map((v) => v.id);
@@ -279,9 +279,25 @@ export async function GET(req: NextRequest) {
       // Follow-up state, in order of precedence: a reply or bounce stops the
       // sequence; a sent step 2 is final; otherwise it is due 4 days after
       // email 1. "unknown" only when nothing has been sent at all.
+      // A sequence that cannot continue has no due date.
+      //
+      // `bounced` below reads outreach_messages.bounced_at, which the poller has
+      // never written — its bounce detection was broken until 6 Sep, and the
+      // backfill only restored sends. So on 7 Sep the brief still printed
+      // "follow-up due" for all six addresses that had hard-bounced a week
+      // earlier and were already suppressed and disqualified. Six of the eight
+      // lines it showed were for venues that will never be emailed again.
+      //
+      // The CRM status and the address verdict are the durable facts here, so
+      // they end the sequence regardless of what outreach_messages recorded.
+      const STOPPED = new Set([
+        "replied", "disqualified", "signed_up", "trialing", "active", "past_due", "churned", "suspended",
+      ]);
+      const deadAddress = v.contact_email_status === "invalid";
       let follow_up: string;
       if (rep || v.replied_at) follow_up = "stopped on reply";
-      else if (bounced) follow_up = "stopped (bounced)";
+      else if (bounced || deadAddress) follow_up = "stopped (bounced)";
+      else if (STOPPED.has(String(v.status))) follow_up = `stopped (${v.status})`;
       else if (followUp) follow_up = `sent ${followUp.sent_at}`;
       else if (first) {
         const due = new Date(new Date(first).getTime() + FOLLOW_UP_DELAY_DAYS * 864e5);
