@@ -12,6 +12,15 @@
 
 export type ReplyClass =
   | "positive_interested"
+  /**
+   * A machine answered, not a person. Distinct from `neutral` because the two
+   * need opposite handling: neutral is a human who said something we could not
+   * read and is worth a glance; automated is a robot and is worth nothing at
+   * all. Merging them cost a real prospect — Brigadiers' out-of-office on
+   * 25 Aug 2026 set the venue to `replied`, ended its sequence at email 1, and
+   * then stood as the campaign's only "reply" in every funnel figure.
+   */
+  | "automated"
   | "neutral"
   | "negative"
   | "negative_unsubscribe"
@@ -119,7 +128,43 @@ const AUTO_REPLY = [
   /\bon (annual )?leave\b/i,
   /\bmaternity|paternity leave\b/i,
   /\bi am currently away\b/i,
-  /\bno longer (works?|with) (here|the company)\b/i,
+];
+
+/**
+ * The addressee has left. Not an absence and not a robot's opinion — the
+ * mailbox will never produce a decision, so continuing the sequence into it is
+ * pointless, and finding the replacement is a human's call.
+ *
+ * Sat in AUTO_REPLY until `automated` existed, which was harmless while every
+ * class stopped the sequence and wrong the moment one did not: a departure
+ * notice would have kept the follow-ups flowing to somebody who no longer works
+ * there. It escalates instead — and it is the clearest signal we get that the
+ * generic mailbox we mailed was the wrong target, which is the whole premise of
+ * the deferred decision-maker enrichment experiment.
+ */
+const DEPARTED = [
+  /\bno longer (works?|with|employed) (here|with us|at|the company)\b/i,
+  /\bhas left (the (company|business)|us)\b/i,
+  /\bis no longer (with|at) (us|the company|this address)\b/i,
+];
+
+/**
+ * Mail-client autoresponder subject prefixes.
+ *
+ * The single highest-confidence signal available, and it was being discarded:
+ * classifyReply only ever saw the body. "Automatic reply: quick one for
+ * Brigadiers" says what it is before a word of the body is read.
+ */
+const AUTO_SUBJECT = [
+  /^\s*(re:\s*)?(automatic (reply|response)|auto[- ]?reply|autoreply|auto:)/i,
+  /^\s*(re:\s*)?out[- ]of[- ]office\b/i,
+  /^\s*(re:\s*)?\bOOO\b/i,
+  /^\s*(undelivered mail|delivery status notification|mail delivery)/i,
+  // The same convention in the other four markets we mail.
+  /^\s*(re:\s*)?(abwesenheit|abwesenheitsnotiz)/i,
+  /^\s*(re:\s*)?(respuesta autom[áa]tica|ausencia de la oficina)/i,
+  /^\s*(re:\s*)?(r[ée]ponse automatique|absence du bureau)/i,
+  /^\s*(re:\s*)?(risposta automatica|fuori sede)/i,
 ];
 
 /** Bare rejections that carry no other content. */
@@ -127,8 +172,26 @@ const BARE_NO = /^\s*(no|nope|nah|not interested|no thanks?|unsubscribe)\s*[.!]?
 
 const hit = (text: string, list: RegExp[]) => list.find((r) => r.test(text)) ?? null;
 
-export function classifyReply(raw: string | null | undefined): Classification {
+export function classifyReply(
+  raw: string | null | undefined,
+  subject?: string | null,
+): Classification {
   const text = String(raw ?? "").trim();
+  const subj = String(subject ?? "").trim();
+
+  // 0. The subject line, when it announces itself. Checked before everything —
+  //    including the body's commercial keywords, which an autoresponder's
+  //    boilerplate ("please refer to our pricing page") frequently contains.
+  //    A removal request still wins, so it is re-checked immediately below.
+  const autoSubj = subj ? hit(subj, AUTO_SUBJECT) : null;
+  if (autoSubj && !hit(text, UNSUBSCRIBE)) {
+    return {
+      classification: "automated",
+      reason: `Subject line declares an automated reply (${subj.slice(0, 60)}). No human has responded.`,
+      rule_matched: `auto_subject:${autoSubj.source}`,
+      confidence: "high",
+    };
+  }
 
   // Nothing to judge. Never guess from an empty body.
   if (!text) {
@@ -158,7 +221,7 @@ export function classifyReply(raw: string | null | undefined): Classification {
   const strongAuto = hit(text, STRONG_AUTO);
   if (strongAuto) {
     return {
-      classification: "neutral",
+      classification: "automated",
       reason:
         "Automated reply (reception desk, FAQ redirect, out-of-office or ticketing). " +
         "The venue itself has not responded, so this is not interest and not a rejection.",
@@ -211,11 +274,25 @@ export function classifyReply(raw: string | null | undefined): Classification {
     };
   }
 
-  // 5. Weaker absence signals — only after checking for real human signals.
+  // 5a. The addressee has left. Escalate — the sequence must stop, but as a
+  //     re-targeting decision rather than a rejection.
+  const gone = hit(text, DEPARTED);
+  if (gone) {
+    return {
+      classification: "needs_review",
+      reason:
+        "The addressee has left. The sequence cannot continue to this mailbox, and " +
+        "whether to find a replacement contact is a decision, not a rule.",
+      rule_matched: `departed:${gone.source}`,
+      confidence: "medium",
+    };
+  }
+
+  // 5b. Weaker absence signals — only after checking for real human signals.
   const auto = hit(text, AUTO_REPLY);
   if (auto) {
     return {
-      classification: "neutral",
+      classification: "automated",
       reason: "Automated or absence reply. No human decision expressed.",
       rule_matched: `auto_reply:${auto.source}`,
       confidence: "medium",
@@ -234,7 +311,29 @@ export function classifyReply(raw: string | null | undefined): Classification {
 
 /** Replies that must reach Dylan. Rejections and unsubscribes are handled silently. */
 export function needsAttention(c: ReplyClass): boolean {
+  // `automated` is deliberately absent. A robot is not engagement, and putting
+  // one in front of Dylan every morning is how a list stops being read.
   return c === "positive_interested" || c === "neutral" || c === "needs_review";
+}
+
+/**
+ * Did a person actually reply? The only test that should ever feed a reply-rate.
+ * An autoresponder inflates the numerator and, worse, makes a campaign that
+ * nobody has answered look like it has been answered once.
+ */
+export function isHumanReply(c: ReplyClass): boolean {
+  return c !== "automated";
+}
+
+/**
+ * May the sequence continue after this reply?
+ *
+ * Only a human ends it. Instantly's own `stop_on_reply` cannot tell the
+ * difference, so a lead stopped by a robot has to be resumed deliberately —
+ * see the poller's auto_stopped list.
+ */
+export function stopsSequence(c: ReplyClass): boolean {
+  return c !== "automated";
 }
 
 /** Brief priority. Interest is HIGH; everything escalated is worth seeing. */

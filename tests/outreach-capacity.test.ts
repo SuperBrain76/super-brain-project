@@ -75,17 +75,20 @@ describe("capacity planning", () => {
   });
 
   it("over the ceiling, follow-ups are protected and NEW venues are cut", () => {
-    const p = planCapacity({ newVenues: 8, followUpsDue: 6, ...base });
-    expect(p.follow_ups_due).toBe(6);        // all six still funded
-    expect(p.new_venues_released).toBe(4);   // 10 - 6
-    expect(p.daily_limit).toBe(10);
+    // Written against SAFETY_CEILING rather than a literal. These assertions
+    // were hard-coded to 10 and broke the day the ceiling moved to 12 — the
+    // arithmetic is the invariant, not the number.
+    const p = planCapacity({ newVenues: SAFETY_CEILING + 2, followUpsDue: 6, ...base });
+    expect(p.follow_ups_due).toBe(6);                                 // all six still funded
+    expect(p.new_venues_released).toBe(SAFETY_CEILING - 6);
+    expect(p.daily_limit).toBe(SAFETY_CEILING);
     expect(p.reduced).toBe(true);
   });
 
   it("releases no new venue when follow-ups alone fill the day", () => {
-    const p = planCapacity({ newVenues: 5, followUpsDue: 10, ...base });
+    const p = planCapacity({ newVenues: 5, followUpsDue: SAFETY_CEILING, ...base });
     expect(p.new_venues_released).toBe(0);
-    expect(p.daily_limit).toBe(10);          // follow-ups still all sent
+    expect(p.daily_limit).toBe(SAFETY_CEILING);   // follow-ups still all sent
     expect(p.reduced).toBe(true);
   });
 
@@ -131,7 +134,7 @@ describe("overlapping tranches over a week", () => {
     expect(d0.new_venues_released).toBe(5);
 
     // Day 4: day 0's five now need their follow-up, and we want five more.
-    // 10 emails - exactly the ceiling, nothing is cut.
+    // Ten emails, still inside the ceiling, so nothing is cut.
     const d4 = planCapacity({ newVenues: 5, followUpsDue: 5, accountLimit: 30 });
     expect(d4.daily_limit).toBe(10);
     expect(d4.new_venues_released).toBe(5);
@@ -144,8 +147,8 @@ describe("overlapping tranches over a week", () => {
   });
 
   it("cuts new venues, never follow-ups, when a day is oversubscribed", () => {
-    const p = planCapacity({ newVenues: 5, followUpsDue: 7, accountLimit: 30 });
-    expect(p.follow_ups_due).toBe(7);
+    const p = planCapacity({ newVenues: SAFETY_CEILING, followUpsDue: SAFETY_CEILING - 3, accountLimit: 30 });
+    expect(p.follow_ups_due).toBe(SAFETY_CEILING - 3);
     expect(p.new_venues_released).toBe(3);
     expect(p.new_venues_released + p.follow_ups_due).toBe(SAFETY_CEILING);
   });
@@ -180,11 +183,12 @@ describe("venues already queued but never sent to", () => {
   });
 
   it("cuts new venues when queued sends plus follow-ups fill the ceiling", () => {
-    const p = planCapacity({ newVenues: 5, followUpsDue: 4, pendingFirstSends: 4, accountLimit: 30 });
-    expect(p.pending_first_sends).toBe(4);
-    expect(p.follow_ups_due).toBe(4);
-    expect(p.new_venues_released).toBe(2);      // 10 - (4 + 4)
-    expect(p.daily_limit).toBe(10);
+    const half = Math.floor(SAFETY_CEILING / 2) - 1;     // two halves leave 2 free
+    const p = planCapacity({ newVenues: SAFETY_CEILING, followUpsDue: half, pendingFirstSends: half, accountLimit: 30 });
+    expect(p.pending_first_sends).toBe(half);
+    expect(p.follow_ups_due).toBe(half);
+    expect(p.new_venues_released).toBe(SAFETY_CEILING - 2 * half);
+    expect(p.daily_limit).toBe(SAFETY_CEILING);
     expect(p.reduced).toBe(true);
   });
 

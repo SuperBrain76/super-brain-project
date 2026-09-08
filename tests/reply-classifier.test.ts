@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyReply, needsAttention, briefPriority } from "@/lib/replyClassifier";
+import { classifyReply, needsAttention, briefPriority, stopsSequence, isHumanReply } from "@/lib/replyClassifier";
 
 const cls = (s: string | null | undefined) => classifyReply(s).classification;
 
@@ -106,15 +106,18 @@ describe("reply classification — fails toward escalation", () => {
 });
 
 describe("reply classification — automated replies", () => {
-  it("treats out-of-office as neutral, not rejection", () => {
+  it("treats a machine reply as `automated`, not rejection and not neutral", () => {
     for (const s of [
       "I am currently out of the office until Monday",
       "Automatic reply: on annual leave",
       "This is an auto-reply",
-      "John no longer works here",
     ]) {
-      expect(cls(s)).toBe("neutral");
+      expect(cls(s)).toBe("automated");
     }
+    // A departure notice is not an absence: the mailbox will never decide
+    // anything, so it must not keep the sequence running.
+    expect(cls("John no longer works here")).toBe("needs_review");
+    expect(stopsSequence(cls("John no longer works here"))).toBe(true);
   });
 
   it("prefers a real signal inside an auto-reply over the auto-reply itself", () => {
@@ -129,6 +132,8 @@ describe("attention routing", () => {
   it("surfaces interest, neutral and ambiguous; suppresses rejections", () => {
     expect(needsAttention("positive_interested")).toBe(true);
     expect(needsAttention("neutral")).toBe(true);
+    // A robot is not engagement and must never reach the attention list.
+    expect(needsAttention("automated")).toBe(false);
     expect(needsAttention("needs_review")).toBe(true);
     expect(needsAttention("negative")).toBe(false);
     expect(needsAttention("negative_unsubscribe")).toBe(false);
@@ -172,9 +177,9 @@ Brigadiers
 London EC4N 8AR`;
 
 describe("autoresponders are not interest (Brigadiers, 2026-08-25)", () => {
-  it("classifies the real Brigadiers reply as neutral, not positive", () => {
+  it("classifies the real Brigadiers reply as automated, not positive", () => {
     const v = classifyReply(BRIGADIERS_AUTOREPLY);
-    expect(v.classification).toBe("neutral");
+    expect(v.classification).toBe("automated");
     expect(v.classification).not.toBe("positive_interested");
     expect(v.rule_matched).toMatch(/^strong_auto:/);
     expect(v.confidence).toBe("high");
@@ -195,7 +200,7 @@ describe("autoresponders are not interest (Brigadiers, 2026-08-25)", () => {
       "Due to a high volume of enquiries we are unable to respond to every message.",
       "A ticket number has been created for your request.",
     ]) {
-      expect(classifyReply(t).classification).toBe("neutral");
+      expect(classifyReply(t).classification).toBe("automated");
     }
   });
 
@@ -212,5 +217,37 @@ describe("autoresponders are not interest (Brigadiers, 2026-08-25)", () => {
   it("a removal request inside an autoresponder still wins", () => {
     const t = "This is an automated reply. Please unsubscribe us from your list.";
     expect(classifyReply(t).classification).toBe("negative_unsubscribe");
+  });
+});
+
+describe("automated replies do not stop the sequence or count as engagement", () => {
+  it("reads the subject line, which is the strongest signal there is", () => {
+    // Body alone looks like a polite human note; the subject settles it.
+    const body = "Thanks for your message. I will get back to you when I return.";
+    expect(classifyReply(body, "Automatic reply: quick one for The Cross Keys").classification)
+      .toBe("automated");
+    expect(classifyReply(body, "Out of Office: re: quick one").classification).toBe("automated");
+    expect(classifyReply(body, "Risposta automatica: quick one").classification).toBe("automated");
+    // ...and an ordinary subject leaves the body to speak for itself.
+    expect(classifyReply(body, "re: quick one for The Cross Keys").classification)
+      .not.toBe("automated");
+  });
+
+  it("never lets an auto-subject bury a removal request", () => {
+    const v = classifyReply("Please unsubscribe me from this list.", "Automatic reply: away");
+    expect(v.classification).toBe("negative_unsubscribe");
+  });
+
+  it("only a human ends the sequence", () => {
+    expect(stopsSequence("automated")).toBe(false);
+    for (const c of ["positive_interested", "neutral", "negative", "negative_unsubscribe", "needs_review"] as const) {
+      expect(stopsSequence(c)).toBe(true);
+    }
+  });
+
+  it("only a human counts as a reply", () => {
+    expect(isHumanReply("automated")).toBe(false);
+    expect(isHumanReply("positive_interested")).toBe(true);
+    expect(isHumanReply("needs_review")).toBe(true);
   });
 });

@@ -25,7 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { admin, advanceStatus, suppress } from "@/lib/venueDb";
 import { emit, EVENT, type EventKind } from "@/lib/events";
 import { INSTANTLY_EVENTS, type InstantlyEventType } from "@/lib/instantly";
-import { classifyReply } from "@/lib/replyClassifier";
+import { classifyReply, stopsSequence } from "@/lib/replyClassifier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,6 +102,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, unmatched: true });
   }
 
+  // ── Classify a reply BEFORE the funnel acts on it ─────────
+  // The status used to be advanced first and the reply read afterwards, so an
+  // out-of-office set the venue to `replied` and ended its sequence before
+  // anything had looked at what the message actually said. Brigadiers was lost
+  // exactly this way on 25 Aug 2026.
+  const replyText = type === "reply_received"
+    ? String(
+        body.reply_text ?? body.reply_text_snippet ?? body.reply_body ??
+        body.reply_html_snippet ?? body.text ?? "",
+      ).trim()
+    : "";
+  const verdict = type === "reply_received"
+    ? classifyReply(replyText, body.reply_subject ?? null)
+    : null;
+
   // ── Funnel ────────────────────────────────────────────────
   const patch: Record<string, unknown> = {};
   const stampCol = FIRST_STAMP[type];
@@ -119,7 +134,10 @@ export async function POST(req: NextRequest) {
     patch.emails_sent = (c?.emails_sent ?? 0) + 1;
   }
 
-  const nextStatus = STATUS_FOR[type];
+  // A robot does not advance the funnel. Everything else does.
+  const nextStatus = verdict && !stopsSequence(verdict.classification)
+    ? undefined
+    : STATUS_FOR[type];
   if (nextStatus) await advanceStatus(db, venue.id, nextStatus, patch);
   else if (Object.keys(patch).length) await db.from("venues").update(patch).eq("id", venue.id);
 
@@ -130,13 +148,7 @@ export async function POST(req: NextRequest) {
   // Until now a reply was only a timestamp, so an interested venue looked
   // identical to a rejection. Store the reply itself and classify it; the
   // rules fail toward needs_review so a live lead is never silently binned.
-  if (type === "reply_received") {
-    const replyText = String(
-      body.reply_text ?? body.reply_text_snippet ?? body.reply_body ??
-      body.reply_html_snippet ?? body.text ?? "",
-    ).trim();
-    const verdict = classifyReply(replyText);
-
+  if (type === "reply_received" && verdict) {
     const { error: replyErr } = await db.from("venue_replies").upsert({
       venue_id:       venue.id,
       campaign_id:    null,

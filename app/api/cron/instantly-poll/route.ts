@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { admin, advanceStatus, suppress, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
-import { classifyReply } from "@/lib/replyClassifier";
+import { classifyReply, stopsSequence } from "@/lib/replyClassifier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,9 +80,11 @@ export async function GET(req: NextRequest) {
   const db = admin();
   const result = {
     sent_seen: 0, sent_new: 0,
-    replies_seen: 0, replies_new: 0, unmatched: 0,
+    replies_seen: 0, replies_new: 0, auto_replies: 0, unmatched: 0,
     bounces: 0, unsubscribes: 0, suppressed: 0,
     needs_attention: [] as Array<{ venue: string; classification: string }>,
+    /** Sequences Instantly stopped on an autoresponder. Candidates to resume. */
+    auto_stopped: [] as Array<{ venue: string; email: string }>,
     errors: [] as string[],
   };
 
@@ -202,7 +204,10 @@ export async function GET(req: NextRequest) {
       // the alert list honest, so a poll cannot re-raise a reply already seen.
       if (seenReplies.has(`${from}|${at}`)) continue;
 
-      const verdict = classifyReply(text);
+      // The subject is passed now. "Automatic reply: quick one for Brigadiers"
+      // is the strongest signal an autoresponder ever gives, and it was being
+      // thrown away — only the body was ever classified.
+      const verdict = classifyReply(text, e.subject ?? null);
       const { error } = await db.from("venue_replies").upsert({
         venue_id: venue.id, campaign_id: null, from_email: from,
         reply_subject: e.subject ?? null, reply_text: text || null, received_at: at,
@@ -213,7 +218,23 @@ export async function GET(req: NextRequest) {
       if (error) { result.errors.push(`reply ${from}: ${error.message}`); continue; }
 
       result.replies_new++;
-      await advanceStatus(db, venue.id, "replied", { replied_at: at });
+
+      // Only a human ends the sequence.
+      //
+      // This line used to run unconditionally. Brigadiers' out-of-office on
+      // 25 Aug therefore set the venue to `replied`, which stopped its
+      // follow-up in our CRM and made a robot the campaign's only recorded
+      // reply. An automated reply is now recorded, counted separately, and
+      // otherwise ignored — the venue stays exactly where it was.
+      if (stopsSequence(verdict.classification)) {
+        await advanceStatus(db, venue.id, "replied", { replied_at: at });
+      } else {
+        result.auto_replies++;
+        // Instantly's own stop_on_reply cannot tell a robot from a person and
+        // has already halted this lead there. Surface it rather than silently
+        // losing the prospect; resuming is a send, so it is not automatic.
+        result.auto_stopped.push({ venue: venue.name, email: from });
+      }
 
       // A removal request arriving as a reply must still suppress — this cannot
       // depend on Instantly classifying it as an unsubscribe.
