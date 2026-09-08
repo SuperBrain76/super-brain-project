@@ -23,3 +23,7 @@ supabase/prod-rollback/
 .instantly-webhook-id.local
 .outreach-sync-secret.local
 .instantly-window-original.local
+
+# TypeScript incremental build cache. Committing it made `git status` permanently
+# dirty and let a stale cache decide what CI bothered to typecheck.
+*.tsbuildinfo
