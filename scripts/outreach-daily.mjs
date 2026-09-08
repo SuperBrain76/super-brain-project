@@ -56,6 +56,14 @@ const replies = await one(
           count(*) filter (where classification = 'positive_interested')::int                                       as pos_total
      from venue_replies`, [day]);
 
+// Sends reach this database via an ingest that runs roughly nightly and is
+// irregular: 7 Sep's sends were recorded 16h later, 4 Sep's after 59h. So an
+// empty day is USUALLY just data that has not arrived, and reporting that as
+// FAILED would raise a false alarm every single day - the precise opposite of
+// what a status line is for. A day only counts as failed once the ingest has
+// actually run past the window and still shows nothing.
+const ingest = await one(`select max(created_at) as last_ingest from outreach_messages`);
+
 const inv = await one(
   `select count(*) filter (where outreach_pushed_at is null and contact_email_status = 'valid'
                              and coalesce(country,'') not in ('DE','AT'))::int as unpushed
@@ -67,13 +75,19 @@ const isToday = day === now.toISOString().slice(0, 10);
 const windowClosed = !isToday || now.getUTCHours() >= 10;   // Instantly: 08:00-10:00 UTC
 const weekday = ![0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay());
 
+const windowCloseUTC = new Date(`${day}T10:00:00Z`);
+const ingested = ingest.last_ingest && new Date(ingest.last_ingest) > windowCloseUTC;
+const stamp = ingest.last_ingest ? new Date(ingest.last_ingest).toISOString().slice(0, 16).replace("T", " ") : "never";
+
 let status, note;
-if (windowClosed && weekday && sends.total === 0) { status = "FAILED"; note = "no emails sent on a scheduled sending day"; }
-else if (inv.unpushed === 0)                      { status = "FAILED"; note = "verified supply is dry"; }
-else if (pct >= 5)                                { status = "ATTENTION"; note = `gated bounce rate ${pct.toFixed(1)}%`; }
-else if (inv.unpushed < 12)                       { status = "ATTENTION"; note = "under one day of verified inventory"; }
-else if (!windowClosed)                           { status = "HEALTHY"; note = "sending window still open"; }
-else                                              { status = "HEALTHY"; note = "emails sending, no material problem"; }
+if (inv.unpushed === 0)                                    { status = "FAILED";    note = "verified supply is dry"; }
+else if (windowClosed && weekday && ingested && sends.total === 0)
+                                                           { status = "FAILED";    note = "ingest has run past the window and shows no sends"; }
+else if (pct >= 5)                                         { status = "ATTENTION"; note = `gated bounce rate ${pct.toFixed(1)}%`; }
+else if (inv.unpushed < 12)                                { status = "ATTENTION"; note = "under one day of verified inventory"; }
+else if (!windowClosed)                                    { status = "HEALTHY";   note = "sending window still open"; }
+else if (!ingested)                                        { status = "PENDING";   note = `today's sends not ingested yet (last ingest ${stamp} UTC)`; }
+else                                                       { status = "HEALTHY";   note = "emails sending, no material problem"; }
 
 console.log(`
 SUPERBRAIN OUTREACH — ${day} (UTC)
@@ -88,6 +102,7 @@ SUPERBRAIN OUTREACH — ${day} (UTC)
   8. verified/mailable unpushed CRM .... ${inv.unpushed}  (~${(inv.unpushed / 12).toFixed(1)} days at the 12/day ceiling)
 
   STATUS: ${status} — ${note}
+  sends last ingested: ${stamp} UTC
   cohort: ${cohort.venues_contacted} verifier-gated venues contacted
 `);
 await c.end();
