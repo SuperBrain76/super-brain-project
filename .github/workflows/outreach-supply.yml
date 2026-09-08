@@ -71,18 +71,28 @@ jobs:
           QUEUED=$(printf '%s' "$BODY" | sed -n 's/.*"queued_in_instantly":\([0-9]*\).*/\1/p')
           PERDAY=$(printf '%s' "$BODY" | sed -n 's/.*"per_day":\([0-9]*\).*/\1/p')
           FORCE="${{ github.event.inputs.force || '0' }}"
+          BUFFER_DAYS=3
           # Unreadable health is a reason to push, not a reason to skip: the campaign
           # running dry is far more expensive than one redundant top-up, and the route
           # will refuse on its own if anything is actually wrong.
           if [ -z "${QUEUED:-}" ]; then
             echo "::warning::Could not read the queue depth; proceeding with the push."
             echo "go=true" >> "$GITHUB_OUTPUT"
-          elif [ "$FORCE" = "1" ] || [ "$QUEUED" -lt "${PERDAY:-12}" ]; then
-            echo "Queue $QUEUED < ${PERDAY:-12}/day — topping up."
-            echo "go=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Queue $QUEUED already covers a full day at ${PERDAY:-12}/day — nothing to do."
-            echo "go=false" >> "$GITHUB_OUTPUT"
+            # Hold SEVERAL days of inventory, not one. Topping up only to a single
+            # day's cap meant one dropped or late supply run left the next sending
+            # window short - and this cron is routinely late (today's 00:00 slot
+            # ran at 02:28). Depth costs nothing: Instantly still sends at most
+            # OUTREACH_DAILY_CAP a day, so a deeper queue changes when leads are
+            # pushed, never how many go out.
+            TARGET=$(( ${PERDAY:-12} * ${BUFFER_DAYS:-3} ))
+            if [ "$FORCE" = "1" ] || [ "$QUEUED" -lt "$TARGET" ]; then
+              echo "Queue $QUEUED < $TARGET (${BUFFER_DAYS:-3} days at ${PERDAY:-12}/day) — topping up."
+              echo "go=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Queue $QUEUED already covers ${BUFFER_DAYS:-3} days at ${PERDAY:-12}/day — nothing to do."
+              echo "go=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Push verified leads
