@@ -43,5 +43,15 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
 
+      # Two reporters on purpose. `default` for a human reading the log;
+      # `github-actions` because it emits ::error annotations, which are the
+      # only part of a run readable through the API without a token — the first
+      # CI failure here could not be diagnosed at all for exactly that reason.
       - name: Test
-        run: npm test
+        run: npx vitest run --reporter=default --reporter=github-actions
+
+      - name: Summarise
+        if: always()
+        run: |
+          echo "### CI" >> "$GITHUB_STEP_SUMMARY"
+          echo "node $(node -v) on $(uname -s)" >> "$GITHUB_STEP_SUMMARY"
