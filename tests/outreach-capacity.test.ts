@@ -92,11 +92,24 @@ describe("capacity planning", () => {
     expect(p.reduced).toBe(true);
   });
 
-  it("still funds follow-ups that exceed the ceiling, up to the mailbox limit", () => {
-    const p = planCapacity({ newVenues: 3, followUpsDue: 12, ...base });
+  it("NEVER raises the limit above the ceiling to fund a backlog", () => {
+    // This used to return min(followUps, accountLimit), so a backlog raised the
+    // campaign's cap. On 8 Sep 2026 thirteen pending first sends moved a cap
+    // frozen at 12 to 13, unattended, and released no new venue for it. The
+    // overflow now waits a day instead.
+    const p = planCapacity({ newVenues: 3, followUpsDue: SAFETY_CEILING + 8, ...base });
     expect(p.new_venues_released).toBe(0);
-    expect(p.daily_limit).toBe(12);          // a promised follow-up is never dropped
-    expect(p.daily_limit).toBeLessThanOrEqual(30);
+    expect(p.daily_limit).toBe(SAFETY_CEILING);
+    expect(p.reason).toMatch(/carry over/);
+  });
+
+  it("the limit can never exceed the ceiling, whatever the inputs", () => {
+    for (const followUpsDue of [0, 1, 5, 11, 12, 13, 40, 500]) {
+      for (const newVenues of [0, 1, 12, 200]) {
+        const p = planCapacity({ newVenues, followUpsDue, accountLimit: 30, ceiling: SAFETY_CEILING });
+        expect(p.daily_limit).toBeLessThanOrEqual(SAFETY_CEILING);
+      }
+    }
   });
 
   it("never exceeds the mailbox limit even when the ceiling would allow it", () => {

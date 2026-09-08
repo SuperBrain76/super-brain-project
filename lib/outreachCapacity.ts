@@ -137,13 +137,25 @@ export function planCapacity(input: {
 
   if (followUps >= hardMax) {
     // Follow-ups alone fill the day. They are already promised, so they win and
-    // no new venue goes out — but capacity is still raised to cover them.
+    // no new venue goes out.
+    //
+    // The limit is CLAMPED to hardMax. It used to be Math.min(followUps,
+    // accountLimit), which raised the campaign's cap above the ceiling to fund
+    // the backlog — so on 8 Sep 2026 thirteen pending first sends silently
+    // moved a cap that had been explicitly frozen at 12 to 13, unattended, and
+    // released no new venue in exchange. Left alone it ratchets: twenty pending
+    // would have asked for twenty.
+    //
+    // A promised send deferred by a day is a small harm. A sending cap that any
+    // backlog can raise is not a cap, and on a young domain it is the harm the
+    // ceiling exists to prevent. The overflow simply goes tomorrow.
     return {
       requested_new_venues: newVenues, pending_first_sends: pending, follow_ups_due: input.followUpsDue,
-      required, daily_limit: Math.min(followUps, accountLimit),
+      required, daily_limit: hardMax,
       new_venues_released: 0, ceiling, account_limit: accountLimit, reduced: newVenues > 0,
-      reason: `${followUps} follow-up(s) due meet or exceed the ceiling of ${hardMax}; ` +
-              `follow-ups are protected, so no new venue is released today`,
+      reason: `${followUps} promised send(s) meet or exceed the ceiling of ${hardMax}; ` +
+              `no new venue is released, and the limit stays at ${hardMax} — ` +
+              `${followUps - hardMax} send(s) carry over to the next sending day`,
     };
   }
 

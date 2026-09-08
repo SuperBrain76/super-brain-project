@@ -192,6 +192,19 @@ export async function setCampaignDailyLimit(dailyLimit: number): Promise<void> {
   if (!Number.isInteger(dailyLimit) || dailyLimit < 0) {
     throw new InstantlyError(`refusing to set a nonsensical daily limit: ${dailyLimit}`);
   }
+  // Defence in depth. planCapacity is clamped, but this is the only function in
+  // the codebase that can move a live sending cap, and on 8 Sep 2026 it moved
+  // one that had been explicitly frozen — from 12 to 13, unattended, because a
+  // backlog of promised sends asked it to. A cap any caller can raise is not a
+  // cap. Raising it is a deliberate decision about sender reputation and
+  // belongs in OUTREACH_SAFETY_CEILING, not in a daily job's arithmetic.
+  const ceiling = Number(process.env.OUTREACH_SAFETY_CEILING ?? 12);
+  if (Number.isInteger(ceiling) && ceiling > 0 && dailyLimit > ceiling) {
+    throw new InstantlyError(
+      `refusing to raise the campaign daily limit to ${dailyLimit}: the ceiling is ${ceiling}. ` +
+      `Raise OUTREACH_SAFETY_CEILING deliberately if that is really the intent.`,
+    );
+  }
   await call(`/campaigns/${encodeURIComponent(campaign)}`, {
     method: "PATCH",
     body: JSON.stringify({ daily_limit: dailyLimit }),
