@@ -34,7 +34,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 22, not 20. supabase-js's Realtime client throws on Node < 22
+          # without a `ws` transport, and the suite imports lib/supabase.ts —
+          # so a Node 20 runner fails on the environment, not on the code. 22 is
+          # also what this project is developed and tested against locally, and
+          # CI that does not match that is testing a different program.
+          node-version: "22"
           cache: npm
 
       - name: Install
