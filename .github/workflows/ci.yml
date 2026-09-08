@@ -1,0 +1,47 @@
+# Typecheck and test on every push. Advisory rules do not survive a busy week.
+#
+# Written after SAFETY_CEILING was raised from 10 to 12 on 7 Sep 2026 and
+# deployed without running the suite. Four capacity tests broke. They turned out
+# to be stale expectations hard-coded to the old ceiling — fortunate, because
+# the same silence would have hidden a real regression, and nothing would have
+# told anyone either way.
+#
+# The rule this enforces: when a production constant or configuration value
+# changes, the suite runs BEFORE the change ships. Not from memory — here.
+#
+# The integration and schema-contract tests skip themselves without a database
+# URL, which CI does not have. That is deliberate: this job proves the pure
+# logic and the types on every push, and the database contract is proven locally
+# where the connection exists. A skipped test that announces itself is honest; a
+# job that fails for want of a secret is one people learn to ignore.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Test
+        run: npm test
