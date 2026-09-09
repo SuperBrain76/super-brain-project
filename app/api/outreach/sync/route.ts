@@ -55,6 +55,22 @@ const VERIFY = process.env.OUTREACH_VERIFY !== "0";
 const VERIFY_BUDGET_MULTIPLE = Number(process.env.OUTREACH_VERIFY_BUDGET_MULTIPLE ?? 4);
 /** A verdict older than this is re-checked; mailboxes close. */
 const VERDICT_TTL_DAYS = Number(process.env.OUTREACH_VERDICT_TTL_DAYS ?? 30);
+/**
+ * Wall-clock budget for one run, well inside the 300s function limit.
+ *
+ * On 9 Sep 2026 the 02:30 supply run died with curl exit 28 — timeout. With an
+ * empty queue the planner released twelve venues, the loop set out to verify up
+ * to forty-eight candidates at up to thirty seconds each, and nothing came back
+ * before the caller gave up. Nothing was pushed and nothing was reported; the
+ * campaign was saved only by the 08:31 slot finding cached verdicts.
+ *
+ * A run that stops early and pushes eight leads is worth far more than one that
+ * verifies exhaustively and returns nothing. The loop now stops at the deadline
+ * and says so.
+ */
+const RUN_BUDGET_MS = Number(process.env.OUTREACH_RUN_BUDGET_MS ?? 200_000);
+/** Per-address verification budget. Unresolved reads as `unknown` and is skipped. */
+const VERIFY_TIMEOUT_MS = Number(process.env.OUTREACH_VERIFY_TIMEOUT_MS ?? 15_000);
 
 export async function GET(req: NextRequest)  { return run(req); }
 export async function POST(req: NextRequest) { return run(req); }
@@ -194,7 +210,7 @@ async function run(req: NextRequest) {
     eligible_total: eligible?.length ?? 0,
     pushed: 0, skipped_suppressed: 0, skipped_no_campaign: 0, failed: 0,
     verified_valid: 0, suppressed_invalid: 0, skipped_risky: 0, skipped_unverifiable: 0,
-    verifications_spent: 0,
+    verifications_spent: 0, stopped_on_deadline: false,
     dry, min_fit_score: MIN_FIT, limit, verification: VERIFY,
     failures: [] as Array<{ venue: string; error: string }>,
   };
@@ -211,8 +227,11 @@ async function run(req: NextRequest) {
     }
   }
 
+  const startedAt = Date.now();
   for (const v of candidates ?? []) {
     if (result.pushed >= limit) break;      // capacity filled; stop verifying
+    // Return what we have rather than timing out with nothing.
+    if (Date.now() - startedAt > RUN_BUDGET_MS) { result.stopped_on_deadline = true; break; }
     if (!v.contact_email) continue;
 
     if (await isSuppressed(db, v.contact_email)) {
@@ -244,7 +263,7 @@ async function run(req: NextRequest) {
       if (fresh) {
         verdict = cached.verdict;
       } else {
-        const r = await verifyEmail(v.contact_email);
+        const r = await verifyEmail(v.contact_email, { timeoutMs: VERIFY_TIMEOUT_MS });
         result.verifications_spent++;
         verdict = r.verdict; raw = r.raw_status; catchAll = r.catch_all;
         if (!dry) {

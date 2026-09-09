@@ -109,9 +109,16 @@ jobs:
           # aborts the step. On a scheduled run VENUES is always empty, so the first
           # time this workflow ever managed to trigger it would have failed here.
           if [ -n "${VENUES:-}" ]; then QS="$QS&venues=$VENUES"; fi
-          OUT=$(curl -sS --max-time 300 -w '\n%{http_code}' \
+          # 280s, not 300: the route budgets itself to ~200s and returns what it
+          # has, so a timeout here now means something is genuinely wrong rather
+          # than the verifier merely being slow. Exit 28 on 9 Sep produced no
+          # push and no report at all, and said nothing about which.
+          if ! OUT=$(curl -sS --max-time 280 -w '\n%{http_code}' \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/outreach/sync?$QS")
+            "$APP_URL/api/outreach/sync?$QS"); then
+            echo "::error::/api/outreach/sync did not respond within 280s. The route budgets itself to 200s and returns partial results, so a timeout here needs investigating, not retrying."
+            exit 1
+          fi
           CODE=$(echo "$OUT" | tail -1)
           BODY=$(echo "$OUT" | sed '$d')
           echo "$BODY"
