@@ -185,9 +185,28 @@ await c.end();
 
 // ── 9. verdict ──────────────────────────────────────────────────────────────
 h("9. verdict");
+// Silence before the window opens is the schedule working, not a fault. The
+// health endpoint has always known this; this script did not, and cried wolf
+// every morning — which is exactly how a check earns the right to be ignored.
+const sch = camp.campaign_schedule?.schedules?.[0];
+const tz = sch?.timezone ?? "UTC";
+const nowParts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+  timeZone: tz, hour12: false, weekday: "short", hour: "2-digit", minute: "2-digit",
+}).formatToParts(new Date()).map((x) => [x.type, x.value]));
+const DAYNUM = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const sendingDay = Boolean(sch?.days?.[DAYNUM[String(nowParts.weekday)]]);
+const localHHMM = `${nowParts.hour}:${nowParts.minute}`;
+const windowOpened = sendingDay && sch?.timing?.from && localHHMM >= sch.timing.from;
+const expectedToSend = DAY === new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date())
+  ? windowOpened : true;   // a past day is always judged on its full window
+
 const problems = [];
 if (camp.status !== 1) problems.push("campaign is not ACTIVE");
-if ((today?.sent ?? 0) === 0) problems.push(`no emails sent on ${DAY}`);
+if ((today?.sent ?? 0) === 0) {
+  if (expectedToSend) problems.push(`no emails sent on ${DAY}`);
+  else console.log(`  (window not open yet — ${localHHMM} ${tz}, opens ${sch?.timing?.from}` +
+                   `${sendingDay ? "" : ", and today is not a sending day"}. Zero sends is correct.)`);
+}
 if (newToday.length) problems.push(`${newToday.length} bounce(s) from today's sends`);
 if (queued.length < (camp.daily_limit || 12)) problems.push(`queue below one day (${queued.length})`);
 if (buf.n < 100) problems.push(`buffer ${buf.n} below the floor of 100`);
