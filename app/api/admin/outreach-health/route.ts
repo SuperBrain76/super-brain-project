@@ -30,7 +30,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { admin } from "@/lib/venueDb";
-import { campaignState, campaignQueue, dailySends, senderHealth } from "@/lib/instantly";
+import { campaignState, campaignQueue, dailySends, senderHealth, trailingBounceRate } from "@/lib/instantly";
 import { schedulePhase, type HealthState } from "@/lib/outreachSchedule";
 
 export const runtime = "nodejs";
@@ -60,10 +60,10 @@ export async function GET(req: NextRequest) {
 
   // ── Instantly, if it can be read at all ────────────────────────────────
   let campaign: any = null, queue: any = null, daily: Array<{ date: string; sent: number }> = [];
-  let sender: any = null, instantlyError: string | null = null;
+  let sender: any = null, instantlyError: string | null = null, trailing: number | null = null;
   try {
-    [campaign, queue, daily, sender] = await Promise.all([
-      campaignState(), campaignQueue(), dailySends(), senderHealth(),
+    [campaign, queue, daily, sender, trailing] = await Promise.all([
+      campaignState(), campaignQueue(), dailySends(), senderHealth(), trailingBounceRate(30),
     ]);
   } catch (e: any) {
     instantlyError = String(e?.message ?? e).slice(0, 200);
@@ -127,13 +127,18 @@ export async function GET(req: NextRequest) {
   // ── bounce risk ────────────────────────────────────────────────────────
   const contacted = queue?.contacted ?? null;
   const bounced = queue?.bounced ?? null;
-  const bounceRate =
+  const lifetimeRate =
     contacted && contacted > 0 && bounced !== null ? +((bounced / contacted) * 100).toFixed(1) : null;
+  // TRAILING is the number that governs. The lifetime figure is dominated by
+  // sends made before the ownership gate existed, and reporting it as the risk
+  // had the brief showing 13.8% on a campaign whose last 50 sends were at 4%.
+  const bounceRate = trailing !== null ? +trailing.toFixed(1) : lifetimeRate;
   if (bounceRate !== null && bounceRate >= BOUNCE_THRESHOLD_PCT) {
     states.add("HIGH BOUNCE RISK");
     notes.push(
-      `${bounced} of ${contacted} contacted addresses bounced (${bounceRate}%), against a ` +
-      `${BOUNCE_THRESHOLD_PCT}% ceiling. Every address must clear verification before it is pushed.`,
+      `Bounce rate over the last 30 contacted is ${bounceRate}%, against a ` +
+      `${BOUNCE_THRESHOLD_PCT}% ceiling (lifetime ${lifetimeRate}%). ` +
+      `The daily-limit ramp stays shut until this is under 3%.`,
     );
   }
 
@@ -202,7 +207,11 @@ export async function GET(req: NextRequest) {
       min_days_inventory: MIN_DAYS_INVENTORY,
     },
     bounce: {
-      contacted, bounced, rate_pct: bounceRate, threshold_pct: BOUNCE_THRESHOLD_PCT,
+      contacted, bounced,
+      rate_pct: bounceRate,                 // trailing — the one that governs
+      trailing_30_pct: trailing !== null ? +trailing.toFixed(1) : null,
+      lifetime_pct: lifetimeRate,
+      threshold_pct: BOUNCE_THRESHOLD_PCT,
     },
     sender: sender ?? null,
     notes,

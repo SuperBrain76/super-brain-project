@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
+import { addressBelongsToVenue } from "@/lib/outreachTargeting";
 import { scrapeContact, scoreVenue, isMockMode } from "@/lib/enrichment";
 import type { PlaceResult } from "@/lib/prospecting";
 
@@ -58,7 +59,7 @@ async function run(req: NextRequest) {
 
   const result = {
     considered: prospects?.length ?? 0,
-    verified: 0, no_email: 0, low_fit: 0, suppressed: 0, failed: 0,
+    verified: 0, no_email: 0, low_fit: 0, suppressed: 0, failed: 0, wrong_owner: 0,
     min_fit_score: MIN_FIT,
     // Loud on purpose: a run that scored offline must never be mistaken for a
     // qualified list. Mock rows are flagged in the CRM too.
@@ -153,6 +154,34 @@ async function enrichOne(db: any, v: any, result: any) {
     await write(db, v.id, {
       enriched_at: now, status: "disqualified",
       contact_email: scrape.email, fit_reason: "email on suppression list",
+    });
+    return;
+  }
+
+  // Is this address even the venue's? Checked BEFORE scoring, because scoring
+  // costs an Anthropic call and this venue cannot be mailed whatever it scores.
+  //
+  // 331 of the 816 venues holding an address — 41% — are on a pub-group domain,
+  // and that bucket bounced at 35.9%. Recovery was tested properly and failed:
+  // of 47 held venues with a website of their own, 40 publish only the group
+  // address, because the site is built by the group. A chain-affiliated venue is
+  // structurally unreachable by cold email, so paying to score it is waste.
+  //
+  // The row is kept, with the reason, so a future contact-enrichment pass can
+  // revisit it if a real per-venue address ever surfaces.
+  const owner = addressBelongsToVenue(scrape.email, v.website);
+  if (!owner.ok) {
+    result.wrong_owner++;
+    await write(db, v.id, {
+      enriched_at: now,                     // stops the re-enrich loop
+      contact_email: scrape.email,
+      contact_email_status: "risky",
+      status: "disqualified",
+      fit_reason: `Not scored: ${owner.reason}`,
+      enrichment: {
+        mock: false,
+        targeting: { verdict: "wrong_owner", reason: owner.reason, at: now },
+      },
     });
     return;
   }

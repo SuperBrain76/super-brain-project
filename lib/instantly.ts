@@ -223,7 +223,14 @@ export async function campaignState() {
   if (!id) return { error: "INSTANTLY_CAMPAIGN_DEFAULT missing" };
   const c = await call(`/campaigns/${encodeURIComponent(id)}`);
   const sch = c.campaign_schedule?.schedules?.[0];
-  const STATUS: Record<number, string> = { 0: "draft", 1: "active", 2: "paused", 3: "completed", 4: "running_subsequences" };
+  // Instantly also uses NEGATIVE statuses, which this map did not cover — so
+  // when it suspended the campaign on 28 Sep the brief reported the bare string
+  // "-2" for 23 days. A number nobody can interpret is barely better than
+  // silence.
+  const STATUS: Record<number, string> = {
+    0: "draft", 1: "active", 2: "paused", 3: "completed", 4: "running_subsequences",
+    [-1]: "suspended (account)", [-2]: "suspended by bounce protection", [-99]: "suspended (account)",
+  };
   return {
     id, name: c.name, status: STATUS[c.status] ?? String(c.status),
     daily_limit: c.daily_limit, stop_on_reply: c.stop_on_reply,
