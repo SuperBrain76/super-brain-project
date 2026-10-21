@@ -186,7 +186,7 @@ export async function mailboxDailyLimit(): Promise<number> {
  * Set the campaign's daily email cap for today's tranche. Capacity is planned in
  * VENUES; this converts the plan into the number Instantly actually enforces.
  */
-export async function setCampaignDailyLimit(dailyLimit: number): Promise<void> {
+export async function setCampaignDailyLimit(dailyLimit: number, maxAllowed?: number): Promise<void> {
   const campaign = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
   if (!campaign) throw new InstantlyError("INSTANTLY_CAMPAIGN_DEFAULT missing");
   if (!Number.isInteger(dailyLimit) || dailyLimit < 0) {
@@ -198,11 +198,17 @@ export async function setCampaignDailyLimit(dailyLimit: number): Promise<void> {
   // backlog of promised sends asked it to. A cap any caller can raise is not a
   // cap. Raising it is a deliberate decision about sender reputation and
   // belongs in OUTREACH_SAFETY_CEILING, not in a daily job's arithmetic.
-  const ceiling = Number(process.env.OUTREACH_SAFETY_CEILING ?? 12);
+  // `maxAllowed` comes from the ramp, which earns each step from a clean
+  // trailing bounce rate. Falling back to the env var keeps every existing
+  // caller safe; passing 0 or a negative would disable the guard, so it is
+  // ignored.
+  const ceiling = maxAllowed && maxAllowed > 0
+    ? maxAllowed
+    : Number(process.env.OUTREACH_RAMP_BASE ?? process.env.OUTREACH_SAFETY_CEILING ?? 12);
   if (Number.isInteger(ceiling) && ceiling > 0 && dailyLimit > ceiling) {
     throw new InstantlyError(
-      `refusing to raise the campaign daily limit to ${dailyLimit}: the ceiling is ${ceiling}. ` +
-      `Raise OUTREACH_SAFETY_CEILING deliberately if that is really the intent.`,
+      `refusing to raise the campaign daily limit to ${dailyLimit}: today's ceiling is ${ceiling}. ` +
+      `The ramp raises it one step per clean sending day — it is not a number to set by hand.`,
     );
   }
   await call(`/campaigns/${encodeURIComponent(campaign)}`, {
@@ -242,6 +248,53 @@ export async function campaignState() {
       : null,
     senders: c.email_list ?? [],
   };
+}
+
+// ── Ramp inputs ───────────────────────────────────────────────
+/**
+ * Bounce rate over the trailing `window` contacted leads, as a percentage.
+ *
+ * Trailing, not lifetime. The lifetime figure is 13.9% and most of it predates
+ * the ownership gate, so using it would hold the ramp shut for months on
+ * mistakes already fixed. What governs whether we may send more today is what
+ * recent sends did.
+ *
+ * Null when there is not enough history to judge — the ramp then refuses to
+ * advance rather than guessing.
+ */
+export async function trailingBounceRate(window = 30): Promise<number | null> {
+  const id = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
+  if (!id) throw new InstantlyError("INSTANTLY_CAMPAIGN_DEFAULT missing");
+  let items: any[] = [];
+  let after: string | undefined;
+  do {
+    const page = await call("/leads/list", {
+      method: "POST",
+      body: JSON.stringify({ campaign: id, limit: 100, ...(after ? { starting_after: after } : {}) }),
+    });
+    items = items.concat(page.items ?? []);
+    after = page.next_starting_after;
+  } while (after && items.length < 5000);
+
+  const contacted = items
+    .filter((l) => l.timestamp_last_contact)
+    .sort((a, b) => String(a.timestamp_last_contact).localeCompare(String(b.timestamp_last_contact)));
+  if (contacted.length < 10) return null;        // too little to judge
+  const slice = contacted.slice(-Math.max(10, window));
+  const bounced = slice.filter((l) => Number(l.status) === -1).length;
+  return (bounced / slice.length) * 100;
+}
+
+/**
+ * Days since `epochISO` on which at least one email actually went out.
+ *
+ * Counts real sending, not elapsed time: a weekend, a suspension or an empty
+ * queue banks nothing. That is the difference between this and the calendar
+ * ramp that preceded the 28 September suspension.
+ */
+export async function cleanSendingDaysSince(epochISO: string): Promise<number> {
+  const rows = await dailySends();
+  return rows.filter((r) => r.date >= epochISO && r.sent > 0).length;
 }
 
 // ── Observability ─────────────────────────────────────────────

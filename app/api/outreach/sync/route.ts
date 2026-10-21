@@ -24,10 +24,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
-import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit, verifyEmail } from "@/lib/instantly";
+import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit, verifyEmail,
+         trailingBounceRate, cleanSendingDaysSince } from "@/lib/instantly";
+import { computeDailyCeiling } from "@/lib/outreachRamp";
 import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
 import { addressBelongsToVenue } from "@/lib/outreachTargeting";
-import { planCapacity, followUpsDue, pendingFirstSends, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
+import { planCapacity, followUpsDue, pendingFirstSends, type FollowUpCandidate } from "@/lib/outreachCapacity";
 import { SITE } from "@/lib/stripe";
 import { isMockMode } from "@/lib/enrichment";
 
@@ -124,6 +126,7 @@ async function run(req: NextRequest) {
   // our own message history, so it does not depend on Instantly agreeing.
   const GAP_DAYS = Number(process.env.OUTREACH_FOLLOWUP_GAP_DAYS ?? 4);
   let plan;
+  let ramp: { ceiling: number; ramping: boolean; reason: string } | null = null;
   try {
     const { data: inFlight, error: flightErr } = await db
       .from("venues")
@@ -146,9 +149,22 @@ async function run(req: NextRequest) {
     const due = followUpsDue(candidates, new Date(), GAP_DAYS);
     const pending = pendingFirstSends(candidates);
     const acct = await mailboxDailyLimit();      // throws if unknown -> fail closed
+
+    // Today's ceiling is earned, not configured. One step per sending day that
+    // stayed clean; straight back to the floor if the trailing bounce rate
+    // reaches the threshold. RAMP_EPOCH is the date the campaign was resumed
+    // after Instantly's bounce suspension, so nothing before it banks a step.
+    const [bouncePct, cleanDays] = await Promise.all([
+      trailingBounceRate(30),
+      cleanSendingDaysSince(process.env.OUTREACH_RAMP_EPOCH ?? "2026-10-21"),
+    ]);
+    ramp = computeDailyCeiling({
+      mailboxLimit: acct, cleanSendingDays: cleanDays, trailingBouncePct: bouncePct,
+    });
+
     plan = planCapacity({
       newVenues: wantVenues, followUpsDue: due, pendingFirstSends: pending,
-      ceiling: SAFETY_CEILING, accountLimit: acct,
+      ceiling: ramp.ceiling, accountLimit: acct,
     });
   } catch (e: any) {
     // Fail closed: without a trustworthy capacity number we neither send nor guess.
@@ -207,6 +223,7 @@ async function run(req: NextRequest) {
 
   const result = {
     capacity: plan,
+    ramp,
     considered: candidates?.length ?? 0,
     eligible_total: eligible?.length ?? 0,
     pushed: 0, skipped_suppressed: 0, skipped_no_campaign: 0, failed: 0,
@@ -219,7 +236,7 @@ async function run(req: NextRequest) {
   // Raise Instantly's cap to cover this tranche BEFORE pushing, or the leads
   // land in a campaign that cannot send them all today.
   if (!dry) {
-    try { await setCampaignDailyLimit(plan.daily_limit); }
+    try { await setCampaignDailyLimit(plan.daily_limit, ramp?.ceiling); }
     catch (e: any) {
       await emit(db, EVENT.SYNC_FAILED, {
         source: "instantly", detail: { stage: "set_daily_limit", error: String(e?.message ?? e).slice(0, 300) },
