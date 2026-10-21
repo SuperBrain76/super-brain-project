@@ -19,11 +19,27 @@
  * At 12.1% overall the campaign was suspended by Instantly's bounce protection
  * on 28 Sep 2026. Applying this rule alone takes the measured rate to 2.7%.
  *
- * It costs inventory — 65 of the 100 leads buffered on 21 Oct are held by it —
- * and that cost is the point rather than a side effect: those 65 are precisely
- * the venues we were about to mail at the wrong address. Most of them publish a
- * perfectly good one on their own website, which is the enrichment job this
- * rule makes worth doing.
+ * TWO EXCEPTIONS, both found by reading the live queue before shipping the rule
+ * and both measured:
+ *
+ *   free-mail (gmail, outlook, …)      19 sent, 0 bounced =  0.0%
+ *   website is a builder / linktree     1 sent, 0 bounced =  0.0%
+ *   address on the venue's own domain  73 sent, 2 bounced =  2.7%
+ *   everything else — WRONG OWNER      39 sent, 14 bounced = 35.9%
+ *
+ * A gmail address is never a group alias. It is a small independent's own
+ * mailbox, it reaches the owner rather than a generic inbox, and not one has
+ * ever bounced — the blunt version of this rule held nine of them and they were
+ * the most valuable leads in the queue. Likewise a linktr.ee or eatbu.com
+ * "website" is not a domain the venue controls, so it carries no signal either
+ * way and is treated as no website rather than as a mismatch.
+ *
+ * Keeping the first three buckets gives 93 sent at 2 bounced = 2.2%, inside the
+ * ceiling with margin, while holding 39 instead of 59.
+ *
+ * What is held is not waste: those 39 are the venues we were about to mail at
+ * somebody else's address, and most publish a good one on their own site. That
+ * is the enrichment job this rule makes worth doing.
  */
 
 /** Hostname of a URL, lowercased, without `www.`. Null when unusable. */
@@ -43,6 +59,31 @@ export function domainOf(email: string | null | undefined): string | null {
   return m ? m[1].toLowerCase().replace(/^www\./, "") : null;
 }
 
+/**
+ * Consumer mail providers. An address here belongs to a person, not to a group's
+ * switchboard, so the ownership comparison does not apply.
+ */
+const FREE_MAIL = new Set([
+  "gmail.com", "googlemail.com", "outlook.com", "outlook.co.uk", "hotmail.com", "hotmail.co.uk",
+  "yahoo.com", "yahoo.co.uk", "ymail.com", "icloud.com", "me.com", "mac.com", "aol.com",
+  "live.com", "live.co.uk", "msn.com", "protonmail.com", "proton.me", "gmx.com", "gmx.de",
+  "gmx.net", "web.de", "t-online.de", "free.fr", "orange.fr", "wanadoo.fr", "sfr.fr",
+  "laposte.net", "libero.it", "virgilio.it", "alice.it", "tiscali.it", "tin.it",
+  "telefonica.net", "terra.es", "hotmail.es", "yahoo.es", "yahoo.fr", "yahoo.it",
+]);
+
+/**
+ * Hosts that publish somebody else's page, not a domain the venue controls. A
+ * venue whose "website" is a linktree has, for our purposes, no website — the
+ * host says nothing about which addresses are theirs.
+ */
+const NOT_OWN_SITE = [
+  /(^|\.)linktr\.ee$/, /(^|\.)eatbu\.com$/, /(^|\.)blogspot\./, /(^|\.)wixsite\.com$/,
+  /(^|\.)wix\.com$/, /(^|\.)squarespace\.com$/, /(^|\.)weebly\.com$/, /(^|\.)business\.site$/,
+  /(^|\.)godaddysites\.com$/, /(^|\.)foodanddrinksites\.co\.uk$/, /(^|\.)sumupstore\.com$/,
+  /(^|\.)facebook\.com$/, /(^|\.)instagram\.com$/, /(^|\.)tripadvisor\./, /(^|\.)google\.com$/,
+];
+
 export type TargetVerdict =
   /** The address is on the venue's own domain, or we cannot tell. Proceed. */
   | { ok: true; reason: string }
@@ -60,9 +101,17 @@ export function addressBelongsToVenue(
   website: string | null | undefined,
 ): TargetVerdict {
   const dom = domainOf(email);
-  const site = hostOf(website);
+  let site = hostOf(website);
   if (!dom) return { ok: false, reason: "unparseable email address" };
-  if (!site) return { ok: true, reason: "no website on record — nothing to compare against" };
+
+  // A person's own mailbox, not a group's switchboard. 0 of 19 bounced.
+  if (FREE_MAIL.has(dom)) {
+    return { ok: true, reason: `${dom} is a consumer mail provider — a personal mailbox, not a group alias` };
+  }
+  // A page on somebody else's platform tells us nothing about address ownership.
+  if (site && NOT_OWN_SITE.some((r) => r.test(site!))) site = null;
+
+  if (!site) return { ok: true, reason: "no website of the venue's own to compare against" };
   if (dom === site) return { ok: true, reason: `address is on the venue's own domain (${dom})` };
 
   // A subdomain of the venue's own site, or vice versa, is still the venue.

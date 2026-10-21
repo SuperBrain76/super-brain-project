@@ -60,3 +60,38 @@ describe("addressBelongsToVenue", () => {
     expect(domainOf("broken")).toBe(null);
   });
 });
+
+describe("the exceptions, both measured at 0 bounces", () => {
+  // The blunt rule held all nine of these. They are small independents mailing
+  // from their own account, they reach the owner rather than a generic inbox,
+  // and not one has ever bounced.
+  const FREEMAIL_WITH_OWN_SITE: Array<[string, string]> = [
+    ["phoenixbarfr@gmail.com", "https://phoenixbar.fr"],
+    ["creedencerockbar@gmail.com", "https://creedencerock.com"],
+    ["barlespaul@gmail.com", "https://lespaulbar.com"],
+    ["hermistonbrewingjanea@gmail.com", "https://hermistonbrewingcompany.com"],
+    ["infos.templerock@gmail.com", "https://templerock-tavern.com"],
+    ["theliverpoolpub@outlook.com", "https://theliverpool.co.uk"],
+  ];
+  it.each(FREEMAIL_WITH_OWN_SITE)("lets %s through", (email, site) => {
+    expect(addressBelongsToVenue(email, site).ok).toBe(true);
+  });
+
+  it("treats a builder or linktree page as no website at all", () => {
+    // Not a domain the venue controls, so it carries no ownership signal.
+    expect(addressBelongsToVenue("info@meltingpottoulouse.com", "https://linktr.ee/meltingpot").ok).toBe(true);
+    expect(addressBelongsToVenue("titocapa@gmail.com", "https://cervecerialadivina.eatbu.com").ok).toBe(true);
+    expect(addressBelongsToVenue("byalongchalk@hotmail.co.uk", "https://x.foodanddrinksites.co.uk").ok).toBe(true);
+  });
+
+  it("still holds a group alias even when the venue has no usable site", () => {
+    expect(addressBelongsToVenue("albion@youngs.co.uk", "https://thealbionlondon.com").ok).toBe(false);
+    expect(addressBelongsToVenue("spreadeagle.wednesfield@marstons.co.uk",
+      "https://spreadeaglepubwolverhampton.co.uk").ok).toBe(false);
+  });
+
+  it("rejects a scraped address with an encoded space in it", () => {
+    // %20sales@foxdonkeygarden.com was sitting in the live queue.
+    expect(addressBelongsToVenue("%20sales@foxdonkeygarden.com", "https://foxdonkeygarden.co.uk").ok).toBe(false);
+  });
+});
