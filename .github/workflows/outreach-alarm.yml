@@ -1,0 +1,52 @@
+# Does the campaign still send? Nothing else in this repo asks that question.
+#
+# Instantly suspended the campaign on 28 September 2026 and it was discovered on
+# 21 October — twenty-three days. Every job around it stayed green the whole
+# time, because they all succeeded: the supply push ran 184 times, discovery
+# grew the CRM to 4,910 venues, config-health went green. A campaign with
+# nowhere to send is not a failing job, so nothing failed.
+#
+# This job exists only to fail. It goes red when the campaign is not actively
+# sending, which is the one state no other check here can produce.
+
+name: Outreach alarm
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  alarm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Is the campaign sending?
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          BODY=$(curl -sS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/admin/outreach-health") || {
+            echo "::error::outreach-health unreachable — the alarm itself is blind."; exit 1; }
+
+          STATE=$(printf '%s' "$BODY" | sed -n 's/.*"campaign_status":"\([^"]*\)".*/\1/p')
+          HEAD=$(printf  '%s' "$BODY" | sed -n 's/.*"headline":"\([^"]*\)".*/\1/p')
+          LAST=$(printf  '%s' "$BODY" | sed -n 's/.*"last_day_with_sends":"\([^"]*\)".*/\1/p')
+          {
+            echo "### Outreach: ${HEAD:-unknown}"
+            echo ""
+            echo "- campaign status: \`${STATE:-unknown}\`"
+            echo "- last day with sends: \`${LAST:-unknown}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${STATE:-}" != "active" ]; then
+            echo "::error::The Instantly campaign is NOT ACTIVE (status '${STATE:-unknown}'). Nothing has sent since ${LAST:-unknown}. A negative status is set by Instantly itself and bounce protection is the usual cause: fix the bounce rate BEFORE resuming, or it re-suspends and the sending domain takes the damage."
+            exit 1
+          fi
+
+          case "$HEAD" in
+            "CAMPAIGN STARVED"|"HIGH BOUNCE RISK")
+              echo "::error::$HEAD — $BODY"; exit 1 ;;
+          esac
+          echo "Campaign is active. Headline: $HEAD"

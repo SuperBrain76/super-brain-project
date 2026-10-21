@@ -26,6 +26,7 @@ import { admin, isSuppressed } from "@/lib/venueDb";
 import { emit, EVENT } from "@/lib/events";
 import { pushLead, campaignFor, InstantlyError, mailboxDailyLimit, setCampaignDailyLimit, verifyEmail } from "@/lib/instantly";
 import { SELECTION_ORDER, selectForOutreach } from "@/lib/outreachRanking";
+import { addressBelongsToVenue } from "@/lib/outreachTargeting";
 import { planCapacity, followUpsDue, pendingFirstSends, SAFETY_CEILING, type FollowUpCandidate } from "@/lib/outreachCapacity";
 import { SITE } from "@/lib/stripe";
 import { isMockMode } from "@/lib/enrichment";
@@ -210,7 +211,7 @@ async function run(req: NextRequest) {
     eligible_total: eligible?.length ?? 0,
     pushed: 0, skipped_suppressed: 0, skipped_no_campaign: 0, failed: 0,
     verified_valid: 0, suppressed_invalid: 0, skipped_risky: 0, skipped_unverifiable: 0,
-    verifications_spent: 0, stopped_on_deadline: false,
+    verifications_spent: 0, stopped_on_deadline: false, skipped_wrong_owner: 0,
     dry, min_fit_score: MIN_FIT, limit, verification: VERIFY,
     failures: [] as Array<{ venue: string; error: string }>,
   };
@@ -245,6 +246,28 @@ async function run(req: NextRequest) {
     if (!campaignFor(v.country)) {
       result.skipped_no_campaign++;
       continue;
+    }
+
+    // ── ownership gate ─────────────────────────────────────────────────────
+    // Runs BEFORE verification, because it costs nothing and verification costs
+    // credits — and because the verifier cannot answer this question at all. It
+    // says the mailbox is reachable; it has no view on whose mailbox it is.
+    // Fourteen of our sixteen bounces were group aliases that verified clean.
+    {
+      const owner = addressBelongsToVenue(v.contact_email, v.website);
+      if (!owner.ok) {
+        result.skipped_wrong_owner++;
+        if (!dry) {
+          await db.from("venues").update({
+            contact_email_status: "risky",
+            enrichment: {
+              ...((v as any).enrichment ?? {}),
+              targeting: { verdict: "wrong_owner", reason: owner.reason, at: new Date().toISOString() },
+            },
+          }).eq("id", v.id);
+        }
+        continue;
+      }
     }
 
     // ── deliverability gate ────────────────────────────────────────────────

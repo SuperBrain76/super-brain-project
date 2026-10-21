@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyReply, needsAttention, briefPriority, stopsSequence, isHumanReply } from "@/lib/replyClassifier";
+import { classifyReply, needsAttention, briefPriority, stopsSequence, isHumanReply , stripQuotedReply } from "@/lib/replyClassifier";
 
 const cls = (s: string | null | undefined) => classifyReply(s).classification;
 
@@ -249,5 +249,70 @@ describe("automated replies do not stop the sequence or count as engagement", ()
     expect(isHumanReply("automated")).toBe(false);
     expect(isHumanReply("positive_interested")).toBe(true);
     expect(isHumanReply("needs_review")).toBe(true);
+  });
+});
+
+/**
+ * The real replies this campaign has actually received, by their real text.
+ *
+ * Every one of these was classified wrongly in production. They are kept
+ * verbatim rather than paraphrased, because what broke the classifier was the
+ * exact shape of a real reply — one word above a quoted original — and a
+ * paraphrase would not have reproduced it.
+ */
+describe("replies this campaign really received", () => {
+  it("'no' above our own quoted email is a rejection, not interest", () => {
+    // The Punch Bowl Ale House, 21 Sep 2026. Stored as positive_interested for a
+    // month: the quoted original defeated BARE_NO, then our own copy — "Premier
+    // League", "leagues", "free" — matched POSITIVE.
+    const body = [
+      "no",
+      "",
+      "-----Original Message-----",
+      "From: Dylan F <alex@superbrain.bar> ",
+      "Sent: 21 September 2026 09:08",
+      "To: The Punch Bowl Ale House <PBAH@wickwarpubco.co.uk>",
+      "Subject: re: quick one for The Punchbowl",
+      "",
+      "Following up once on The Punchbowl, then I'll leave you alone.",
+      "",
+      "I've set aside a Premier League league you can put your name to — The Punchbowl Premier League Cup.",
+      "Your regulars join with a code, predict each matchweek, and the table updates itself.",
+      "",
+      "Still free, still no betting: https://www.superbrain.social/venues/start?v=72598df7",
+      "",
+      "If it's not for you, just reply \"no\" and I won't chase.",
+      "",
+      "Alex",
+      "SuperBrain",
+    ].join("\n");
+    const r = classifyReply(body, "RE: quick one for The Punchbowl");
+    expect(r.classification).toBe("negative");
+    expect(r.rule_matched).toBe("bare_no");
+  });
+
+  it("strips the quoted original so our own copy cannot vote", () => {
+    expect(stripQuotedReply("no\n\n-----Original Message-----\nFree Premier League leagues!")).toBe("no");
+    expect(stripQuotedReply("Not for us.\n\nOn 21 Sep 2026, Alex wrote:\n> pricing and a demo")).toBe("Not for us.");
+    expect(stripQuotedReply("maybe\n________________________________\nFrom: Alex <a@b.co>")).toBe("maybe");
+  });
+
+  it("leaves a reply that quotes nothing completely untouched", () => {
+    const plain = "Hi Alex, what does this cost and can we see a demo?";
+    expect(stripQuotedReply(plain)).toBe(plain);
+    expect(classifyReply(plain).classification).toBe("positive_interested");
+  });
+
+  it("a 'Holiday' absence reply is automated, not a human needing review", () => {
+    // Athletic Arms, 10 Sep 2026.
+    expect(classifyReply("I am on holiday until the 20th.", "Holiday").classification).toBe("automated");
+  });
+
+  it("still catches a real lead hiding under an absence reply", () => {
+    // The reason "out of office" is not a strong-auto rule: this is a lead.
+    const r = classifyReply(
+      "I'm out of the office until Monday. For pricing please contact Maria who handles this.",
+    );
+    expect(r.classification).not.toBe("automated");
   });
 });

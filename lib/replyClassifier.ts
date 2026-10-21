@@ -126,6 +126,12 @@ const AUTO_REPLY = [
   /\bautomatic(ally)? (reply|response)\b/i,
   /\bauto[- ]?reply\b/i,
   /\bon (annual )?leave\b/i,
+  // "Holiday" as a subject on its own is how a venue manager's absence reply
+  // arrives — Athletic Arms, 10 Sep 2026, filed as a human reply needing review.
+  // Safe this late in the order: a genuine message about Christmas bookings
+  // would already have matched a commercial signal above.
+  /\b(on|away on|currently on) holiday\b/i,
+  /\bback (in the office|on) \b/i,
   /\bmaternity|paternity leave\b/i,
   /\bi am currently away\b/i,
 ];
@@ -159,6 +165,7 @@ const AUTO_SUBJECT = [
   /^\s*(re:\s*)?(automatic (reply|response)|auto[- ]?reply|autoreply|auto:)/i,
   /^\s*(re:\s*)?out[- ]of[- ]office\b/i,
   /^\s*(re:\s*)?\bOOO\b/i,
+  /^\s*holiday\s*$/i,
   /^\s*(undelivered mail|delivery status notification|mail delivery)/i,
   // The same convention in the other four markets we mail.
   /^\s*(re:\s*)?(abwesenheit|abwesenheitsnotiz)/i,
@@ -166,6 +173,50 @@ const AUTO_SUBJECT = [
   /^\s*(re:\s*)?(r[ée]ponse automatique|absence du bureau)/i,
   /^\s*(re:\s*)?(risposta automatica|fuori sede)/i,
 ];
+
+/**
+ * Where the venue's own words stop and ours begin.
+ *
+ * THE most important function in this file, and it did not exist. Every reply
+ * carries our original email quoted beneath it, and our original email is the
+ * most commercially enthusiastic text in the conversation — "Premier League",
+ * "leagues", "predict each matchweek", "still free". So the classifier was
+ * reading our own sales copy as if the venue had written it.
+ *
+ * The Punch Bowl Ale House replied, on 21 Sep 2026, with one word: "no". It was
+ * stored as `positive_interested`, because BARE_NO requires the whole body to be
+ * the rejection and the quoted original defeated it, after which POSITIVE
+ * matched our own words. It then stood for a month as the campaign's only
+ * positive reply. A short decline plus a quoted original is the single commonest
+ * shape a cold-email reply takes, so this was not an edge case — it was the
+ * default path.
+ *
+ * Cuts at the first quote marker. Conservative by design: if no marker is
+ * found the text is returned untouched, so a reply that quotes nothing is
+ * never truncated.
+ */
+export function stripQuotedReply(raw: string | null | undefined): string {
+  const text = String(raw ?? "").replace(/\r\n/g, "\n");
+  const markers: RegExp[] = [
+    /^\s*-{2,}\s*original message\s*-{2,}/im,
+    /^\s*_{10,}\s*$/m,                       // Outlook's horizontal divider
+    /^\s*-{3,}\s*forwarded message\s*-{3,}/im,
+    /^\s*on .{0,120}\bwrote:\s*$/im,          // "On 21 Sep 2026, X wrote:"
+    /^\s*(from|van|de|von|da):\s*.+<[^>]+@[^>]+>/im,   // a quoted header block
+    /^\s*(from|sent|to|subject):\s*.+$\n^\s*(from|sent|to|subject):/im,
+    /^\s*>/m,                                 // plain-text quoting
+    /^\s*\*?from:\*?\s/im,
+  ];
+  let cut = text.length;
+  for (const m of markers) {
+    const hit = m.exec(text);
+    if (hit && hit.index < cut) cut = hit.index;
+  }
+  let body = text.slice(0, cut);
+  // Drop a trailing signature block ("-- " on its own line, by convention).
+  body = body.replace(/\n-{2,}\s*\n[\s\S]*$/, "");
+  return body.trim();
+}
 
 /** Bare rejections that carry no other content. */
 const BARE_NO = /^\s*(no|nope|nah|not interested|no thanks?|unsubscribe)\s*[.!]?\s*$/i;
@@ -176,7 +227,9 @@ export function classifyReply(
   raw: string | null | undefined,
   subject?: string | null,
 ): Classification {
-  const text = String(raw ?? "").trim();
+  // The venue's words only. Everything below the first quote marker is our own
+  // email coming back at us, and it is the most positive text in the thread.
+  const text = stripQuotedReply(raw);
   const subj = String(subject ?? "").trim();
 
   // 0. The subject line, when it announces itself. Checked before everything —
