@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from "vitest";
 import { prefilter, type PlaceResult } from "@/lib/prospecting";
-import { mockScore, type ContactScrape } from "@/lib/enrichment";
+import { mockScore, type ContactScrape , pickEmail } from "@/lib/enrichment";
 import { campaignFor, languageFor, competitionFor } from "@/lib/instantly";
 import { slugify, advances } from "@/lib/venueDb";
 
@@ -121,5 +121,62 @@ describe("funnel status only moves forward", () => {
   });
   it("blocks a late open event from demoting a paying customer", () => {
     expect(advances("active", "opened")).toBe(false);
+  });
+});
+
+describe("pickEmail prefers the venue's own domain", () => {
+  // The recovery case. A Marston's pub prints the group alias all over its own
+  // site, so without a host preference we re-select the address that bounced.
+  const html = `
+    <p>Bookings: keeperslodge.leicester@marstons.co.uk</p>
+    <p>General enquiries: info@keeperslodgepub.co.uk</p>
+    <p>Head office: bookings.enquiries@marstons.co.uk</p>`;
+
+  it("picks the own-domain address when a host is given", () => {
+    expect(pickEmail(html, "keeperslodgepub.co.uk")).toBe("info@keeperslodgepub.co.uk");
+    expect(pickEmail(html, "www.keeperslodgepub.co.uk")).toBe("info@keeperslodgepub.co.uk");
+  });
+
+  it("behaves exactly as before when no host is given", () => {
+    // Generic-mailbox preference, unchanged for live enrichment.
+    expect(pickEmail(html)).toBe("info@keeperslodgepub.co.uk");
+    expect(pickEmail("<p>sales@group.co.uk</p><p>hello@pub.co.uk</p>")).toBe("hello@pub.co.uk");
+  });
+
+  it("falls back to the generic preference when the venue publishes nothing of its own", () => {
+    const groupOnly = "<p>keeperslodge.leicester@marstons.co.uk</p>";
+    expect(pickEmail(groupOnly, "keeperslodgepub.co.uk")).toBe("keeperslodge.leicester@marstons.co.uk");
+  });
+
+  it("accepts a subdomain of the venue's own host", () => {
+    expect(pickEmail("<p>info@mail.pub.co.uk</p><p>x@group.com</p>", "pub.co.uk"))
+      .toBe("info@mail.pub.co.uk");
+  });
+});
+
+describe("a filename is not an email domain", () => {
+  it("rejects the stylesheet that reached fourteen venue records", () => {
+    // url(data:font;base64,…@1-awesome-menu-147f5c7c74fb.css) matched EMAIL_RE,
+    // and the junk list only excluded .png, .jpg and .webp.
+    expect(pickEmail("<p>x@1-awesome-menu-147f5c7c74fb.css</p>")).toBe(null);
+  });
+
+  it.each([
+    "a@styles.css", "a@app.js", "a@logo.svg", "a@photo.jpeg", "a@font.woff2",
+    "a@bundle.map", "a@index.php", "a@page.html", "a@menu.pdf", "a@clip.mp4",
+  ])("rejects %s", (e) => {
+    expect(pickEmail(`<p>${e}</p>`)).toBe(null);
+  });
+
+  it("rejects a numeric or malformed TLD", () => {
+    expect(pickEmail("<p>a@1.2.3.4</p>")).toBe(null);
+    expect(pickEmail("<p>a@host.c0m</p>")).toBe(null);
+  });
+
+  it("still accepts every TLD the campaign actually mails", () => {
+    for (const e of ["info@pub.co.uk", "info@bar.com", "info@bar.es", "info@bar.fr",
+                     "info@bar.it", "hello@thelongshot.bar", "a@venue.london", "a@x.pub"]) {
+      expect(pickEmail(`<p>${e}</p>`)).toBe(e);
+    }
   });
 });

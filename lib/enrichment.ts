@@ -37,13 +37,39 @@ function anthropic(): Anthropic {
 }
 
 // ── 1. Contact scraping ───────────────────────────────────────
-const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+/**
+ * The trailing lookahead matters. Without it the TLD class `[a-zA-Z]{2,}` stops
+ * at the first digit, so `clip.mp4` is extracted as `clip.mp` and `font.woff2`
+ * as `font.woff` — both truncating into something that looks like a real
+ * domain. Refusing to match when an alphanumeric follows kills that whole class
+ * at the source rather than trying to list the results.
+ */
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?![a-zA-Z0-9])/g;
 
 /** Addresses that are never a venue's real inbox. */
 // ^\d+@ catches chain-internal pub-code addresses (5751@greeneking.co.uk
 // bounced on 31 Aug and four siblings were pulled before sending): numeric
 // local parts are routing codes scraped off websites, not monitored inboxes.
-const JUNK_EMAIL = /(sentry|wixpress|example|yourdomain|domain\.com|\.png|\.jpg|\.webp|godaddy|squarespace|wordpress|@2x)|^\d+@/i;
+const JUNK_EMAIL = /(sentry|wixpress|example|yourdomain|domain\.com|godaddy|squarespace|wordpress|@2x)|^\d+@/i;
+
+/**
+ * A filename is not a domain.
+ *
+ * EMAIL_RE happily matches `url(data:font;base64,x@1-awesome-menu-147f5c7c74fb.css)`
+ * and the old junk list only excluded three image extensions, so fourteen
+ * venues went into the CRM with a stylesheet as their contact domain. Testing
+ * the TLD rather than listing extensions closes the whole class: a real TLD is
+ * letters only, and none of these are.
+ */
+const FILE_TLD = /\.(css|js|mjs|cjs|json|xml|svg|png|jpe?g|webp|gif|avif|ico|woff2?|ttf|eot|otf|map|php|aspx?|html?|pdf|mp4|webm|zip)$/i;
+
+/** A plausible public TLD: letters, two or more, and not a known file suffix. */
+const BAD_TLD = (email: string) => {
+  const dom = email.split("@")[1] ?? "";
+  if (FILE_TLD.test(dom)) return true;
+  const tld = dom.split(".").pop() ?? "";
+  return !/^[a-z]{2,24}$/i.test(tld);
+};
 
 /** Generic mailboxes are fine — a pub's info@ is usually the owner's inbox. */
 const PREFERRED = ["info@", "hello@", "contact@", "manager@", "owner@", "office@", "mail@"];
@@ -60,7 +86,22 @@ export interface ContactScrape {
  * address). Deliberately forgiving: any failure returns empty rather than
  * throwing, because one bad site must not stop a 500-venue batch.
  */
-export async function scrapeContact(website: string | null): Promise<ContactScrape> {
+export async function scrapeContact(
+  website: string | null,
+  /**
+   * When given, an address on THIS host wins over the generic-mailbox
+   * preference below.
+   *
+   * Needed to recover the 134 venues held by the ownership rule. A Marston's
+   * pub prints `keeperslodge.leicester@marstons.co.uk` all over its own site,
+   * so picking the most prominent or most generic address just re-selects the
+   * group alias that bounced. What we want is the address on the venue's own
+   * domain, if it publishes one at all.
+   *
+   * Omitted everywhere else, so live enrichment behaves exactly as before.
+   */
+  preferHost?: string | null,
+): Promise<ContactScrape> {
   const empty: ContactScrape = { email: null, pageText: "", sportSignals: [], socials: {} };
   if (!website) return empty;
 
@@ -78,7 +119,7 @@ export async function scrapeContact(website: string | null): Promise<ContactScra
   const text = stripHtml(combined);
 
   return {
-    email:        pickEmail(combined),
+    email:        pickEmail(combined, preferHost),
     pageText:     text.slice(0, 6000),
     sportSignals: detectSportSignals(text),
     socials: {
@@ -114,10 +155,29 @@ function findContactUrl(html: string, base: string): string | null {
   try { return new URL(hit, base).toString(); } catch { return null; }
 }
 
-function pickEmail(html: string): string | null {
+export function pickEmail(html: string, preferHost?: string | null): string | null {
   const found = [...new Set((html.match(EMAIL_RE) ?? []).map((e) => e.toLowerCase()))]
-    .filter((e) => !JUNK_EMAIL.test(e));
+    .filter((e) => !JUNK_EMAIL.test(e) && !BAD_TLD(e));
   if (!found.length) return null;
+
+  // An address on the venue's own domain beats a prettier one belonging to
+  // somebody else. Within that set the generic-mailbox preference still
+  // applies, because a pub's info@ really is usually the owner's inbox.
+  const host = String(preferHost ?? "").toLowerCase().replace(/^www\./, "");
+  if (host) {
+    const own = found.filter((e) => {
+      const d = e.split("@")[1] ?? "";
+      return d === host || d.endsWith(`.${host}`);
+    });
+    if (own.length) {
+      for (const p of PREFERRED) {
+        const hit = own.find((e) => e.startsWith(p));
+        if (hit) return hit;
+      }
+      return own[0];
+    }
+  }
+
   for (const p of PREFERRED) {
     const hit = found.find((e) => e.startsWith(p));
     if (hit) return hit;
