@@ -148,7 +148,12 @@ h("5. replies");
 row("human replies (today)", today?.unique_replies ?? 0);
 row("auto-replies (today)", today?.unique_replies_automatic ?? 0);
 row("received records today", received.filter((e) => onDay(e.timestamp_created ?? e.created_at)).length);
-row("human replies (lifetime)", leads.filter((l) => Number(l.email_reply_count ?? 0) > 0).length);
+// NOT human replies. Instantly's email_reply_count counts autoresponders too,
+// and four of our five "replies" are robots. The classified split lives in
+// scripts/outreach-funnel.mjs; labelling it honestly here beats repeating a
+// number that reads as five interested venues when the truth is zero.
+row("replies incl. automated (life)", leads.filter((l) => Number(l.email_reply_count ?? 0) > 0).length);
+row("  classified human", "see outreach-funnel.mjs — currently 0 positive, 1 negative, 4 automated");
 for (const e of received.filter((e) => onDay(e.timestamp_created ?? e.created_at))) {
   console.log(`     from ${e.from_address_email ?? "?"} — ${String(e.subject ?? "").slice(0, 70)}`);
 }
