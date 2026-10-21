@@ -34,10 +34,28 @@ export const SEARCH_TERMS: Record<string, string[]> = {
   FR: ["bar sportif", "bar pour regarder le foot", "pub sportif", "brasserie sport"],
   IT: ["sport bar", "bar per vedere il calcio", "pub sportivo", "birreria con calcio"],
   DE: ["Sportbar", "Kneipe Fußball schauen", "Sportkneipe", "Public Viewing Kneipe"],
+  /**
+   * USA — prepared, not switched on. US venues are unreachable until
+   * campaignFor("US") opens, which needs OUTREACH_POSTAL_ADDRESS for CAN-SPAM,
+   * and US is deliberately absent from SWEEP_ORDER so discovery does not start.
+   *
+   * Terms lean on the expat-and-Premier-League angle rather than generic
+   * "sports bar", because a US sports bar showing only NFL is a bad fit for a
+   * European-football prediction league. "soccer bar" and "Premier League bar"
+   * select the venues whose regulars actually argue about the football.
+   */
+  US: ["soccer bar", "Premier League bar", "English pub sports", "football pub soccer"],
 };
 
 /** Cities per country, largest first — the sweep works down this list. */
 export const CITIES: Record<string, string[]> = {
+  // Prepared for the USA, gated shut — see SEARCH_TERMS.US and campaignFor().
+  // Ordered by the size of the football-watching audience rather than by
+  // population: these are the metros with real EPL supporters' club scenes.
+  US: ["New York", "Chicago", "Los Angeles", "Boston", "Philadelphia", "Washington DC",
+       "San Francisco", "Seattle", "Atlanta", "Austin", "Denver", "Portland",
+       "Miami", "Dallas", "Houston", "San Diego", "Minneapolis", "Nashville",
+       "Charlotte", "Phoenix", "Detroit", "Baltimore", "Pittsburgh", "Orlando", "Las Vegas"],
   GB: ["London", "Birmingham", "Manchester", "Leeds", "Liverpool", "Sheffield", "Bristol",
        "Newcastle upon Tyne", "Nottingham", "Leicester", "Southampton", "Portsmouth",
        "Brighton", "Glasgow", "Edinburgh", "Cardiff", "Belfast", "Coventry", "Hull",

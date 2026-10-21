@@ -49,13 +49,80 @@ async function call(path: string, init: RequestInit = {}) {
 }
 
 /** ISO-2 country → the campaign that country's venues belong in. */
+/**
+ * Markets this campaign may cold-email, and why each is or is not on the list.
+ *
+ * This was a DENY-list — everything except DE and AT fell through to the default
+ * campaign. So a Canadian or American venue entering the CRM would have been
+ * mailable the moment discovery found one, with nobody deciding that. An
+ * allow-list makes adding a market a deliberate act, which is what it is: the
+ * rules differ per country and some of them carry seven-figure penalties.
+ */
+const MAILABLE: Record<string, string> = {
+  GB: "PECR/UK GDPR — corporate subscribers may be emailed on legitimate interest with opt-out",
+  IE: "ePrivacy — same basis as GB for corporate subscribers",
+  ES: "LSSI — B2B legitimate interest with opt-out",
+  FR: "CNIL — B2B permitted where the message relates to the recipient's profession",
+  IT: "GDPR — B2B legitimate interest with opt-out",
+};
+
+/**
+ * Explicitly refused, with the reason, so nobody re-adds one by accident.
+ *
+ * Canada is the one most likely to be added casually and must not be: CASL
+ * requires express or implied consent BEFORE a commercial message, not an
+ * opt-out afterwards, which makes it stricter than Germany. Penalties run to
+ * CAD 10m for a business.
+ */
+const REFUSED: Record<string, string> = {
+  DE: "UWG §7 — prior consent required for B2B email; phone only",
+  AT: "UWG §107 — prior consent required",
+  CH: "UWG Art. 3 — prior consent required",
+  CA: "CASL — consent required BEFORE sending, not opt-out after. Stricter than Germany.",
+  CN: "not viable — email is not the channel and deliverability is hopeless",
+  JP: "Act on Specified Commercial Transactions — opt-in required, corporate carve-out too narrow to rely on",
+};
+
+/**
+ * Markets permitted only once a condition is met. The USA is legal to cold-email
+ * under CAN-SPAM, but CAN-SPAM requires a valid physical postal address in every
+ * commercial message, and the current template has none. So US stays shut until
+ * OUTREACH_POSTAL_ADDRESS is configured — and that address must also appear in
+ * the email body, which is a copy change needing Dylan's approval.
+ */
+const CONDITIONAL: Record<string, { env: string; why: string }> = {
+  US: {
+    env: "OUTREACH_POSTAL_ADDRESS",
+    why: "CAN-SPAM §7704(a)(5) requires a valid physical postal address in the message",
+  },
+};
+
 export function campaignFor(country: string): string | null {
   const c = (country ?? "").toUpperCase();
-
-  // Hard block. Not a config value — a legal boundary.
-  if (c === "DE" || c === "AT") return null;
-
+  if (!c) return null;
+  if (REFUSED[c]) return null;
+  const cond = CONDITIONAL[c];
+  if (cond && !String(process.env[cond.env] ?? "").trim()) return null;
+  if (!MAILABLE[c] && !cond) return null;            // not an approved market
   return process.env[`INSTANTLY_CAMPAIGN_${c}`] || process.env.INSTANTLY_CAMPAIGN_DEFAULT || null;
+}
+
+/** Why a country is or is not mailable — for the operator, not for logic. */
+export function marketStatus(country: string): { mailable: boolean; reason: string } {
+  const c = (country ?? "").toUpperCase();
+  if (REFUSED[c]) return { mailable: false, reason: REFUSED[c] };
+  const cond = CONDITIONAL[c];
+  if (cond) {
+    const set = Boolean(String(process.env[cond.env] ?? "").trim());
+    return {
+      mailable: set,
+      reason: set
+        ? `${cond.why} — satisfied by ${cond.env}`
+        : `blocked until ${cond.env} is set: ${cond.why}`,
+    };
+  }
+  if (MAILABLE[c]) return { mailable: true, reason: MAILABLE[c] };
+  return { mailable: false, reason: "not an approved market — add it to MAILABLE deliberately" };
 }
 
 /** Country → the language its outreach is written in. */
