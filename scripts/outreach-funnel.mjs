@@ -83,6 +83,22 @@ await c.end();
 // ── join ────────────────────────────────────────────────────────────────────
 const byEmail = new Map(vrows.map((v) => [v.email, v]));
 const stepOf = (e) => { const p = String(e.step ?? "").split("_"); return p.length >= 2 ? Number(p[1]) + 1 : 1 };
+/**
+ * Which CTA this send used.
+ *
+ * Instantly's `step` is `sequence_step_variant`, all zero-based, so the THIRD
+ * field is the A/B arm: `0_0_0` is email 1 variant A, `0_0_1` is email 1
+ * variant B. Without reading it the CTA test is unmeasurable — we would run it
+ * and have no way to tell which arm produced a reply.
+ *
+ * A — "Free, and about a minute to set up: <link>"   (direct signup)
+ * B — "Reply \"yes\" and I'll send you a one-minute example"  (low friction)
+ */
+const ctaOf = (e) => {
+  const p = String(e.step ?? "").split("_");
+  if (p.length < 3 || Number(p[1]) !== 0) return null;   // only email 1 is split
+  return Number(p[2]) === 1 ? "B (reply CTA)" : "A (signup link)";
+};
 const toOf = (e) => String(Array.isArray(e.to_address_email_list)
   ? e.to_address_email_list[0] : e.to_address_email_list ?? "").toLowerCase().split(",")[0].trim();
 
@@ -101,11 +117,14 @@ for (const l of leads) {
     sends: 0, step1: 0, step2plus: 0,
     auto: 0, human: 0, positive: 0, negative: 0, needs_review: 0, unsub: 0,
     signed_up: Boolean(v.signed_up_at), launched: Boolean(v.onboarded_at), paid: Boolean(v.paid_at),
+    cta: null,
   });
 }
 for (const e of sent) {
   const r = rec.get(toOf(e)); if (!r) continue;
   r.sends++; if (stepOf(e) === 1) r.step1++; else r.step2plus++;
+  const cta = ctaOf(e);
+  if (cta) r.cta = cta;        // the arm this venue's first email used
 }
 for (const rp of rrows) {
   const r = rec.get(rp.email); if (!r) continue;
@@ -173,6 +192,37 @@ console.log(`  follow-ups sent            ${String(sum(gc, (r) => r.step2plus)).
 console.log(`  awaiting follow-up         ${String(gc.filter((r) => r.active && r.step1 > 0 && r.step2plus === 0).length).padStart(5)}`);
 console.log(`  sequence completed         ${String(gc.filter((r) => r.completed).length).padStart(5)}`);
 console.log(`  pushed, not yet contacted  ${String(gated.filter((r) => !r.contacted).length).padStart(5)}`);
+
+// ── the CTA test ────────────────────────────────────────────────────────────
+// Email 1 only; email 2 is identical in both arms, so this is one variable.
+{
+  const arms = [...new Set(gated.filter((r) => r.cta).map((r) => r.cta))].sort();
+  console.log(`\n${"═".repeat(72)}\nCTA TEST — email 1, verifier-gated only`);
+  console.log("  A: \"Free, and about a minute to set up: <link>\"");
+  console.log("  B: \"Reply 'yes' and I'll send you a one-minute example\"");
+  console.log("─".repeat(72));
+  if (!arms.length) {
+    console.log("  No split sends yet. Variant B went live 21 Oct 2026; the first");
+    console.log("  split send is the next one after that.");
+  } else {
+    console.log("  " + "arm".padEnd(18) + "sent  reach  human  pos  neg  signup");
+    for (const arm of arms) {
+      const g = gated.filter((r) => r.cta === arm);
+      const reach = g.filter((r) => !r.bounced);
+      console.log("  " + String(arm).padEnd(18) +
+        String(g.length).padStart(4) +
+        String(reach.length).padStart(7) +
+        String(sum(reach, (r) => r.human)).padStart(7) +
+        String(sum(reach, (r) => r.positive)).padStart(5) +
+        String(sum(reach, (r) => r.negative)).padStart(5) +
+        String(sum(reach, (r) => (r.signed_up ? 1 : 0))).padStart(8));
+    }
+    const n = gated.filter((r) => r.cta && !r.bounced).length;
+    console.log(`\n  ${n} reachable venues across both arms. A difference in reply rate`);
+    console.log(`  needs roughly 150 per arm to be worth believing at these volumes —`);
+    console.log(`  read the raw counts, not the percentages, until then.`);
+  }
+}
 
 // ── drill-down ──────────────────────────────────────────────────────────────
 if (!SUMMARY_ONLY) {
