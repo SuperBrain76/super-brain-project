@@ -46,7 +46,15 @@ export async function GET(req: NextRequest) {
   // Same accept-either set as /api/admin/venue-state: any read-only
   // observability secret unlocks it, and `A || B` is deliberately not used —
   // that collapse is what silently 401'd the poller for eleven days.
-  const accepted = [process.env.VENUE_STATE_SECRET, process.env.MARKETING_API_SECRET, process.env.CRON_SECRET]
+  // OUTREACH_WATCHDOG_SECRET is scoped to the n8n watchdog alone.
+  //
+  // The other three are marked Sensitive in Vercel, which means write-only —
+  // they cannot be read back by anyone, including from the dashboard. So
+  // "copy VENUE_STATE_SECRET into n8n" was an impossible instruction. A
+  // dedicated value can be minted and written to both ends without ever being
+  // read, and scoping it to the watchdog means rotating it breaks nothing else.
+  const accepted = [process.env.OUTREACH_WATCHDOG_SECRET, process.env.VENUE_STATE_SECRET,
+                    process.env.MARKETING_API_SECRET, process.env.CRON_SECRET]
     .filter((s): s is string => !!s)
     .map((s) => `Bearer ${s}`);
   if (!accepted.length || !accepted.includes(req.headers.get("authorization") ?? "")) {
