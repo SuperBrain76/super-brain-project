@@ -45,8 +45,36 @@ jobs:
             exit 1
           fi
 
-          case "$HEAD" in
-            "CAMPAIGN STARVED"|"HIGH BOUNCE RISK")
-              echo "::error::$HEAD — $BODY"; exit 1 ;;
-          esac
-          echo "Campaign is active. Headline: $HEAD"
+          # WHAT THIS MAY AND MAY NOT FIRE ON.
+          #
+          # It fired six times a day on its first night, on HIGH BOUNCE RISK
+          # computed from sends made before the ownership gate existed — a
+          # number that could not fall until new sends displaced it, over a
+          # condition the ramp was already handling by holding itself at 12.
+          # Dylan got two emails about nothing he could act on at 2am. An alarm
+          # that does that is in the spam folder within a week, and then the one
+          # night it means "the campaign stopped" nobody looks.
+          #
+          # So the bar is: not self-correcting, AND actionable now.
+          #   campaign not sending   -> always (checked above; nothing else sees it)
+          #   bounces on CURRENT     -> yes; the gate is failing and sending must stop
+          #     sends (last 7 days)
+          #   nothing left to send   -> only when the queue AND the buffer are both
+          #                             empty. A queue drained between pushes is
+          #                             normal and the supply job refills it.
+          # Everything else belongs in the morning brief, which reports it all.
+          RECENT=$(printf '%s' "$BODY" | sed -n 's/.*"recent_7d_pct":\([0-9.]*\).*/\1/p')
+          QUEUED=$(printf '%s' "$BODY" | sed -n 's/.*"queued_in_instantly":\([0-9]*\).*/\1/p')
+          BUFFER=$(printf '%s' "$BODY" | sed -n 's/.*"local_buffer":\([0-9]*\).*/\1/p')
+
+          if printf '%s' "$BODY" | grep -q '"HIGH BOUNCE RISK"'; then
+            echo "::error::Current sends are bouncing — ${RECENT:-?}% of venues contacted in the last 7 days. The ownership gate is not holding. Stop sending and find the failing class before the domain takes the damage."
+            exit 1
+          fi
+
+          if [ "${QUEUED:-1}" = "0" ] && [ "${BUFFER:-1}" = "0" ]; then
+            echo "::error::Nothing left to send anywhere: 0 queued in Instantly AND 0 in the buffer. Discovery or the push has stopped — this will not fix itself."
+            exit 1
+          fi
+
+          echo "Campaign is active. Headline: $HEAD (queued=${QUEUED:-?} buffer=${BUFFER:-?} recent-bounce=${RECENT:-n/a}%)"

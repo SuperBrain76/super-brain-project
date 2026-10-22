@@ -360,6 +360,47 @@ export async function trailingBounceRate(window = 30): Promise<number | null> {
 }
 
 /**
+ * Bounce rate among leads contacted in the last `days` days.
+ *
+ * The forward-looking measure, and the one an ALARM must use. `trailingBounceRate`
+ * looks at the last N contacted whenever they happened, so on 22 Oct 2026 it
+ * read 6.7% — made up entirely of sends from before the ownership gate existed,
+ * a number that cannot improve until new sends push the old ones out of the
+ * window. The alarm fired on it every four hours and would have done so for
+ * three days, on a condition already handled by the ramp holding at 12.
+ *
+ * This answers the different question: are the emails we are sending NOW
+ * bouncing? Null when nothing has been contacted in the window, which is the
+ * honest answer after a pause and correctly raises nothing.
+ */
+export async function recentBounceRate(days = 7): Promise<{ pct: number | null; contacted: number; bounced: number }> {
+  const id = process.env.INSTANTLY_CAMPAIGN_DEFAULT;
+  if (!id) throw new InstantlyError("INSTANTLY_CAMPAIGN_DEFAULT missing");
+  let items: any[] = [];
+  let after: string | undefined;
+  do {
+    const page = await call("/leads/list", {
+      method: "POST",
+      body: JSON.stringify({ campaign: id, limit: 100, ...(after ? { starting_after: after } : {}) }),
+    });
+    items = items.concat(page.items ?? []);
+    after = page.next_starting_after;
+  } while (after && items.length < 5000);
+
+  const cutoff = Date.now() - days * 864e5;
+  const recent = items.filter((l) => {
+    const t = Date.parse(String(l.timestamp_last_contact ?? ""));
+    return Number.isFinite(t) && t >= cutoff;
+  });
+  const bounced = recent.filter((l) => Number(l.status) === -1).length;
+  return {
+    pct: recent.length >= 10 ? (bounced / recent.length) * 100 : null,
+    contacted: recent.length,
+    bounced,
+  };
+}
+
+/**
  * Days since `epochISO` on which at least one email actually went out.
  *
  * Counts real sending, not elapsed time: a weekend, a suspension or an empty

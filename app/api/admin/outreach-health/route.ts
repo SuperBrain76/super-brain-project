@@ -30,7 +30,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { admin } from "@/lib/venueDb";
-import { campaignState, campaignQueue, dailySends, senderHealth, trailingBounceRate } from "@/lib/instantly";
+import { campaignState, campaignQueue, dailySends, senderHealth, trailingBounceRate, recentBounceRate } from "@/lib/instantly";
 import { schedulePhase, type HealthState } from "@/lib/outreachSchedule";
 
 export const runtime = "nodejs";
@@ -61,9 +61,10 @@ export async function GET(req: NextRequest) {
   // ── Instantly, if it can be read at all ────────────────────────────────
   let campaign: any = null, queue: any = null, daily: Array<{ date: string; sent: number }> = [];
   let sender: any = null, instantlyError: string | null = null, trailing: number | null = null;
+  let recent: { pct: number | null; contacted: number; bounced: number } = { pct: null, contacted: 0, bounced: 0 };
   try {
-    [campaign, queue, daily, sender, trailing] = await Promise.all([
-      campaignState(), campaignQueue(), dailySends(), senderHealth(), trailingBounceRate(30),
+    [campaign, queue, daily, sender, trailing, recent] = await Promise.all([
+      campaignState(), campaignQueue(), dailySends(), senderHealth(), trailingBounceRate(30), recentBounceRate(7),
     ]);
   } catch (e: any) {
     instantlyError = String(e?.message ?? e).slice(0, 200);
@@ -133,12 +134,28 @@ export async function GET(req: NextRequest) {
   // sends made before the ownership gate existed, and reporting it as the risk
   // had the brief showing 13.8% on a campaign whose last 50 sends were at 4%.
   const bounceRate = trailing !== null ? +trailing.toFixed(1) : lifetimeRate;
-  if (bounceRate !== null && bounceRate >= BOUNCE_THRESHOLD_PCT) {
+
+  // HIGH BOUNCE RISK is about what we are sending NOW, not about a historical
+  // average. The trailing-30 figure includes sends made before the ownership
+  // gate existed and cannot fall until new sends displace them, so raising the
+  // state on it meant raising it continuously for days over something already
+  // handled — the ramp holds itself at 12 on exactly the same number.
+  if (recent.pct !== null && recent.pct >= BOUNCE_THRESHOLD_PCT) {
     states.add("HIGH BOUNCE RISK");
     notes.push(
-      `Bounce rate over the last 30 contacted is ${bounceRate}%, against a ` +
-      `${BOUNCE_THRESHOLD_PCT}% ceiling (lifetime ${lifetimeRate}%). ` +
-      `The daily-limit ramp stays shut until this is under 3%.`,
+      `${recent.bounced} of ${recent.contacted} venues contacted in the last 7 days bounced ` +
+      `(${recent.pct.toFixed(1)}%), against a ${BOUNCE_THRESHOLD_PCT}% ceiling. These are ` +
+      `CURRENT sends — the ownership gate is not holding. Stop and find the failing class.`,
+    );
+  } else if (bounceRate !== null && bounceRate >= BOUNCE_THRESHOLD_PCT) {
+    // Worth saying, not worth waking anyone: it is history, and it clears
+    // itself as clean sends push the old ones out of the window.
+    notes.push(
+      `Bounce rate over the last 30 contacted is ${bounceRate}% (lifetime ${lifetimeRate}%), ` +
+      `but ${recent.contacted === 0 ? "nothing has been contacted in the last 7 days" :
+         `only ${recent.bounced} of ${recent.contacted} recent contacts bounced`}. ` +
+      `This is historical and clears as clean sends replace it. The ramp stays at ` +
+      `its floor until it is under 3%.`,
     );
   }
 
@@ -208,8 +225,11 @@ export async function GET(req: NextRequest) {
     },
     bounce: {
       contacted, bounced,
-      rate_pct: bounceRate,                 // trailing — the one that governs
+      rate_pct: bounceRate,                 // trailing-30 — what governs the ramp
       trailing_30_pct: trailing !== null ? +trailing.toFixed(1) : null,
+      recent_7d_pct: recent.pct !== null ? +recent.pct.toFixed(1) : null,  // what raises the alarm
+      recent_7d_contacted: recent.contacted,
+      recent_7d_bounced: recent.bounced,
       lifetime_pct: lifetimeRate,
       threshold_pct: BOUNCE_THRESHOLD_PCT,
     },
